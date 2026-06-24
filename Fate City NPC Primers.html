@@ -1,0 +1,1286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fate City: 1999 — Persons of Interest</title>
+    <style>
+      :root {
+        --paper: #f3efe6;
+        --paper-dark: #e8e1d2;
+        --ink: #1c1a17;
+        --ink-soft: #4a4540;
+        --gold: #b8902f;
+        --line: #cfc6b0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #15130f;
+        font-family: "Georgia", "Times New Roman", serif;
+        color: var(--ink);
+        padding: 32px 16px 80px;
+      }
+      .cover {
+        max-width: 760px;
+        margin: 0 auto 40px;
+        text-align: center;
+        color: #f3efe6;
+        padding: 60px 20px 40px;
+      }
+      .cover h1 {
+        font-family: "Arial Black", "Arial", sans-serif;
+        font-size: 52px;
+        letter-spacing: 4px;
+        margin: 0;
+        background: linear-gradient(180deg, #f3d27a, #b8902f);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: 0 0 30px rgba(184, 144, 47, 0.3);
+      }
+      .cover h2 {
+        font-family: "Arial", sans-serif;
+        font-weight: 400;
+        letter-spacing: 6px;
+        font-size: 18px;
+        color: #b8902f;
+        margin: 10px 0 18px;
+        text-transform: uppercase;
+      }
+      .cover p {
+        font-style: italic;
+        color: #a9a08e;
+        font-size: 15px;
+        max-width: 520px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+      .cover-rule {
+        width: 120px;
+        height: 2px;
+        background: var(--gold);
+        margin: 24px auto;
+      }
+
+      .card {
+        max-width: 760px;
+        margin: 0 auto 36px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        box-shadow:
+          0 18px 40px rgba(0, 0, 0, 0.45),
+          0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+        position: relative;
+        overflow: hidden;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.015) 0px,
+          transparent 1px,
+          transparent 2px
+        );
+        pointer-events: none;
+      }
+      .stripe {
+        height: 6px;
+      }
+
+      .dossier-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 28px 0;
+        font-family: "Arial", sans-serif;
+        font-size: 11px;
+        letter-spacing: 1px;
+        color: var(--ink-soft);
+      }
+      .dossier-head .stamp {
+        font-weight: 700;
+        letter-spacing: 1.5px;
+      }
+      .hr {
+        margin: 10px 28px 0;
+        border: none;
+        border-top: 2px solid var(--rule, var(--gold));
+      }
+
+      .name-block {
+        padding: 18px 28px 4px;
+      }
+      .name-block h2 {
+        font-family: "Arial Black", "Arial", sans-serif;
+        font-size: 30px;
+        margin: 0;
+        letter-spacing: 0.5px;
+        color: #191713;
+      }
+      .name-block .epithet {
+        font-style: italic;
+        font-size: 15px;
+        margin: 6px 0 0;
+        color: var(--accent, var(--gold));
+      }
+
+      .portrait-wrap {
+        text-align: center;
+        padding: 18px 28px 4px;
+      }
+      .portrait-wrap img {
+        max-width: 340px;
+        width: 100%;
+        border: 1px solid var(--line);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        filter: saturate(1.02) contrast(1.02);
+      }
+
+      .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        padding: 14px 28px 6px;
+      }
+      .gallery .thumb {
+        width: 92px;
+        height: 92px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        cursor: pointer;
+        background: #fff;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .gallery .thumb:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+      }
+      .gallery .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .lightbox {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 9, 7, 0.92);
+        z-index: 999;
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+        cursor: zoom-out;
+      }
+      .lightbox.open {
+        display: flex;
+      }
+      .lightbox img {
+        max-width: 92vw;
+        max-height: 88vh;
+        box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+        border: 1px solid #444;
+        cursor: default;
+      }
+      .lightbox .caption {
+        position: absolute;
+        bottom: 24px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #cfc6b0;
+        font-family: "Arial", sans-serif;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+      }
+      .lightbox .close-x {
+        position: absolute;
+        top: 18px;
+        right: 26px;
+        color: #cfc6b0;
+        font-family: "Arial", sans-serif;
+        font-size: 28px;
+        cursor: pointer;
+        line-height: 1;
+      }
+      .lightbox .nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #cfc6b0;
+        font-family: "Arial", sans-serif;
+        font-size: 36px;
+        cursor: pointer;
+        padding: 10px 16px;
+        user-select: none;
+      }
+      .lightbox .nav-arrow.prev {
+        left: 6px;
+      }
+      .lightbox .nav-arrow.next {
+        right: 6px;
+      }
+
+      .stats {
+        margin: 18px 28px 4px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 10px 0;
+      }
+      .stat-row {
+        display: flex;
+        gap: 14px;
+        padding: 5px 0;
+        font-family: "Arial", sans-serif;
+        font-size: 13px;
+      }
+      .stat-row .label {
+        flex: 0 0 130px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: var(--accent, var(--gold));
+        text-transform: uppercase;
+        font-size: 11.5px;
+      }
+      .stat-row .value {
+        color: #222;
+      }
+
+      .section {
+        padding: 6px 28px 0;
+      }
+      .section h3 {
+        font-family: "Arial", sans-serif;
+        font-size: 13px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #222;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+        margin: 20px 0 10px;
+      }
+      .section p {
+        font-size: 15.5px;
+        line-height: 1.65;
+        color: #2a2722;
+        margin: 0 0 12px;
+      }
+      ul.hooks {
+        margin: 0 0 6px;
+        padding-left: 0;
+        list-style: none;
+      }
+      ul.hooks li {
+        font-size: 15px;
+        line-height: 1.55;
+        color: #2a2722;
+        margin: 0 0 9px;
+        padding-left: 20px;
+        position: relative;
+      }
+      ul.hooks li::before {
+        content: "\2013";
+        position: absolute;
+        left: 0;
+        color: var(--accent, var(--gold));
+        font-weight: 700;
+      }
+
+      blockquote {
+        margin: 16px 28px 6px;
+        padding: 6px 0 6px 18px;
+        border-left: 3px solid var(--accent, var(--gold));
+        font-style: italic;
+        font-size: 15px;
+        color: #3a3630;
+      }
+      blockquote .cite {
+        display: block;
+        margin-top: 6px;
+        font-style: normal;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        color: #8a8275;
+        font-family: "Arial", sans-serif;
+        text-transform: uppercase;
+      }
+
+      .footer-pad {
+        height: 24px;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          padding: 0;
+        }
+        .card {
+          box-shadow: none;
+          page-break-after: always;
+        }
+        .cover {
+          color: #1c1a17;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cover">
+      <h1>FATE CITY: 1999</h1>
+      <h2>Persons of Interest</h2>
+      <div class="cover-rule"></div>
+      <p>
+        This compilation gathers everything the crew has been able to piece
+        together — public record, tabloid gossip, underworld whisper, and a few
+        sources that shouldn't exist — on five names that keep surfacing in Fate
+        City's night. Treat anything sourced to Nocturnal with suspicion. Treat
+        anything sourced to the Agency with more.
+      </p>
+    </div>
+
+    <!-- ===================== CASVEN ELM ===================== -->
+    <div class="card" style="--rule: #1f6fb2; --accent: #1f6fb2">
+      <div class="stripe" style="background: #1f6fb2"></div>
+      <div class="dossier-head">
+        <span>FILE NO. CE&#8209;001</span>
+        <span class="stamp" style="color: #1f6fb2"
+          >PUBLIC RECORD &mdash; POLITICAL</span
+        >
+      </div>
+      <hr class="hr" />
+      <div class="name-block">
+        <h2>GOVERNOR CASVEN ELM</h2>
+        <p class="epithet">
+          &ldquo;Every vote has a price. I just happen to know
+          everyone&rsquo;s.&rdquo;
+        </p>
+      </div>
+      <div class="gallery" data-gallery="casven">
+        <div
+          class="thumb"
+          data-full="images/casven_profile.png"
+          data-caption="Governor Casven Elm"
+        >
+          <img src="images/casven_profile.png" alt="Governor Casven Elm" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/casven_02.png"
+          data-caption="Governor Casven Elm"
+        >
+          <img src="images/casven_02.png" alt="Governor Casven Elm" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/casven_03.png"
+          data-caption="Governor Casven Elm"
+        >
+          <img src="images/casven_03.png" alt="Governor Casven Elm" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/casven_04.png"
+          data-caption="Governor Casven Elm"
+        >
+          <img src="images/casven_04.png" alt="Governor Casven Elm" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/casven_05.png"
+          data-caption="Governor Casven Elm"
+        >
+          <img src="images/casven_05.png" alt="Governor Casven Elm" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/casven_06.png"
+          data-caption="Governor Casven Elm"
+        >
+          <img src="images/casven_06.png" alt="Governor Casven Elm" />
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat-row">
+          <span class="label">Species</span><span class="value">Human</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Role</span
+          ><span class="value">Governor of Fate City</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Affiliation</span
+          ><span class="value"
+            >Office of the Governor (officially); ties to Nocturnal
+            (alleged)</span
+          >
+        </div>
+        <div class="stat-row">
+          <span class="label">Notoriety Lane</span
+          ><span class="value">Wealth / Influence</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Threat Profile</span
+          ><span class="value"
+            >Political &mdash; moves the board, doesn&rsquo;t fight on it</span
+          >
+        </div>
+      </div>
+      <div class="section">
+        <h3>Overview</h3>
+        <p>
+          Casven Elm did not win his election so much as inherit it. Every
+          credible opponent withdrew in the final weeks of the race, citing
+          &ldquo;personal reasons&rdquo; that nobody in the press pool believed
+          for a second. He took office on a wave of relief rather than
+          enthusiasm &mdash; the relief of a city that just wanted the campaign
+          to be over. He has governed exactly the way that start would suggest:
+          smoothly, expensively, and with an unnerving lack of friction.
+        </p>
+        <p>
+          What makes Elm dangerous is that none of this requires him to be cold.
+          He&rsquo;s warm, easy to talk to, genuinely curious about whoever
+          he&rsquo;s speaking with &mdash; the kind of man people walk away from
+          feeling like they were truly listened to. That warmth was never an act
+          he learned for politics; it&rsquo;s simply who he is, and it makes the
+          rest of what he does almost impossible to resent in the room, even
+          when you know better the moment you&rsquo;ve left it.
+        </p>
+        <p>
+          Elm doesn&rsquo;t pretend money isn&rsquo;t the language of Fate City
+          politics. He speaks it fluently and without embarrassment. Permits get
+          approved. Investigations lose momentum. Zoning maps redraw themselves
+          around the right donors. None of it is ever traceable to him directly
+          &mdash; that&rsquo;s the whole skill.
+        </p>
+        <h3>The Currency of Appearances</h3>
+        <p>
+          Elm is unmarried, and has no visible interest in changing that. What
+          he wants instead, consistently, is to be seen &mdash; at the right
+          premiere, the right gala, the right photo op, on the arm of someone
+          whose presence does more talking than he ever has to. His current
+          preferred companion is <strong>Elarthis L&ouml;fgren</strong>, and the
+          arrangement is never discussed in terms that would make it sound like
+          what it is. He doesn&rsquo;t ask. He invites. If she declines, the
+          next permit for her production happens to find its way into a slower
+          queue, for reasons nobody can quite identify. If she accepts, the
+          tabloids speculate about what&rsquo;s behind it, and Elm will neither
+          confirm nor deny anything about his or her personal life &mdash; a
+          silence that costs him nothing and could cost her everything,
+          depending on how the story gets told.
+        </p>
+        <p>
+          This is, in miniature, how Elm exercises power across the entire city:
+          never a threat, never a demand, just an invitation with a consequence
+          quietly attached to declining it.
+        </p>
+        <h3>The Underworld Question</h3>
+        <p>
+          The rumor that won&rsquo;t die is that Elm&rsquo;s mass-resignation
+          miracle was arranged, not earned, and that the arranging was done by
+          people who run nightclubs for a living. Nothing has ever stuck to him.
+          No ledger, no recording, no witness who stays a witness for long.
+          Whether that&rsquo;s because the rumor is false or because Elm is
+          simply better protected than anyone he might owe a favor to is the
+          kind of question that gets people quietly reassigned. He has, on more
+          than one occasion, been seen relaxed and unguarded in the company of
+          <strong>Meros Zarzer</strong> &mdash; though &ldquo;seen&rdquo; is
+          doing a lot of work in that sentence, since neither man has ever been
+          caught anywhere a camera could prove it meant something.
+        </p>
+        <h3>How He Touches the Crew</h3>
+        <ul class="hooks">
+          <li>
+            Can make Wanted Level evaporate for the right price or the right
+            favor &mdash; but he never forgets who asked, or why.
+          </li>
+          <li>
+            Has zero personal interest in demons, rifts, or the supernatural
+            underworld &mdash; his interest is purely in who controls the
+            narrative around them.
+          </li>
+          <li>
+            A photo of the crew with Elm is either the best PR they&rsquo;ll
+            ever get or a noose they tied themselves, depending on what he wants
+            people to think it means.
+          </li>
+          <li>
+            If Nocturne really does have him on a string, he is a back door into
+            the city&rsquo;s criminal hierarchy that nobody official will ever
+            admit exists.
+          </li>
+          <li>
+            He has no interest in the crew&rsquo;s business specifically &mdash;
+            but if any of them are ever photographed somewhere useful to him, an
+            invitation may follow, and declining it has a cost just like it does
+            for Elarthis.
+          </li>
+        </ul>
+      </div>
+      <blockquote>
+        I don&rsquo;t do favors. I do investments. The return is just rarely
+        cash.
+        <span class="cite"
+          >Gov. Casven Elm, fundraiser remarks (off the record, somehow on the
+          record anyway)</span
+        >
+      </blockquote>
+      <div class="footer-pad"></div>
+    </div>
+
+    <!-- ===================== ELARTHIS ===================== -->
+    <div class="card" style="--rule: #8c3a5d; --accent: #8c3a5d">
+      <div class="stripe" style="background: #8c3a5d"></div>
+      <div class="dossier-head">
+        <span>FILE NO. EL&#8209;002</span>
+        <span class="stamp" style="color: #8c3a5d"
+          >TABLOID / ENTERTAINMENT &mdash; UNVERIFIED</span
+        >
+      </div>
+      <hr class="hr" />
+      <div class="name-block">
+        <h2>ELARTHIS L&Ouml;FGREN</h2>
+        <p class="epithet">
+          The most beautiful woman in Fate City has never once taken the safe
+          route home.
+        </p>
+      </div>
+      <div class="gallery" data-gallery="elarthis">
+        <div
+          class="thumb"
+          data-full="images/elarthis_profile.png"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_profile.png" alt="Elarthis Löfgren" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/elarthis_01.jpg"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_01.jpg" alt="Elarthis Löfgren" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/elarthis_02.png"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_02.png" alt="Elarthis Löfgren" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/elarthis_03.png"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_03.png" alt="Elarthis Löfgren" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/elarthis_04.png"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_04.png" alt="Elarthis Löfgren" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/elarthis_05.png"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_05.png" alt="Elarthis Löfgren" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/elarthis_06.png"
+          data-caption="Elarthis Löfgren"
+        >
+          <img src="images/elarthis_06.png" alt="Elarthis Löfgren" />
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat-row">
+          <span class="label">Species</span><span class="value">Dryad</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Role</span><span class="value">Actress</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Affiliation</span
+          ><span class="value">None formal &mdash; fiercely independent</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Notoriety Lane</span
+          ><span class="value">Fame</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Threat Profile</span
+          ><span class="value"
+            >Low combat / High chaos &mdash; she creates situations, not
+            violence</span
+          >
+        </div>
+      </div>
+      <div class="section">
+        <h3>Overview</h3>
+        <p>
+          Elarthis L&ouml;fgren is, by every measurable industry metric, at the
+          top of her field. Three leading roles in the last two years, a face
+          that stops traffic &mdash; literally, on at least one documented
+          occasion &mdash; and a fanbase that treats her like royalty. By every
+          measurable personal metric, she is bored out of her mind and actively
+          trying to fix that.
+        </p>
+        <p>
+          She free-climbs hotel fa&ccedil;ades for fun. She&rsquo;s been
+          photographed in the passenger seat of cars going speeds that would end
+          most acting careers permanently. Her publicist has resigned twice and
+          come back twice, presumably because the money is better than the ulcer
+          is bad.
+        </p>
+        <h3>The Adrenaline Problem</h3>
+        <p>
+          Nobody who works with Elarthis describes her as reckless to her face
+          &mdash; only behind her back, and only once, because she has a memory
+          for that sort of thing. What she actually is, by every account that
+          doesn&rsquo;t come from a tabloid, is a woman who has had every
+          comfort money can buy and discovered that none of them feel like
+          anything. The night life of Fate City &mdash; the racing, the rifts,
+          the rumors of demons &mdash; isn&rsquo;t a guilty pleasure for her.
+          It&rsquo;s the only thing left that feels real.
+        </p>
+        <h3>The Invitation She Can&rsquo;t Quite Refuse</h3>
+        <p>
+          There is exactly one part of Elarthis&rsquo;s life she does not
+          control, and it has nothing to do with stunts or speed. Governor
+          <strong>Casven Elm</strong> invites her to the premieres, the galas,
+          the rooms where photographs get taken &mdash; and an invitation from
+          Elm is never quite a request. Decline, and the next permit for her
+          production finds its way into a slower queue, for reasons nobody can
+          quite identify. Accept, and the tabloids do the rest of the work
+          themselves, speculating about a relationship Elm will neither confirm
+          nor deny &mdash; a silence that costs him nothing and follows her
+          everywhere. It is possible, and increasingly likely to anyone who
+          watches her closely, that her appetite for risk is the one place she
+          gets to choose the danger herself.
+        </p>
+        <h3>How She Touches the Crew</h3>
+        <ul class="hooks">
+          <li>
+            Showing up to a street race or demon event with Elarthis in the car
+            is a Fame-lane Notoriety windfall &mdash; and a magnet for exactly
+            the kind of attention the crew doesn&rsquo;t want.
+          </li>
+          <li>
+            She will ask to come along. She will ask again if refused. She does
+            not take no as a permanent answer, only a temporary inconvenience.
+          </li>
+          <li>
+            Paparazzi follow her, which means paparazzi follow whatever
+            she&rsquo;s standing next to &mdash; a free flashbulb spotlight on a
+            crew trying to stay unlicensed and unbothered.
+          </li>
+          <li>
+            She has genuine star power to offer in trade: a public endorsement,
+            a leaked photo with the right framing, an introduction to people the
+            crew otherwise can&rsquo;t reach.
+          </li>
+          <li>
+            If the crew ever gets between her and one of Elm&rsquo;s invitations
+            &mdash; or gives her a reason to say no to one &mdash; they may not
+            realize whose permit just slowed down because of it.
+          </li>
+        </ul>
+      </div>
+      <blockquote>
+        Everyone keeps asking if I&rsquo;m trying to get myself killed.
+        I&rsquo;m trying to find out if I can still feel anything before I do.
+        <span class="cite"
+          >Elarthis L&ouml;fgren, late-night radio interview</span
+        >
+      </blockquote>
+      <div class="footer-pad"></div>
+    </div>
+
+    <!-- ===================== SOLENNE GALVÈRE ===================== -->
+    <div class="card" style="--rule: #5b1a1a; --accent: #8c2e2e">
+      <div class="stripe" style="background: #5b1a1a"></div>
+      <div class="dossier-head">
+        <span>FILE NO. SG&#8209;003</span>
+        <span class="stamp" style="color: #8c2e2e"
+          >CORPORATE / FASHION &mdash; PUBLIC</span
+        >
+      </div>
+      <hr class="hr" />
+      <div class="name-block">
+        <h2>SOLENNE GALV&Egrave;RE</h2>
+        <p class="epithet">
+          &ldquo;I didn&rsquo;t get here by being patient with people who waste
+          my time. I got here by not having any.&rdquo;
+        </p>
+      </div>
+      <div class="gallery" data-gallery="solenne">
+        <div
+          class="thumb"
+          data-full="images/solenne_profile.png"
+          data-caption="Solenne Galvère"
+        >
+          <img src="images/solenne_profile.png" alt="Solenne Galvère" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/solenne_01.jpg"
+          data-caption="Solenne Galvère"
+        >
+          <img src="images/solenne_01.jpg" alt="Solenne Galvère" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/solenne_02.png"
+          data-caption="Solenne Galvère"
+        >
+          <img src="images/solenne_02.png" alt="Solenne Galvère" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/solenne_03.png"
+          data-caption="Solenne Galvère"
+        >
+          <img src="images/solenne_03.png" alt="Solenne Galvère" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/solenne_04.png"
+          data-caption="Solenne Galvère"
+        >
+          <img src="images/solenne_04.png" alt="Solenne Galvère" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/solenne_05.png"
+          data-caption="Solenne Galvère"
+        >
+          <img src="images/solenne_05.png" alt="Solenne Galvère" />
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat-row">
+          <span class="label">Species</span><span class="value">Human</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Role</span
+          ><span class="value">CEO, Galv&egrave;re</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Affiliation</span
+          ><span class="value"
+            >Galv&egrave;re (fashion house / model agency)</span
+          >
+        </div>
+        <div class="stat-row">
+          <span class="label">Notoriety Lane</span
+          ><span class="value">Wealth</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Threat Profile</span
+          ><span class="value"
+            >Economic &mdash; she can make or break a reputation with one phone
+            call</span
+          >
+        </div>
+      </div>
+      <div class="section">
+        <h3>Overview</h3>
+        <p>
+          Solenne Galv&egrave;re built her brand from nothing into one of the
+          names that defines what &ldquo;money&rdquo; looks like in Fate City,
+          and she did it on a schedule that left no room for anyone who
+          couldn&rsquo;t keep up. She is not cruel for the sake of it &mdash;
+          she simply has no patience left over for people, ideas, or meetings
+          that don&rsquo;t move Galv&egrave;re forward. Everyone who has ever
+          pitched her something and watched her check the time mid-sentence
+          understands exactly where they stand.
+        </p>
+        <p>
+          She does not collect friends. She collects assets &mdash; designers,
+          faces, locations, moments &mdash; and she is extremely good at
+          recognizing one before anyone else does.
+        </p>
+        <h3>What Actually Matters to Her</h3>
+        <p>
+          One thing, and one thing only: whatever helps Galv&egrave;re. Charity,
+          scandal, glamour, controversy &mdash; all of it is raw material if it
+          photographs well and sells product, and all of it is noise if it
+          doesn&rsquo;t. She has used tragedy as a campaign backdrop without
+          blinking and dropped a decade-long brand ambassador over a single bad
+          headline. Both decisions made business sense to her, and that&rsquo;s
+          the only kind of sense she&rsquo;s interested in making.
+        </p>
+        <h3>How She Touches the Crew</h3>
+        <ul class="hooks">
+          <li>
+            She does not care who the crew is until they&rsquo;re useful &mdash;
+            at which point she will move fast, and expect them to move faster.
+          </li>
+          <li>
+            A sponsorship, an exclusive shoot, or a Galv&egrave;re-branded car
+            wrap is real Wealth-lane Notoriety &mdash; and real strings.
+          </li>
+          <li>
+            She has zero interest in demons or rifts except as an aesthetic
+            &mdash; she will absolutely try to turn &ldquo;unlicensed
+            supernatural street racers&rdquo; into a marketing campaign.
+          </li>
+          <li>
+            Wasting her time is the one unforgivable sin. A crew that&rsquo;s
+            late, vague, or unprepared in a meeting with her will not get a
+            second one.
+          </li>
+        </ul>
+      </div>
+      <blockquote>
+        Tell me what it&rsquo;s worth or get out of my office. I have eleven
+        minutes and you&rsquo;ve used four of them.
+        <span class="cite"
+          >Solenne Galv&egrave;re, attributed by a former Galv&egrave;re
+          intern</span
+        >
+      </blockquote>
+      <div class="footer-pad"></div>
+    </div>
+
+    <!-- ===================== MEROS ZARZER ===================== -->
+    <div class="card" style="--rule: #2e1a47; --accent: #7a4fc9">
+      <div class="stripe" style="background: #2e1a47"></div>
+      <div class="dossier-head">
+        <span>FILE NO. MZ&#8209;004</span>
+        <span class="stamp" style="color: #7a4fc9"
+          >AGENCY INTELLIGENCE &mdash; RESTRICTED</span
+        >
+      </div>
+      <hr class="hr" />
+      <div class="name-block">
+        <h2>MEROS ZARZER</h2>
+        <p class="epithet">
+          The city&rsquo;s two licensed paths to power both answer to someone.
+          Nocturnal answers to no one but Meros.
+        </p>
+      </div>
+      <div class="gallery" data-gallery="meros">
+        <div
+          class="thumb"
+          data-full="images/meros_profile.png"
+          data-caption="Meros Zarzer"
+        >
+          <img src="images/meros_profile.png" alt="Meros Zarzer" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/meros_02.png"
+          data-caption="Meros Zarzer"
+        >
+          <img src="images/meros_02.png" alt="Meros Zarzer" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/meros_03.png"
+          data-caption="Meros Zarzer"
+        >
+          <img src="images/meros_03.png" alt="Meros Zarzer" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/meros_04.png"
+          data-caption="Meros Zarzer"
+        >
+          <img src="images/meros_04.png" alt="Meros Zarzer" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/meros_05.png"
+          data-caption="Meros Zarzer"
+        >
+          <img src="images/meros_05.png" alt="Meros Zarzer" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/meros_06.png"
+          data-caption="Meros Zarzer"
+        >
+          <img src="images/meros_06.png" alt="Meros Zarzer" />
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat-row">
+          <span class="label">Species</span><span class="value">Tiefling</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Role</span
+          ><span class="value">Head of Nocturnal</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Affiliation</span
+          ><span class="value"
+            >Nocturnal &mdash; nightclubs, and considerably more than that</span
+          >
+        </div>
+        <div class="stat-row">
+          <span class="label">Notoriety Lane</span
+          ><span class="value">Street Rep</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Threat Profile</span
+          ><span class="value"
+            >High &mdash; controls territory, muscle, and information</span
+          >
+        </div>
+      </div>
+      <div class="section">
+        <h3>Overview</h3>
+        <p>
+          Meros Zarzer runs Nocturnal the way a conductor runs an orchestra
+          &mdash; rarely touching an instrument himself, never once losing the
+          room. Nocturne, the club that carries his organization&rsquo;s name
+          into the open, is the legitimate face: velvet rope, gold trim, a line
+          around the block every night the city has lights left to shine. What
+          happens underneath it, and in a dozen other rooms across Fate City
+          that don&rsquo;t have a sign out front, is the actual business.
+        </p>
+        <p>
+          He is one of the only major players in the city who has never bothered
+          to deny what he is. There&rsquo;s no PR campaign to manage when
+          everyone already knows, and knowing doesn&rsquo;t change the fact that
+          half the city&rsquo;s economy &mdash; legal and otherwise &mdash; runs
+          through something he owns a piece of.
+        </p>
+        <h3>The Third Path</h3>
+        <p>
+          Officially, anyone with power in Fate City has two roads: the Agency,
+          or law enforcement. Unofficially, there has always been a third
+          &mdash; and Meros built it. Nocturnal offers protection, resources,
+          and a place to exist for the unlicensed and unregistered, in exchange
+          for loyalty, cuts, and the occasional job nobody licensed would touch.
+          It is not safety. It is a different shape of leash.
+        </p>
+        <h3>How He Touches the Crew</h3>
+        <ul class="hooks">
+          <li>
+            He is the most obvious answer to &ldquo;who do unlicensed
+            power-havers turn to&rdquo; &mdash; and the crew has spent this
+            whole campaign refusing every obvious answer.
+          </li>
+          <li>
+            Nocturnal&rsquo;s territory likely overlaps with where demon rifts
+            have been opening &mdash; Meros may know more about the 21 demons
+            than he&rsquo;s volunteering, and may want something specific in
+            return for it.
+          </li>
+          <li>
+            Working a job for Nocturnal raises Street Rep fast, but it ties the
+            crew to an organization the Agency would treat as a confirmed
+            hostile the moment it noticed.
+          </li>
+          <li>
+            He does not forget debts in either direction. A favor done for Meros
+            is banked. A favor he&rsquo;s owed is collected &mdash; eventually,
+            and on his timeline, never the crew&rsquo;s.
+          </li>
+        </ul>
+      </div>
+      <blockquote>
+        The Agency thinks they invented control. The cops think they invented
+        order. I just never bothered pretending it was anything but a deal.
+        <span class="cite"
+          >Meros Zarzer, overheard at Nocturne (source: a bartender who
+          didn&rsquo;t want their name used)</span
+        >
+      </blockquote>
+      <div class="footer-pad"></div>
+    </div>
+
+    <!-- ===================== SIMBELLE ===================== -->
+    <div class="card" style="--rule: #1a6e6e; --accent: #1a6e6e">
+      <div class="stripe" style="background: #1a6e6e"></div>
+      <div class="dossier-head">
+        <span>FILE NO. SB&#8209;005</span>
+        <span class="stamp" style="color: #1a6e6e"
+          >ENTERTAINMENT / TABLOID &mdash; UNVERIFIED</span
+        >
+      </div>
+      <hr class="hr" />
+      <div class="name-block">
+        <h2>SIM-BELLE</h2>
+        <p class="epithet">
+          Pop&rsquo;s brightest new &ldquo;bad girl&rdquo;, and the night life
+          of Fate City is more than happy to oblige her.
+        </p>
+      </div>
+      <div class="gallery" data-gallery="simbelle">
+        <div
+          class="thumb"
+          data-full="images/simbelle_profile.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_profile.png" alt="SimBelle" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/simbelle_01.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_01.png" alt="SimBelle" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/simbelle_02.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_02.png" alt="SimBelle" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/simbelle_03.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_03.png" alt="SimBelle" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/simbelle_04.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_04.png" alt="SimBelle" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/simbelle_05.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_05.png" alt="SimBelle" />
+        </div>
+        <div
+          class="thumb"
+          data-full="images/simbelle_06.png"
+          data-caption="SimBelle"
+        >
+          <img src="images/simbelle_06.png" alt="SimBelle" />
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-row">
+          <span class="label">Species</span><span class="value">Fairy</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Role</span><span class="value">Pop singer</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Affiliation</span
+          ><span class="value"
+            >Independent &mdash; signed to a label, loyal mostly to her own
+            brand</span
+          >
+        </div>
+        <div class="stat-row">
+          <span class="label">Notoriety Lane</span
+          ><span class="value">Fame</span>
+        </div>
+        <div class="stat-row">
+          <span class="label">Threat Profile</span
+          ><span class="value"
+            >Low combat / High volatility &mdash; image-driven, easily
+            provoked</span
+          >
+        </div>
+      </div>
+      <div class="section">
+        <h3>Overview</h3>
+        <p>
+          Sim-Belle arrived in Fate City&rsquo;s pop scene like she&rsquo;d been
+          launched out of a cannon, and she has not slowed down since. The voice
+          is real, the songs chart, and the persona &mdash; sharp-tongued,
+          unapologetic, dangerous to be around &mdash; sells just as hard as the
+          music does. Whether the persona and the person are the same thing is a
+          question her collaborators have very different answers to, usually
+          depending on how recently they worked with her.
+        </p>
+        <p>
+          More than one producer, choreographer, and opening act has used the
+          word &ldquo;difficult.&rdquo; None of them have stopped wanting to
+          work with her, because difficult sells, and Sim-Belle understands that
+          math better than the people complaining about it.
+        </p>
+        <h3>Cynthia, Off the Clock</h3>
+        <p>
+          Almost nobody outside her inner circle knows the name
+          <strong>Cynthia Belle</strong>, and fewer still have seen what she
+          looks like when nobody&rsquo;s pointing a lens at her: quiet, a little
+          worn down, dragging a bakery bag through the rain at midnight because
+          it&rsquo;s easier than being recognized in daylight. The temper is
+          real. So is the exhaustion underneath it. One of the only people who
+          gets both versions of her, unfiltered, is <strong>Ivara</strong>
+          &mdash; a friendship from before any of this that has somehow survived
+          everything this has become.
+        </p>
+        <h3>The Bad Girl Brand</h3>
+        <p>
+          What genuinely lights Sim-Belle up isn&rsquo;t the music
+          industry&rsquo;s usual machinery &mdash; it&rsquo;s Fate City&rsquo;s
+          night life itself: the racing, the rumors, the rifts, the danger that
+          the rest of the city tries to stay licensed and insured against. Every
+          bit of it is content to her, and good content for the bad-girl image
+          she&rsquo;s spent two years building. She doesn&rsquo;t need a reason
+          to get involved in something reckless. The reputational upside is
+          reason enough on its own.
+        </p>
+        <h3>A Pit Lane That Knows Her Real Name</h3>
+        <p>
+          Sim-Belle didn&rsquo;t discover the Night Crows for a music video or a
+          press stunt. She found them the way anyone does &mdash; through Ivara,
+          long before the cameras cared &mdash; and
+          <strong>Durn Thalgor</strong> and <strong>Tivy Glintspark</strong> are
+          some of the only people in her life who liked her before they knew who
+          she was. When the crew was hurting for money, it was Sim-Belle who
+          brought the problem to Ivara, who brought it to Vel, who fixed it
+          without a second thought. She has her own car in their pit lane and
+          her name on a license plate to prove it. Nobody at SKahn knows. Nobody
+          at the label knows either.
+        </p>
+        <h3>How She Touches the Crew</h3>
+        <ul class="hooks">
+          <li>
+            She will actively seek the crew out once she catches wind of them
+            &mdash; unlicensed, undocumented, racing demons in the dark is
+            exactly the story she wants attached to her name.
+          </li>
+          <li>
+            Public association with Sim-Belle is a fast, loud Fame-lane
+            Notoriety spike &mdash; and an equally fast, loud spike in unwanted
+            attention from police or Agency eyes.
+          </li>
+          <li>
+            Her temper is real and her loyalty is conditional on the crew
+            staying interesting; she will drop them the moment they stop being
+            useful to the brand, or air grievances publicly if she feels
+            disrespected.
+          </li>
+          <li>
+            She has genuine cultural reach the crew can&rsquo;t buy any other
+            way &mdash; a single name-drop from her could open doors that money
+            and street rep can&rsquo;t.
+          </li>
+          <li>
+            If the crew is ever in Night Crows&rsquo; orbit, they may meet
+            Cynthia before they ever realize Sim-Belle and Cynthia are the same
+            person &mdash; and how they handle that discovery matters more to
+            her than almost anything else they could do.
+          </li>
+        </ul>
+      </div>
+      <blockquote>
+        I don&rsquo;t chase trouble. Trouble in this city just happens to have
+        excellent taste.
+        <span class="cite">Sim-Belle, magazine profile</span>
+      </blockquote>
+      <div class="footer-pad"></div>
+    </div>
+
+    <div class="lightbox" id="lightbox">
+      <span class="close-x" id="lb-close">&times;</span>
+      <span class="nav-arrow prev" id="lb-prev">&#8249;</span>
+      <img id="lb-img" src="" alt="" />
+      <span class="nav-arrow next" id="lb-next">&#8250;</span>
+      <span class="caption" id="lb-caption"></span>
+    </div>
+
+    <script>
+      (function () {
+        var lightbox = document.getElementById("lightbox");
+        var lbImg = document.getElementById("lb-img");
+        var lbCaption = document.getElementById("lb-caption");
+        var currentGallery = [];
+        var currentIndex = 0;
+
+        function openLightbox(galleryName, index) {
+          var thumbs = Array.prototype.slice.call(
+            document.querySelectorAll(
+              '.gallery[data-gallery="' + galleryName + '"] .thumb',
+            ),
+          );
+          currentGallery = thumbs;
+          currentIndex = index;
+          showCurrent();
+          lightbox.classList.add("open");
+        }
+
+        function showCurrent() {
+          var thumb = currentGallery[currentIndex];
+          lbImg.src = thumb.getAttribute("data-full");
+          lbCaption.textContent = thumb.getAttribute("data-caption") || "";
+          var multi = currentGallery.length > 1;
+          document.getElementById("lb-prev").style.display = multi
+            ? "block"
+            : "none";
+          document.getElementById("lb-next").style.display = multi
+            ? "block"
+            : "none";
+        }
+
+        function closeLightbox() {
+          lightbox.classList.remove("open");
+          lbImg.src = "";
+        }
+
+        document.querySelectorAll(".gallery .thumb").forEach(function (thumb) {
+          thumb.addEventListener("click", function () {
+            var gallery = thumb.closest(".gallery");
+            var galleryName = gallery.getAttribute("data-gallery");
+            var thumbs = Array.prototype.slice.call(
+              gallery.querySelectorAll(".thumb"),
+            );
+            var idx = thumbs.indexOf(thumb);
+            openLightbox(galleryName, idx);
+          });
+        });
+
+        document
+          .getElementById("lb-close")
+          .addEventListener("click", closeLightbox);
+        lightbox.addEventListener("click", function (e) {
+          if (e.target === lightbox) closeLightbox();
+        });
+        document
+          .getElementById("lb-prev")
+          .addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (currentGallery.length < 2) return;
+            currentIndex =
+              (currentIndex - 1 + currentGallery.length) %
+              currentGallery.length;
+            showCurrent();
+          });
+        document
+          .getElementById("lb-next")
+          .addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (currentGallery.length < 2) return;
+            currentIndex = (currentIndex + 1) % currentGallery.length;
+            showCurrent();
+          });
+        document.addEventListener("keydown", function (e) {
+          if (!lightbox.classList.contains("open")) return;
+          if (e.key === "Escape") closeLightbox();
+          if (e.key === "ArrowLeft") document.getElementById("lb-prev").click();
+          if (e.key === "ArrowRight")
+            document.getElementById("lb-next").click();
+        });
+      })();
+    </script>
+  </body>
+</html>
