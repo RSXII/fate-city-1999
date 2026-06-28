@@ -65,6 +65,37 @@
         margin: 24px auto;
       }
 
+      .section-divider {
+        max-width: 760px;
+        margin: 56px auto 28px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .section-divider.first {
+        margin-top: 8px;
+      }
+      .section-divider::before,
+      .section-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(184, 144, 47, 0.55),
+          transparent
+        );
+      }
+      .section-divider-label {
+        font-family: "Arial", sans-serif;
+        font-size: 13px;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: #d8b86a;
+        white-space: nowrap;
+      }
+
       .card {
         max-width: 760px;
         margin: 0 auto 36px;
@@ -424,7 +455,114 @@
     <script>
       const NPCS = [
         {
+          id: "city-overview",
+          category: "briefing",
+          fileNo: "CO-000",
+          stamp: "ESSENTIAL BRIEFING — READ FIRST",
+          colors: {
+            rule: "#8a6a1f",
+            accent: "#b8902f",
+            stripe: "#8a6a1f",
+            stampColor: "#b8902f",
+          },
+          name: "FATE CITY",
+          epithet:
+            "Everyone in this city is selling something. The trick is figuring out what \u2014 and what it's actually going to cost you to buy it.",
+          images: ["images/fate_city_logo.png"],
+          stats: [
+            { label: "Currency", value: "Platinum (\u201cplat\u201d)" },
+            { label: "Districts", value: "Nineteen, and growing" },
+            {
+              label: "Tech Level",
+              value: "Modern-adjacent \u2014 Weave-fused, not chrome",
+            },
+            { label: "Population", value: "Dense, mixed, never fully counted" },
+            { label: "Defining Trait", value: "Everything has a price" },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Fate City sprawls across nineteen districts of glass towers, corporate logos, and street-level grit the glass towers would rather you not look at too closely. It runs modern \u2014 Wires in every pocket, plat in every transaction, traffic that never quite stops \u2014 filtered through Weave-tech instead of chrome: magitech grafted in close enough to skin that most of the city stopped noticing the seam years ago.",
+                "Dryads, elves, fairies, tieflings, and every other shape a person can apparently come in walk these streets doing the same ordinary, exhausted things everyone else does \u2014 which either means the city's population is far stranger than it looks, or far more ordinary than it advertises. Both readings have their believers.",
+                "Two paths officially exist for anyone who can do something the rest of the city can't: register with the Agency, or don't and hope nobody notices. Nocturnal quietly built a third option out of that gap. None of the three are advertised as a choice anyone should feel good about making.",
+              ],
+            },
+            {
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "The Wire in your pocket is the only thing standing between you and S.K.AM's network logging your location by default. Don't lose it, and don't hand it to anyone who'd know how to look inside it.",
+                "Plat moves everything here, including conversations. If a door isn't opening, you're either talking to the wrong person or not offering enough of it.",
+                "You'll meet plenty of names in this file before you meet them in person. Start wherever the work takes you \u2014 the city has more interest in all of you than you'll have time to return.",
+                "The Agency doesn't patrol so much as it notices. Staying off its radar is mostly about staying boring, right up until you can't afford to be.",
+              ],
+            },
+          ],
+          quote: {
+            text: "Everybody's got an angle in this city. The smart ones just never tell you what it costs until you're already in the room.",
+            cite: "Overheard, Fate City Radio call-in segment",
+          },
+        },
+
+        {
+          id: "bloomwork",
+          category: "briefing",
+          fileNo: "BW-015",
+          stamp: "CULTURAL INTELLIGENCE — TRENDING",
+          colors: {
+            rule: "#7a2048",
+            accent: "#c9527a",
+            stripe: "#7a2048",
+            stampColor: "#c9527a",
+          },
+          name: "&ldquo;BLOOMWORK&rdquo;",
+          epithet:
+            "Antlers, wings, horns, fins, bark for skin \u2014 half the city's wearing something it wasn't born with, and the other half stopped asking which half is which.",
+          images: ["images/fantac_magazine.png"],
+          stats: [
+            { label: "Status", value: "Citywide, and still climbing" },
+            {
+              label: "Cost",
+              value: "Plat up front; Seam-essence under the hood",
+            },
+            { label: "Fray Cost", value: "None \u2014 purely cosmetic" },
+            {
+              label: "Market Leaders",
+              value:
+                "S.K.AM Technologies (consumer); Galv\u00e8re (couture); a dozen budget storefronts (everything else)",
+            },
+            {
+              label: "Social Read",
+              value: "Normal to ask about. Not always normal to be asked back.",
+            },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Call it Bloomwork, call it getting Woven, call it whatever the boutique on the corner is branding it this season \u2014 the city's single biggest beauty trend right now is buying the look of a race you weren't born into. Antlers, fey ears, a tail, bark-grain skin, real feathers instead of a feather motif: all of it achievable in an afternoon chair, all of it pure Weave-fused cosmetic work, and none of it changes a single thing about what's actually underneath. No Fray cost, no Humanity on the line \u2014 just plat for the procedure and a draw on the city's already-finite Seam-essence supply, the same resource that keeps the lights on in half the magitech in this town.",
+                "S.K.AM Technologies runs the largest consumer line \u2014 glossy, mid-market, advertised on every surface a Wire can render an ad onto. Above that sits actual couture: Galv\u00e8re-sponsored work that costs what a car costs and reads like it the moment you walk into a room. Below it sits a dozen storefronts doing the same procedure for a fraction of the price, on equipment that's a generation behind and occasionally shows it.",
+              ],
+            },
+            {
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "It's a completely normal question in this city to ask whether someone's look is natural or bought. Nobody considers it rude. They might consider you naive for assuming it's the former.",
+                "None of this touches Fray. Whatever you choose to look like, your humanity isn't the currency being spent \u2014 your wallet and the city's Seam supply are.",
+                "A couture job and a budget job can produce the exact same antlers. They do not produce the exact same room when you walk into one wearing it.",
+                "Every so often, somebody's look turns out to be real instead of bought. Nobody ever expects it \u2014 which is exactly why it keeps working.",
+              ],
+            },
+          ],
+          quote: {
+            text: "Why be born when you can be designed?",
+            cite: "S.K.AM Technologies ad campaign, citywide Wire placement",
+          },
+        },
+
+        {
           id: "casven",
+          category: "person",
           fileNo: "CE-001",
           stamp: "PUBLIC RECORD — POLITICAL",
           colors: {
@@ -463,31 +601,15 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Casven Elm did not win his election so much as inherit it. Every credible opponent withdrew in the final weeks of the race, citing &ldquo;personal reasons&rdquo; that nobody in the press pool believed for a second. He took office on a wave of relief rather than enthusiasm — the relief of a city that just wanted the campaign to be over. He has governed exactly the way that start would suggest: smoothly, expensively, and with an unnerving lack of friction.",
-                "What makes Elm dangerous is that none of this requires him to be cold. He's warm, easy to talk to, genuinely curious about whoever he's speaking with — the kind of man people walk away from feeling like they were truly listened to. That warmth was never an act he learned for politics; it's simply who he is, and it makes the rest of what he does almost impossible to resent in the room, even when you know better the moment you've left it.",
-                "Elm doesn't pretend money isn't the language of Fate City politics. He speaks it fluently and without embarrassment. Permits get approved. Investigations lose momentum. Zoning maps redraw themselves around the right donors. None of it is ever traceable to him directly — that's the whole skill.",
-              ],
-            },
-            {
-              heading: "The Currency of Appearances",
-              paragraphs: [
-                "Elm is unmarried, and has no visible interest in changing that. What he wants instead, consistently, is to be seen — at the right premiere, the right gala, the right photo op, on the arm of someone whose presence does more talking than he ever has to. His current preferred companion is <strong>Elarthis L\u00f6fgren</strong>, and the arrangement is never discussed in terms that would make it sound like what it is. He doesn't ask. He invites.",
-                "This is, in miniature, how Elm exercises power across the entire city: never a threat, never a demand, just an invitation with a consequence quietly attached to declining it.",
-              ],
-            },
-            {
-              heading: "The Underworld Question",
-              paragraphs: [
-                "The rumor that won't die is that Elm's mass-resignation miracle was arranged, not earned, and that the arranging was done by people who run nightclubs for a living. Nothing has ever stuck to him. He has, on more than one occasion, been seen relaxed and unguarded in the company of <strong>Meros Zarzer</strong>.",
+                "Casven Elm is the Governor of Fate City — warm, well-liked, and somehow untouched by a scandal that should have ended his career before it started. He doesn't make threats or demands. He extends invitations, and declining one always seems to cost more than accepting ever would.",
               ],
             },
             {
               heading: "A Note From Your Benefactor",
               hooks: [
-                "Elm can make a stack of paperwork disappear for the right price or favor — but he keeps a ledger in his head of who asked, and why. Spend that currency carefully.",
-                "He has no real interest in the supernatural underworld for its own sake. What he cares about is who controls the story around it — keep that in mind if you ever find yourselves part of that story.",
+                "He doesn't seek people out — he notices them. Get seen somewhere useful, ideally on camera, and an invitation tends to follow.",
+                "He can make a stack of paperwork disappear for the right price or favor — but he keeps a ledger in his head of who asked, and why. Spend that currency carefully.",
                 "Being photographed with Elm cuts two ways. It can be the best exposure you'll ever get, or a leash you put on yourselves. He'll let you decide which it looks like, then quietly decide which it actually is.",
-                "If the rumors about Nocturne having a hold on him are true, he's a door into the city's criminal hierarchy that nobody official admits exists. Worth remembering, if you ever need that door.",
                 "He has no reason to know you exist yet. If you're ever somewhere useful to him — and photographed there — expect an invitation. Think carefully before declining one.",
               ],
             },
@@ -500,6 +622,7 @@
 
         {
           id: "elarthis",
+          category: "person",
           fileNo: "EL-002",
           stamp: "TABLOID / ENTERTAINMENT — UNVERIFIED",
           colors: {
@@ -521,10 +644,7 @@
             "images/elarthis_06.png",
           ],
           stats: [
-            {
-              label: "Species",
-              value: "Dryad — exceptionally rare in Fate City",
-            },
+            { label: "Species", value: "Dryad" },
             { label: "Role", value: "Actress" },
             {
               label: "Affiliation",
@@ -541,53 +661,16 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Elarthis L\u00f6fgren is, by every measurable industry metric, at the top of her field. By every measurable personal metric, almost none of her life is actually hers. The roles, the schedule, the image, the man she's seen on the arm of — all of it is managed by people who profit from managing it, and she has spent years being extremely good at making that arrangement look like glamour instead of what it is.",
-                "She free-climbs hotel fa\u00e7ades for fun. Her publicist has resigned twice and come back twice, presumably because the money is better than the ulcer is bad. Nobody who watches her do it walks away thinking it looks like fun, exactly — it looks like someone testing whether the ground is still there.",
-              ],
-            },
-            {
-              heading: "A Rare Thing, Long Before Famous",
-              paragraphs: [
-                "Dryads are vanishingly rare in Fate City &mdash; rare enough that long before Elarthis L\u00f6fgren had a career, she had an audience. Not a public, an audience: rooms full of people who wanted to see what one of her looked like up close, dressed nicely, doing something delightful. Nobody asked what she thought about much of anything. They asked her to dance, or sing, or simply stand somewhere with good light, and she learned to be extraordinary at exactly that, because it was the only kind of attention available to her.",
-                "By the time someone offered her an actual career, the arrangement was so familiar it barely registered as a change. She had been somebody's centerpiece for as long as she could remember. This was just the version with better lighting and a bigger room.",
-              ],
-            },
-            {
-              heading: "The Cage Dressed as a Career",
-              paragraphs: [
-                "None of this is new for her, which might be the saddest part of it. The free-climbing, the stunts, the reputation for never taking the safe way anywhere &mdash; none of it is a brand strategy. It's the only place left where she still feels like a person making her own choice instead of hitting a mark someone else set for her. Everywhere else in her life, the choice has already been made before she's consulted: which premiere, which photographer, whose arm she'll be on, what story the headline will tell the next morning. The danger is the one thing nobody scripted for her, which is exactly why she keeps going back to it.",
-              ],
-            },
-            {
-              heading: "Whether It's Worth It",
-              paragraphs: [
-                "By any measure anyone could name, she has everything &mdash; fame, money, a life people would trade their own to have for even a week. None of it has ever once been hers to keep, choose, or walk away from, and there are nights, increasingly, where she seems to be doing the math on whether that trade was ever actually a good one.",
-                "She wouldn't survive saying that out loud, so she doesn't &mdash; not to her publicist, not to whoever she's photographed on the arm of this month, possibly not even to herself anywhere quiet enough to really hear it. But the climbing's gotten a little more reckless lately, and the people who watch closely have started to wonder whether she's looking for an answer, or just trying to outrun the question.",
-              ],
-            },
-            {
-              heading: "The Invitation She Can't Quite Refuse",
-              paragraphs: [
-                "Governor <strong>Casven Elm</strong> invites her to the premieres, the galas, the rooms where photographs get taken — and an invitation from Elm is never quite a request. It is, in miniature, the entire shape of her life: dressed as a choice, built so that declining costs more than agreeing ever does.",
-              ],
-            },
-            {
-              heading: "Somewhere Nobody's Looking",
-              paragraphs: [
-                "Somewhere in Fate City, behind a fence or a forgotten property line nobody's gotten around to developing yet, is a patch of ground that doesn't belong to her schedule, her story, or anyone's camera. On the rare afternoons she manages to disappear completely &mdash; no assistant, no car, no call sheet &mdash; that's where she goes.",
-                "As far as anyone can tell, it's the only place in her life where nobody is watching her. For a woman who's been something to look at since long before she was famous, that might be the rarest thing she has left.",
+                "Elarthis L\u00f6fgren is Fate City's biggest movie star — gorgeous, famous, and far less in control of her own life than the magazines let on. She free-climbs hotel fa\u00e7ades for fun, drags paparazzi wherever she goes, and is regularly seen on Governor Casven Elm's arm in an arrangement nobody discusses honestly.",
               ],
             },
             {
               heading: "A Note From Your Benefactor",
               hooks: [
+                "She'll ask to come along to anything that looks dangerous or interesting. She'll ask again if you say no.",
                 "Showing up somewhere reckless with Elarthis in the car is a fast windfall of fame — and a magnet for exactly the kind of attention you don't want. Weigh that before you let her in.",
-                "She'll ask to come along to anything that looks dangerous or interesting. She'll ask again if you say no — not because she's chasing a thrill for its own sake, but because the asking itself is the closest thing to freedom she gets most weeks.",
                 "Paparazzi follow her everywhere, which means they follow whatever she's standing next to. Plan accordingly.",
                 "She has real star power to trade — a public endorsement, a leaked photo, an introduction you couldn't otherwise reach. Worth cultivating if you can stand the attention.",
-                "If you ever end up between her and one of Elm's invitations, be aware whose favor just quietly shifted because of it — and be aware that for her, refusing him is rarely as simple as it sounds.",
-                "If you've already crossed paths with Sim-Belle, the contrast should tell you everything: one of them broke every rule anyone gave her and built a career out of it. The other one followed every rule she was ever given, and still ended up exactly this caged. Decide for yourselves which of them actually got the better deal.",
-                "If you ever find the place she disappears to when nobody's watching, think hard before deciding what that's worth to you. It isn't much of a secret to look at. To her, it's the only hour of her week nobody's getting paid to watch.",
               ],
             },
           ],
@@ -599,6 +682,7 @@
 
         {
           id: "solenne",
+          category: "person",
           fileNo: "SG-003",
           stamp: "CORPORATE / FASHION — PUBLIC",
           colors: {
@@ -640,46 +724,7 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Solenne Galv\u00e8re didn't build Galv\u00e8re. She inherited Maison Galv\u00e8re, the old-money couture house her family had run for two generations before her, and at thirty-one she is still young enough that most of the city's established money assumed she'd be easy to manage once she finally took the seat. They were wrong exactly once, which turned out to be enough.",
-                "What she runs now carries the family name and almost nothing else of the family's character. She is not cruel for the sake of it — she simply has no patience left over for people, ideas, or meetings that don't move the company forward. Everyone who has ever pitched her something and watched her check the time mid-sentence understands exactly where they stand. She does not collect friends. She collects assets — designers, faces, locations, moments — and she is extremely good at recognizing one before anyone else does.",
-              ],
-            },
-            {
-              heading: "What the Family Put on the Table",
-              paragraphs: [
-                "Maison Galv\u00e8re, in her parents' hands, was the kind of old-money house that needed the city's blessing to operate at the scale they wanted &mdash; permits, zoning, the right rooms to be seen in, the right people not looking too closely at the books. None of that comes free in Fate City, and none of it ever has. Whoever actually held that leverage over the family has never been named, on or off the record. Only the fact that someone did, consistently, for years, has ever surfaced at all.",
-                "Solenne was already an adult, already the company's brightest young face, the year her parents decided what staying in that leverage's good graces was going to cost. Nobody has ever found a photograph, a memo, or a single witness willing to go on record about the years that followed &mdash; and the harder anyone has looked for a name to put to it, the more thoroughly that name seems to have been scrubbed from every account that still exists.",
-                "She has never confirmed a single detail of what those years cost her, past four words she'll allow on the record: &ldquo;I got out.&rdquo; Nobody who has pushed for more than that has gotten a second interview. Nobody who has pushed for a name has gotten one either.",
-              ],
-            },
-            {
-              heading: "What the Industry Took First",
-              paragraphs: [
-                "Before there was a Galv\u00e8re, there was just Solenne &mdash; a face the industry liked and a girl with none of the protection that should have come with it. She arrived in Fate City the way most of them do: certain that talent was the only currency that mattered, and young enough to actually believe it. It didn't take her long to learn the real rate card. Every door that opened for her had already been measured against what she was willing to pay to walk through it, and the people doing the measuring were never the ones who ended up paying.",
-                "She has never confirmed a single detail of what those years actually cost her, past the three words she'll allow on the record: &ldquo;I got out.&rdquo; Nobody who has pushed for more than that has gotten a second interview.",
-                "Nobody credible has ever put a name to who did the measuring, and Solenne has never offered one. But the shape of it lines up uncomfortably well with a pattern this file has already documented elsewhere &mdash; the kind where nothing is ever a demand, everything is an invitation, and declining costs more than agreeing ever does. Make of it what you will. In two decades of overlapping Fate City social calendars, Solenne Galv\u00e8re has never once been photographed alone in a room with Governor Casven Elm. That is either a coincidence or the most carefully maintained absence in this entire file.",
-              ],
-            },
-            {
-              heading: "The House She Built",
-              paragraphs: [
-                "What she did with what was left of her, eventually, was build something with her own name on the door and her own hand on every decision made under it &mdash; not so the industry would stop taking, but so she would never again be the one it took from. Galv\u00e8re is not a redemption story. It is a different seat at the same table.",
-                "She runs it exactly as ruthlessly as the industry once ran her, and there's a version of this where surviving the machine should have made her gentler with the people moving through it now. That isn't the version that happened. She decided, somewhere in those years nobody gets to ask about, that there is no version of this business that doesn't extract something from everyone in it &mdash; and the only choice that was ever actually hers was which side of that exchange she'd stand on. She picked the side that gets to walk away.",
-                "It's the closest thing to a soft spot anyone has ever found in her, and it isn't soft at all: she will not conduct a first meeting with a new face alone if she can avoid it, and Galv\u00e8re's contracts are unusually, almost obsessively explicit about exactly what is and isn't being asked of the person signing them. Her legal team has never been told why that matters so much to her. They stopped asking a long time ago.",
-              ],
-            },
-            {
-              heading: "What Actually Matters to Her",
-              paragraphs: [
-                "One thing, and one thing only: whatever helps Galv\u00e8re. Charity, scandal, glamour, controversy — all of it is raw material if it photographs well and sells product, and all of it is noise if it doesn't. She has used tragedy as a campaign backdrop without blinking and dropped a decade-long brand ambassador over a single bad headline. Both decisions made business sense to her, and that's the only kind of sense she's interested in making.",
-              ],
-            },
-            {
-              heading: "Where the Discarded Go",
-              paragraphs: [
-                "What happens to a face once it stops being useful to Galv\u00e8re is a question Solenne has never had to answer in public, because nobody with enough leverage has ever asked it where she could hear. The honest answer is unglamorous: most of them simply disappear from view, with no severance beyond whatever the contract technically requires, and no further interest from anyone once the asset has stopped appreciating.",
-                "A few of them &mdash; the ones with nothing left and nowhere the city's money economy will still take them &mdash; eventually find their way to exactly the kind of discretion Nocturnal sells, paying with whatever they have left for the version of safety Galv\u00e8re no longer has a reason to provide. Solenne has never personally sent anyone there. She has also never once had to.",
-                "She didn't build this machine to stop being someone's discarded asset. She took it from the people who made her one, and kept it running exactly the way they did. If that irony has ever once bothered her, she has never let it slow her down.",
+                "Solenne Galv\u00e8re inherited Maison Galv\u00e8re, the old-money fashion house her family ran for two generations, and rebuilt it into something leaner, colder, and entirely her own. She's brilliant and ruthless, with no patience left over for anyone who isn't useful to her — and she refuses, almost obsessively, to ever conduct a first meeting with a new face alone. Nobody on her legal team has ever been told why.",
               ],
             },
             {
@@ -689,10 +734,6 @@
                 "A sponsorship, an exclusive shoot, or a Galv\u00e8re-branded car wrap is a real foothold in the money world. It also comes with real strings — read whatever she puts in front of you twice.",
                 "She'll turn anything unusual into a marketing angle if it photographs well, including you. Decide in advance how much of yourselves you're willing to let her sell.",
                 "Wasting her time is the one unforgivable sin. Show up late, vague, or unprepared and you won't get a second meeting.",
-                "Whoever held leverage over her family all those years has never been named \u2014 not by her, and not by anyone else who might actually know. If you ever find out, think hard before you decide what to do with it.",
-                "If you ever meet someone Galv\u00e8re discarded, they may have more reason to talk to you than they ever had reason to talk to her. Listen carefully \u2014 it's rarely just industry gossip.",
-                "Bring her someone who survived something close to what she did, and you may see the only kind of mercy she's capable of. Don't expect to see it offered twice.",
-                "She'd tell you, if she ever told you anything this honest, that she got out and nobody else has to. Watch closely whether that's actually true once you're inside Galv\u00e8re's orbit.",
               ],
             },
           ],
@@ -704,6 +745,7 @@
 
         {
           id: "meros",
+          category: "person",
           fileNo: "MZ-004",
           stamp: "AGENCY INTELLIGENCE — RESTRICTED",
           colors: {
@@ -740,23 +782,7 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Meros Zarzer runs Nocturnal the way a conductor runs an orchestra — rarely touching an instrument himself, never once losing the room. Nocturne, the club that carries his organization's name into the open, is the legitimate face: velvet rope, gold trim, a line around the block every night the city has lights left to shine. What happens underneath it, and in a dozen other rooms across Fate City that don't have a sign out front, is the actual business.",
-                "He is one of the only major players in the city who has never bothered to deny what he is. There's no PR campaign to manage when everyone already knows, and knowing doesn't change the fact that half the city's economy — legal and otherwise — runs through something he owns a piece of.",
-              ],
-            },
-            {
-              heading: "When the Bill Comes Due",
-              paragraphs: [
-                "Ask anyone who's done business with Nocturnal long enough and they'll tell you the same thing in different words: Meros doesn't really deal in violence. He deals in invoices, and violence is just what happens when somebody refuses to read theirs. Three sources who asked not to be named — a club promoter, a pawnbroker, and someone who used to drive for Nocturnal and doesn't anymore — describe the same pattern closely enough that it stops looking like coincidence and starts looking like policy.",
-                "The first time someone crosses him, it's loud. A car burns somewhere visible. A storefront gets gutted overnight. A man gets beaten somewhere public enough that three people see it happen and twelve more hear about it by morning. None of it is subtle, because subtlety isn't the point — the point is that everyone in earshot understands exactly what they're looking at and exactly why.",
-                "If the message doesn't take, the second visit isn't to the person who owes anymore. It's to someone they love. Nobody gets hurt, usually &mdash; that's almost the worst part. It's just a conversation, polite and specific, about what's coming next if the debt doesn't get settled.",
-                "There isn't supposed to be a third visit. The people who get one don't resurface to describe it, and that's by design. No body, no headline, no loose end for the Agency or FCPD to pull on. Just a name that stops coming up in conversation, and a city that's learned, one absence at a time, not to ask where it went.",
-              ],
-            },
-            {
-              heading: "The Third Path",
-              paragraphs: [
-                "Officially, anyone with power in Fate City has two roads: the Agency, or law enforcement. Unofficially, there has always been a third — and Meros built it. Nocturnal offers protection, resources, and a place to exist for the unlicensed and unregistered, in exchange for loyalty, cuts, and the occasional job nobody licensed would touch. It is not safety. It is a different shape of leash.",
+                "Meros Zarzer runs Nocturnal — the city's unofficial third path for the unlicensed and unregistered, built on protection and loyalty instead of mercy. He's never once bothered denying what he is, which makes him oddly easier to read than most of the city's other power players.",
               ],
             },
             {
@@ -765,9 +791,7 @@
                 "He's the obvious answer to where unlicensed power-havers turn for protection. Obvious doesn't mean wrong — just know what you're trading away before you take him up on it.",
                 "Working a job for Nocturnal builds an underworld reputation fast. It also ties you to an organization the Agency treats as a confirmed hostile the moment it notices the connection.",
                 "He doesn't forget debts in either direction. A favor done for him is banked. A favor he owes gets collected eventually, on his timeline — never yours.",
-                "He has never bothered hiding what he is, which makes him oddly easier to read than most of the city's other power players. Use that.",
                 "If you ever see him send a loud message to someone else, read it as a warning meant for you too. The pattern never changes — by the time it's your turn for a quiet one, you've already missed the chance to fix it.",
-                "He has never sent a third visit to someone he still found useful. Worth remembering if you ever start to feel disposable to him.",
               ],
             },
           ],
@@ -778,6 +802,7 @@
         },
         {
           id: "nocturne",
+          category: "organization",
           fileNo: "NV-009",
           stamp: "NIGHTLIFE — PUBLIC FRONT / UNDERWORLD INTEREST",
           colors: {
@@ -805,39 +830,16 @@
             {
               heading: "Overview",
               paragraphs: [
-                "From the street, Nocturne looks exactly like what it's advertised as: the best night out money can buy in Fate City, with a line around the block on any evening the city still has lights left to shine. Gold trim, a velvet rope, a doorman who's never once raised his voice because he's never once needed to. Inside, it delivers precisely that experience &mdash; for almost everyone who walks through the door.",
-                "What it actually is, underneath the receipts and the dress code, is the only part of Meros Zarzer's empire he's ever let the city see on purpose. Nocturne isn't a front in the sense of being fake. The drinks are real, the music is real, the money it makes is real. It's a front in the sense that it's the one truth Meros is willing to let stand in for all the truths he isn't.",
+                "Nocturne is Meros Zarzer's flagship club — gold trim, velvet rope, and a reputation as the best night out money can buy in Fate City. Past a second, unmarked door is the part of the business that actually matters: total discretion, for a price, for clients who can't afford to be seen wanting what they want.",
               ],
             },
             {
-              heading: "Two Clubs Under One Roof",
-              paragraphs: [
-                "Most of Nocturne's revenue comes from exactly what it looks like: a packed floor of paying customers buying into a brand. That business alone would make it one of the most profitable venues in the city, and it would be a perfectly ordinary success story if that were the whole story.",
-                "It isn't. Past a second door that the regular crowd doesn't know exists &mdash; no rope, no line, no sign &mdash; is the version of Nocturne that actually matters to Meros. Private rooms. Quieter conversations. The kind of clientele who aren't there for the music. The doorman on that second door doesn't check a guest list against ID. He checks a name against whether Meros has already decided that name is worth something.",
-              ],
-            },
-            {
-              heading: "The Membership Nobody Signs",
-              paragraphs: [
-                "Nobody applies to get past that second door. The same way Governor Elm extends invitations instead of requests, Nocturne's real hospitality is never something you ask for &mdash; it's something that gets noticed and extended to you, usually right around the moment you've become useful to have indebted. Most of the people enjoying it would tell you, sincerely, that they've never owed Meros anything. They are, without exception, wrong about that.",
-                "What gets sold back there isn't drinks. It's the guarantee that whatever happens in that room stays in that room &mdash; a guarantee worth far more to the right clientele than anything on the actual menu, and one that Meros extends as an investment, not a courtesy.",
-              ],
-            },
-            {
-              heading: "The Thing the Guarantee Is Usually For",
-              paragraphs: [
-                "Ask what that discretion is actually protecting and most people who've been past the second door go quiet in a very specific way &mdash; not confused, just unwilling to be the one who says it first. Enough of them eventually do anyway for the pattern to be obvious: a fair amount of what happens back there is company, arranged and paid for, between people who can't afford for anyone to know they wanted it.",
-                "It isn't run the way it would be on a street corner, and Meros has never let it be. The roster is curated, vetted, and protected the same way everything else under Nocturnal's umbrella is &mdash; which means everyone on it is leveraged exactly the way everyone else who's ever taken Meros's protection eventually is. A cut here. A favor banked there. Nobody's contract reads like exploitation. Most of them don't need to.",
-                "What makes this the most valuable thing on the menu, more than the drinks and more than Trace, is the client list it implies. Nocturne doesn't advertise who walks through that second door, but the kind of person willing to pay this much for silence is, almost by definition, exactly the kind of person whose name would matter if it ever got out.",
-              ],
-            },
-            {
-              heading: "What's Actually on the Menu",
-              paragraphs: [
-                "Ask anyone who's been past the second door long enough what they're drinking and eventually somebody will just say the word instead of pretending it's a cocktail name: Trace. Nobody serving it calls it anything else, and nobody buying it asks where it comes from, because asking is the one thing Nocturne's whole business model exists to make unnecessary.",
-                "What it actually is depends on who you believe, and nobody credible has ever gone on record. The version that keeps surfacing, from people who'd know and won't say how: it's distilled residue, siphoned off whatever gets stripped out of an unregistered power-user the moment they're neutralized, suppressed, or processed &mdash; captured somewhere along the chain before it's supposed to be disposed of, and refined into something a person with no magic of their own can put in their body and borrow, for a few hours, what was taken from somebody else's worst night.",
-                "The high is supposed to be extraordinary &mdash; clarity, sensation, the specific feeling of power that ordinary people in this city never otherwise get to touch. The comedown is supposed to be worse than a normal one, and not just physically. More than one regular has described it less like exhaustion and more like having something taken away from them a second time.",
-                "It leaves a signature. Whatever's actually in it carries enough of a trace &mdash; appropriately enough &mdash; that anyone using it regularly is putting themselves on the same kind of radar an actual unregistered power-user would be on, for a high they paid for instead of a gift they were born with. Nocturne has never once warned a customer about that part of the menu.",
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "Getting past the velvet rope is easy if you've got money or fame. Getting past the second door is a different problem — nobody applies, you just have to be noticed.",
+                "Whatever happens past that second door stays there. That guarantee is the actual product, more than anything on the menu.",
+                "Trace gets sold past that door, and nobody serving it answers questions about where it comes from. Buying it puts you on the same kind of radar an actual unregistered power-user would be on.",
+                "Most regulars past the second door would swear they don't owe Meros anything. They're wrong, every time.",
               ],
             },
           ],
@@ -849,6 +851,7 @@
 
         {
           id: "simbelle",
+          category: "person",
           fileNo: "SB-005",
           stamp: "ENTERTAINMENT / TABLOID — UNVERIFIED",
           colors: {
@@ -888,64 +891,16 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Sim-Belle arrived in Fate City's pop scene like she'd been launched out of a cannon, and she has not slowed down since. The voice is real, the songs chart, and the persona — sharp-tongued, unapologetic, dangerous to be around — sells just as hard as the music does. The dangerous part isn't an act, though. That's the thing nobody quite prepares for. She doesn't pick a fight, a dare, or a 3 a.m. drive because it'll play well — she does it because she's bored, or excited, or someone told her not to, and the content happens to her afterward as a side effect she barely registers.",
-                "More than one producer, choreographer, and opening act has used the word &ldquo;difficult.&rdquo; None of them have stopped wanting to work with her, because difficult sells — but talk to any of them for more than five minutes and the complaint isn't about attitude. It's about not knowing what she's going to do until she's already doing it.",
-              ],
-            },
-            {
-              heading: "A Record That Already Exists",
-              paragraphs: [
-                "Sim-Belle has been arrested. Once that the tabloids confirmed, in connection with an illegal street race that ended with two totaled cars and a shut-down intersection — and at least one more time that never made it past a sealed report, depending which precinct gossip you believe. The confirmed arrest ended with her spending a night in a holding cell before the charges simply stopped existing. Nobody at the department will say who made the call. She's never asked either — some part of her understands that asking might mean she owes someone, and owing people is a math she'd rather not do.",
-              ],
-            },
-            {
-              heading: "Cynthia, Off the Clock",
-              paragraphs: [
-                "Almost nobody outside her inner circle knows the name <strong>Cynthia Belle</strong>, and fewer still have seen what she looks like when nobody's pointing a lens at her: quiet, a little worn down, dragging a bakery bag through the rain at midnight because it's easier than being recognized in daylight. The temper is real. So is the exhaustion underneath it. One of the only people who gets both versions of her, unfiltered, is <strong>Ivara</strong> — a friendship from before any of this that has somehow survived everything this has become.",
-              ],
-            },
-            {
-              heading: "The Bad Girl Brand",
-              paragraphs: [
-                "What genuinely lights Sim-Belle up isn't the music industry's usual machinery — it's Fate City's night life itself: the racing, the rumors, the danger the rest of the city tries to stay licensed and insured against. She doesn't need a reason to get involved in something reckless, and she actively resents anyone who tries to make her wait for one. The image came later, built on top of an impulse that was never about image to begin with. Her team has gotten very good at cleaning up after the fact. They have not gotten any better at predicting what they'll need to clean up.",
-              ],
-            },
-            {
-              heading: "A Pit Lane That Knows Her Real Name",
-              paragraphs: [
-                "Sim-Belle didn't discover the Night Crows on purpose. She found the track the way she finds most things that end up mattering to her — by accident, at the wrong hour, for no good reason — and ended up watching <strong>Durn Thalgor</strong> and <strong>Tivy Glintspark</strong> run a race with the Street Enforcer himself on their tail. She thought it was the coolest thing she'd ever seen in her life and could not stop talking about it. That was the entire extent of her involvement.",
-                "It was <strong>Ivara</strong> — listening to her gush about it for what was apparently long enough — who quietly took the problem to Vel when the crew needed money, and Vel who fixed it without a second thought. Sim-Belle never asked for any of that to happen. She just has a car in their pit lane now, and her name on a license plate, because her friend noticed how excited she got and did something about it. Nobody at S.K. AM knows. Nobody at the label knows either.",
-              ],
-            },
-            {
-              heading: "What Nocturne Actually Costs Her",
-              paragraphs: [
-                "The version of Sim-Belle the tabloids get is loud, public, and survivable — a balcony she shouldn't have climbed, a feud she shouldn't have started, all of it calculated to be reckless enough to be content and tame enough to never actually threaten the brand. The version that could end her career happens somewhere else entirely, and it happens at Nocturne.",
-                "She is, by every account from staff who'll talk off the record, one of Meros Zarzer's favorite kinds of regular: famous enough that her presence is worth something, reckless enough that she actually uses what he's offering, and convinced &mdash; genuinely, as far as anyone can tell &mdash; that what she's getting is hospitality rather than an arrangement. Nobody has ever corrected that impression for her. Nobody at Nocturnal has any reason to.",
-                "What she's actually buying, every time she walks in, is the one thing her management can't give her: a place to be exactly as reckless as the persona requires without it becoming the headline that ends the persona. Whatever happens inside those walls stays inside them &mdash; not because Meros is being kind, but because a pop star who owes him a favor she doesn't know she's accruing is worth considerably more to him than whatever he could sell that footage for.",
-                "Nobody has asked her to pay yet. In a city that runs on the assumption that everything eventually does, that's not a comfort. It's a countdown nobody's told her is running.",
-              ],
-            },
-            {
-              heading: "The Photo That Would Actually End Her",
-              paragraphs: [
-                "Everyone assumes the photo that finally ends Sim-Belle's career is the obvious one &mdash; caught mid-scandal, caught with the wrong person, caught somewhere a &ldquo;bad girl&rdquo; brand isn't supposed to survive being caught. They're wrong, and the people who actually run her image know it. A reckless headline is product. She's survived worse and come out louder for it.",
-                "There is a photo. Almost nobody has seen it. Meros Zarzer has, and has never needed to do anything with it beyond letting her know that he could.",
+                "Sim-Belle is pop's brightest new name and Fate City's favorite headline &mdash; chart-topping, reckless, and exactly as dangerous off camera as the persona promises. She's plugged into the city's nightlife more than anyone in her position should be, with one foot in the street racing scene and at least one arrest that quietly disappeared overnight. Exciting to be around. Hard to predict. Harder to walk away from once she's decided you're interesting.",
               ],
             },
             {
               heading: "A Note From Your Benefactor",
               hooks: [
-                "She will pull you into something — a chase, a dare, a &ldquo;we're not actually going in there&rdquo; that ends with you going in there — with no warning, no plan, and no real way to say no once it's already moving. Decide now how far you're willing to follow her before she asks.",
-                "Public association with her is a fast, loud spike in fame, and an equally fast, loud spike in unwanted attention from police or other eyes. The attention rarely waits for you to be ready for it.",
-                "Her loyalty lasts exactly as long as you stay interesting. She'll drop you the moment you're not, or air grievances publicly if she feels disrespected. Don't mistake her warmth for permanence.",
-                "She has real cultural reach you can't buy any other way. A single name-drop from her opens doors that money and reputation can't.",
-                "She has at least one arrest on record that simply stopped being a problem overnight, and no idea who made that happen. If you ever find out before she does, think hard about whether telling her helps you or costs you.",
-                "If you ever end up in Night Crows' orbit, you may meet Cynthia before you realize Sim-Belle and Cynthia are the same person. How you handle that discovery will matter to her more than almost anything else you do.",
-                "She doesn't think of what she owes Nocturnal as a debt &mdash; she thinks of it as hospitality. Meros has never corrected her on that, which should tell you something about when he actually plans to collect.",
-                "The same discretion that's protected her for years is the easiest leverage in the city the moment Meros decides it's more useful spent than banked. You don't want to be standing next to her when that day comes.",
-                "Offering her a different kind of discretion &mdash; yours instead of his &mdash; is a real way into reshaping whose debt she's actually carrying. Whether that's a kindness to her or a liability for you depends entirely on what you'd want back for it.",
-                "Nobody's ever gotten the photo that would actually end her. You won't need it explained to you if you ever do. You'll just know.",
+                "She's easiest to find at Nocturne on nights she isn't working a crowd somewhere else — but getting in the door at all might be your first hurdle.",
+                "She's everywhere in this city's nightlife and almost impossible to pin down on purpose. Plan on running into her before you plan on meeting her.",
+                "She decides whether you're worth her time in about the first five minutes. Bring something interesting, or don't bother.",
+                "The moment she's seen with you, you're news. That cuts both ways, and she won't be the one managing which way it cuts.",
               ],
             },
           ],
@@ -956,7 +911,113 @@
         },
 
         {
+          id: "durn",
+          category: "person",
+          fileNo: "DT-011",
+          stamp: "STREET INTELLIGENCE — UNDERWORLD",
+          colors: {
+            rule: "#3a1414",
+            accent: "#c9512f",
+            stripe: "#3a1414",
+            stampColor: "#c9512f",
+          },
+          name: "DURN THALGOR",
+          epithet:
+            "He has never once lost an argument by talking. He has also never once tried.",
+          images: ["images/durn_profile.png"],
+          stats: [
+            { label: "Species", value: "Human" },
+            { label: "Role", value: "Co-Founder, Night Crows" },
+            { label: "Affiliation", value: "Night Crows (co-lead)" },
+            { label: "Known For", value: "Street Cred" },
+            {
+              label: "Reputation",
+              value:
+                "Immovable — settles disputes behind a wheel, not at a table",
+            },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Durn Thalgor doesn't explain himself — he settles things behind a wheel instead. Co-founder of the Night Crows alongside Tivy Glintspark, he's blunt, immovable, and loyal past the point of being asked to be. Anyone with a grievance against the crew gets the same offer: get in a car.",
+              ],
+            },
+            {
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "Durn settles disputes with races, not negotiations. Anyone who wants something from him — or from the crew, through him — should expect to be asked to prove it behind a wheel.",
+                "He trusts Tivy's read on people and money completely, and doesn't second-guess her in front of anyone. If you need to get past him, going through her first is usually faster.",
+                "He's not interested in why you want in. He's only interested in whether you can drive. Don't waste his time with the former when he's only ever asking for the latter.",
+                "If you ever beat him clean, in a fair race, expect that to mean more to him — and to the crew — than anything you could have said to earn the same respect.",
+              ],
+            },
+          ],
+          quote: {
+            text: "We don't race for the title. There isn't one. We race because somebody has to be the fastest thing in this city that doesn't answer to a badge.",
+            cite: "Durn Thalgor, pit lane interview (never aired)",
+          },
+        },
+
+        {
+          id: "tivy",
+          category: "person",
+          fileNo: "TG-012",
+          stamp: "STREET INTELLIGENCE — TRUSTED CONTACT",
+          colors: {
+            rule: "#3a1414",
+            accent: "#9a7fd9",
+            stripe: "#3a1414",
+            stampColor: "#9a7fd9",
+          },
+          name: "TIVY GLINTSPARK",
+          epithet:
+            "She's never once sent you an invoice. That's not the same thing as free.",
+          images: ["images/tivy_profile.png", "images/tivy_01.png"],
+          stats: [
+            { label: "Species", value: "Human" },
+            {
+              label: "Role",
+              value: "Co-Founder, Night Crows / Independent Fixer",
+            },
+            {
+              label: "Affiliation",
+              value:
+                "Night Crows (co-lead); independent otherwise — no registered ties",
+            },
+            { label: "Known For", value: "Trust" },
+            {
+              label: "Reputation",
+              value:
+                "Quiet leverage — never collects loud, and never forgets either",
+            },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Tivy Glintspark is the other half of the Night Crows — the one who reads a room before anyone's finished parking. She doesn't deal in plat; she deals in favors and trust, with no ledger anyone's ever seen and no due date attached to anything. People walk away from a first conversation with her feeling like they made a friend, not a deal.",
+              ],
+            },
+            {
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "She's the softest on-ramp into Fate City's information economy you'll find — which makes her the obvious first call, not necessarily the safest one.",
+                "Her favors don't expire and don't come itemized. The day she remembers one is never a day you'll see coming — that's the trade for never seeing a bill in the first place.",
+                "She's never once threatened anyone the way Meros does. That's not mercy. It just means whatever she eventually wants back, she'll get without ever having to ask twice.",
+                "If you ever need to get past Durn quickly, going through Tivy first is usually faster than arguing with him directly. He doesn't second-guess her in front of anyone.",
+              ],
+            },
+          ],
+          quote: {
+            text: "You don't owe me plat. You owe me a phone call, someday, whenever I decide to make it.",
+            cite: "Tivy Glintspark, overheard at the track",
+          },
+        },
+
+        {
           id: "nightcrows",
+          category: "organization",
           fileNo: "NC-006",
           stamp: "STREET INTELLIGENCE — UNDERWORLD",
           colors: {
@@ -968,14 +1029,9 @@
           name: "NIGHT CROWS",
           epithet:
             "They don't own the road. They just make sure nobody forgets who put the lights out on it.",
-          images: [
-            "images/nightcrows_profile.png",
-            "images/durn_profile.png",
-            "images/tivy_profile.png",
-            "images/tivy_01.png",
-          ],
+          images: ["images/nightcrows_profile.png"],
           stats: [
-            { label: "Species", value: "Mixed" },
+            { label: "Species", value: "N/A — organization" },
             { label: "Role", value: "Street racing crew" },
             {
               label: "Affiliation",
@@ -991,36 +1047,27 @@
             {
               heading: "Overview",
               paragraphs: [
-                "The Night Crows didn't build a reputation by winning races so much as by being the race everyone else in Fate City measures themselves against. Run jointly by <strong>Durn Thalgor</strong> and <strong>Tivy Glintspark</strong>, the crew operates out of a renovated track that — officially — nobody paid for, and unofficially everyone in the underworld knows exactly who did.",
-                "Durn is the wall the crew breaks against: blunt, loyal, allergic to long explanations, the kind of leader who settles arguments by getting in a car rather than getting in anyone's face. Tivy is the rest of the machine — the one who reads a track, a rival, or a room before anyone else has finished parking. Where Durn commands respect by being immovable, Tivy earns it by always seeing one move further than the person across from her.",
-                "They don't recruit. People find their way in, prove themselves on asphalt, or don't come back. The crew's name on a car door means something specific in Fate City: fast, dangerous, and not remotely interested in being licensed for either.",
-              ],
-            },
-            {
-              heading: "Money They Didn't Ask to Need",
-              paragraphs: [
-                "The track renovation that put the Night Crows on the map wasn't paid for by sponsorship or winnings — it was pocket change to <strong>Vel</strong>, funneled through channels neither Durn nor Tivy fully understands and neither particularly wants to. They know the money has a source. They've chosen, deliberately, not to ask too many follow-up questions about what that source might eventually want back.",
+                "The Night Crows are Fate City's premier street racing crew, run jointly by <strong>Durn Thalgor</strong> and <strong>Tivy Glintspark</strong> out of a renovated track that, officially, nobody paid for. They don't recruit — people find their way in, prove themselves on asphalt, or don't come back.",
               ],
             },
             {
               heading: "A Note From Your Benefactor",
               hooks: [
                 "A standing invitation to race for the crew's approval is the fastest way into Fate City's underworld reputation economy. It's also the fastest way to get noticed by people watching the Crows for other reasons.",
-                "Durn settles disputes with races, not negotiations. Anyone who wants something from the crew should expect to be asked to prove it behind a wheel.",
-                "Tivy knows more about the crew's finances than Durn does, including exactly how compromised that money makes them. She's the sharper read of the two.",
                 "Sim-Belle has a car in their pit lane that nobody outside the crew is supposed to know about. That secret is only as safe as the people who keep finding out about it.",
                 "If Vel's name ever becomes a liability, the Crows inherit that liability whether they want it or not. Worth knowing before you tie your name to theirs.",
               ],
             },
           ],
           quote: {
-            text: "We don't race for the title. There isn't one. We race because somebody has to be the fastest thing in this city that doesn't answer to a badge.",
-            cite: "Durn Thalgor, pit lane interview (never aired)",
+            text: "You don't join the Crows. You just stop losing to them long enough that they stop noticing the difference.",
+            cite: "Unconfirmed pit-lane rumor",
           },
         },
 
         {
           id: "laurent",
+          category: "person",
           fileNo: "LV-007",
           stamp: "CORPORATE / MILITARY — RESTRICTED",
           colors: {
@@ -1061,51 +1108,16 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Laurent Virel did not inherit S.K.AM Advanced Magitechnologies — he engineered it, from a founding stake to the defense and infrastructure contractor that half the city's permits and none of the city's headlines run through. At six-foot-three and three hundred and twenty-seven years old, he carries both numbers the same way: as facts that have simply always been true, and will go on being true long after whoever he's negotiating with has retired.",
-                "He does not raise his voice. He has never needed to. A boardroom goes quiet when Laurent stops talking, not because he's said something alarming, but because everyone in the room has learned that whatever he says next is the only version of the conversation that will still matter in five years. Ruthless, calm, calculating, and visionary are the words his own executive staff use to describe him — to his face, because there's no version of saying it behind his back that he wouldn't already know about.",
-              ],
-            },
-            {
-              heading: "A View From the Back Seat",
-              paragraphs: [
-                "Laurent has been photographed — once, briefly, by a press drone that didn't last the night — sitting in the back of an armored S.K.AM town car at the edge of a riot, pointing something out to whoever was driving while Fate City PD held a perimeter against a burning intersection behind him. He did not look concerned. People who have seen the photo describe his expression as closer to a man reviewing a delivery than a man watching a crisis. He has never commented on it, and the photo has never resurfaced anywhere official.",
-              ],
-            },
-            {
-              heading: "The Other Side of the Catalog",
-              paragraphs: [
-                "S.K.AM's public face is infrastructure and city contracts. Its other face does business in a different kind of room entirely — Laurent standing over a conference table across from foreign military officers, a case open between them holding something that glows faintly blue and clearly isn't meant for civilian hands. Nobody outside that room has ever confirmed what's actually changing hands in deals like that one, and Laurent has never needed it confirmed for him to close.",
-              ],
-            },
-            {
-              heading: "Therese",
-              paragraphs: [
-                "Laurent's partner, <strong>Therese Virel</strong>, is S.K.AM's COO and the only person in the company — possibly the only person in the city — who gets to disagree with him in a room and not lose anything for it. Where Laurent calculates, Therese reads people; where he builds leverage, she builds loyalty. She is younger than him by nearly three hundred years and has never once let that be the dynamic between them. They are, by every account that's gotten close enough to see it, partners in the literal sense — she stands beside him, not behind him, including on the evenings he'd clearly rather not be questioned at all.",
-                "Laurent and Therese are known to keep a low but consistent presence on Fate City's social circuit — galas, premieres, the occasional charity auction — though neither courts the attention the way some of the city's other money does.",
-              ],
-            },
-            {
-              heading: "A Son Who Speaks a Different Currency",
-              paragraphs: [
-                "Laurent's son, <strong>Vel</strong>, now runs day-to-day operations under the S.K.AM Technologies banner — the modern face of the company Laurent founded as S.K.AM, rebranded on Vel's watch into something glossier and more public-facing than Laurent ever wanted it to be. Where Laurent treats money as a tool — precise, leveraged, never spent without a return calculated three steps out — Vel spends it like a language, funding things like the Night Crows' track on what amounts to a whim. Laurent has noticed. He has not said anything about it directly. With Laurent, that silence is rarely a good sign.",
+                "Laurent Virel founded and runs S.K.AM Advanced Magitechnologies — the military magitech contractor whose infrastructure deals run through half the city's permits, and whose other deals run through rooms nobody official ever sees. Three hundred and twenty-seven years old and utterly unhurried, he doesn't raise his voice because he's never needed to.",
               ],
             },
             {
               heading: "A Note From Your Benefactor",
               hooks: [
                 "S.K.AM's military magitech contracts almost certainly fund equipment used against unregistered power-users somewhere in this city. To Laurent that's business, not betrayal — keep that distinction in mind if you ever sit across from him.",
-                "Whatever changes hands in S.K.AM's off-books military deals, it's a safe bet it isn't legal wherever it's actually happening — and Laurent's name has never once been attached to the paperwork.",
                 "Therese is the far more approachable Virel. If you ever need to reach Laurent without walking into a boardroom, start with her instead.",
-                "He doesn't know you exist yet. If Vel's spending on your behalf ever surfaces on a balance sheet Laurent actually reads, that changes immediately — and not in your favor.",
                 "Laurent's real currency isn't cash, it's patience and information. A favor owed to him is rarely called in quickly, and never called in cheaply. Don't take one lightly.",
-              ],
-            },
-            {
-              heading: "On Therese",
-              hooks: [
-                "She's the realistic way into the Virel orbit if you're not ready to sit across a table from Laurent himself — approachable, a good listener, and far harder to read as a threat than he is. That doesn't mean she isn't one.",
-                "She almost certainly knows more about S.K.AM's off-the-books dealings than the org chart would suggest, given how close she sits to Laurent.",
-                "If Laurent's silence about Vel ever breaks, Therese is the most likely person to know first — and the most likely to try to soften how it lands. If you need advance warning of trouble from that direction, she's worth watching.",
+                "He doesn't know you exist yet. If Vel's spending on your behalf ever surfaces on a balance sheet Laurent actually reads, that changes immediately — and not in your favor.",
               ],
             },
           ],
@@ -1116,6 +1128,7 @@
         },
         {
           id: "patch",
+          category: "person",
           fileNo: "PT-010",
           stamp: "UNREGISTERED — NO AGENCY FILE",
           colors: {
@@ -1151,35 +1164,7 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Most of this file is people who make Fate City run loud — actors, politicians, club owners, killers with good lighting. Then there's the nineteen-year-old who fixes cracked housings and corroded ether-ports at a repair counter most afternoons, who also happens to be one of the fastest, cheapest, most reliable ways to disappear from a database if you ever need to. Nobody important enough to already be in this file has ever needed his services. That's rather the point.",
-                "The name isn't a hacker alias he picked for mystique. It's just what people started calling him at the shop, because he patches things, and it followed him into the work that actually matters. He's not registered with anyone, doesn't carry a weapon, and couldn't be called dangerous by any measure the Agency or Nocturnal would recognize. He's also one of the only people in the city whose work can make either of them blind for exactly as long as you can afford it.",
-              ],
-            },
-            {
-              heading: "The Game Instead of the Real Thing",
-              paragraphs: [
-                "He's got a Paystation 7 hooked up in the back room of the shop and another one at home, and he's good — genuinely, competitively good — at first-person shooters and racing games specifically. Not puzzle games, not strategy. The ones where you point a gun at someone or take a corner at a hundred and ten with no margin for error. That's not a coincidence. Both of those are things Fate City's actual night life is built out of, and both are things he has never once done for real and has no intention of starting.",
-                "He'll talk for twenty straight minutes about a clutch overtake or a perfect headshot like he was actually there. In a sense, as far as his nervous system is concerned, he was. It's the only place he gets to feel what the rest of this city runs on without anyone actually shooting back.",
-              ],
-            },
-            {
-              heading: "Why He Never Leaves the Chair",
-              paragraphs: [
-                "Patch is a genuinely talented hacker who has built his entire operating philosophy around one rule: never be in the room. He doesn't case locations, doesn't run his own jobs in person, doesn't even like meeting new clients somewhere he hasn't already mapped three exits from. Some of that's good professional discipline. Most of it is plain fear — he is, by his own quiet admission to the two or three people who've ever gotten that honest with him, scared of the city he's lived in his whole life, and he has built a very comfortable, very profitable life around never having to test that fear directly.",
-                "It works. He's never been hurt, never been caught, never had to find out what he'd do if someone bigger than him decided he mattered. Whether that's because he's careful or because nobody's bothered yet isn't a question he spends much time on.",
-              ],
-            },
-            {
-              heading: "What He Actually Sells",
-              paragraphs: [
-                "Paperwork that holds up to a glance. A name pulled off a watch list before anyone official notices it's gone. A camera feed that develops a very convenient gap right when you needed it to. None of it is permanent, all of it is fast, and all of it costs a flat, fair price he quotes up front and never renegotiates afterward — which, in a city built entirely on invoices that grow once you've already agreed to pay them, is the single strangest business model anyone's encountered.",
-                "He has never once tried to collect a favor instead of cash. Whether that's principle, caution, or something he hasn't thought all the way through yet is the most interesting open question in this entire file.",
-              ],
-            },
-            {
-              heading: "Just a Guy",
-              paragraphs: [
-                "Off the clock he's exactly as unremarkable as his cover requires, and exactly as warm as he seems: happy to talk your ear off about a game, quick to like people, genuinely kind in a way that hasn't yet been worn down by anything this city's done to him. It's not an act. It's the actual him, every bit as much as the careful, screen-only version is — he's just never had to find out yet what it costs to be this open in a city like this one.",
+                "Patch is a nineteen-year-old repair tech and unregistered information broker — the fastest, cheapest, most reliable way to disappear from a database if you ever need to. He's not registered with anyone, doesn't carry a weapon, and isn't the slightest bit dangerous by any measure the Agency or Nocturnal would recognize. He's also one of the only people in the city who isn't trying to make you owe him something.",
               ],
             },
             {
@@ -1188,7 +1173,6 @@
                 "He's the only contact in this file who isn't trying to make you owe him something. That alone should tell you how rare that actually is in this city.",
                 "His prices are fair, but his work is exactly as good as what you pay for. Don't expect Nocturnal-tier results on a takeout budget.",
                 "He won't ask why you need any of it, which also means he won't warn you if what you're doing is about to get you in real trouble. That's the trade.",
-                "He trusts people quickly, sometimes faster than he should. If someone's ever leaned on that, he may not even know it's happened — and neither will you, until it matters.",
                 "Don't expect him to come with you anywhere dangerous. That's not what he's for, and asking will only make him anxious on your behalf instead of useful.",
               ],
             },
@@ -1201,6 +1185,7 @@
 
         {
           id: "enforcer",
+          category: "person",
           fileNo: "SE-008",
           stamp: "LAW ENFORCEMENT — CLASSIFIED IDENTITY",
           colors: {
@@ -1227,22 +1212,7 @@
             {
               heading: "Overview",
               paragraphs: [
-                "Nobody has ever seen the Street Enforcer's face, and nobody official has ever confirmed who's actually inside the helmet — not a name, not a species, not even a consistent account of how many of them there might be. The gear is unmistakable: matte black-and-blue tactical armor with police markings nobody at the actual department issued, a helmet with a live threat-analysis HUD, and a black Dodge muscle car running lights no precinct in Fate City budgeted for.",
-                "He wears the badge and the &ldquo;POLICE&rdquo; lettering, but he doesn't answer to the department, the city, or anyone else. Division: independent operative. Affiliation: none. Answerable to: no one. The Enforcer borrows the look of the law because it's useful cover for something closer to a one-man verdict.",
-              ],
-            },
-            {
-              heading: "The Swerve",
-              paragraphs: [
-                "His service weapon is an SE-9 &ldquo;Swerve&rdquo; — a 9mm arcane neutralizer manufactured, conspicuously, by S.K.AM Industries. Enchanted rounds, an anti-magic field disruptor, an ethereal trace suppressor, and a smart targeting system make it less a gun and more a purpose-built answer to anyone using power he doesn't think they should have. Whoever stocks him isn't talking, and S.K.AM has never publicly acknowledged the contract.",
-              ],
-            },
-            {
-              heading: "Three Rumors, No Confirmation",
-              paragraphs: [
-                "Nobody agrees on who the Enforcer actually answers to, and Fate City has settled into trading three competing theories instead of a single truth.",
-                "The kindest version says there are still a few people inside the department who haven't been bought, and that the Enforcer is what's left of that — unofficial, unsanctioned, and tolerated by a precinct that quietly looks the other way because the alternative is worse. A colder version says he's the Agency's, planted inside the police to keep a hand on the city's mundane law enforcement without ever showing the Agency's own face. A third says he answers to Governor Elm directly — one more invitation-shaped leash, just like everything else Elm runs.",
-                "Whichever one is true, or whether none of them are, one fact undercuts all the deniability: nobody funds gear like that, or a S.K.AM-built anti-magic sidearm like that, out of a normal citizen's pocket. Somebody with real money and real motive is behind the helmet. The city just hasn't agreed on who yet.",
+                "Nobody has ever seen the Street Enforcer's face or confirmed who — or what — is inside the helmet. Matte tactical armor, a live threat-analysis HUD, and an S.K.AM-built anti-magic sidearm called the Swerve make him the most reliable escalation point in the city once you start drawing the wrong kind of attention.",
               ],
             },
             {
@@ -1250,9 +1220,6 @@
               hooks: [
                 "He's the most reliable escalation point you'll run into once you start drawing the wrong kind of attention on the street. He doesn't wait for an invitation — he just shows up.",
                 "His weapon is built to neutralize magic specifically, not just people. If any of you ever lean on power that's still active, he's one of the few mundane threats who can actually hurt you for it.",
-                "A S.K.AM-manufactured weapon in the hands of an &ldquo;independent operative&rdquo; with no department oversight is the kind of detail that, if traced, lands directly on Laurent Virel's desk. Useful to know if you ever need leverage on either of them.",
-                "If the police-loyalist rumor about him is true, there may be other quiet allies left inside the department. Worth pulling that thread if you ever need real legal cover.",
-                "If the Elm rumor is true, he's one more lever the Governor can point at anyone whose photograph or favor he wants. Don't assume Elm's invitations are toothless.",
                 "Beating him in a straight chase, even once, would become underworld legend overnight — and would get your name on a very different kind of file. Decide if that's a trade worth making.",
                 "Nobody has ever successfully tailed him back to wherever he goes when the pursuit ends. If you manage it, you'll know more than anyone else in this city does.",
               ],
@@ -1265,7 +1232,60 @@
         },
 
         {
+          id: "saint",
+          category: "person",
+          fileNo: "ST-014",
+          stamp: "CORPORATE / MEDICAL — FIELD CONTACT",
+          colors: {
+            rule: "#6b0f14",
+            accent: "#d98c3f",
+            stripe: "#6b0f14",
+            stampColor: "#d98c3f",
+          },
+          name: "&ldquo;SAINT&rdquo;",
+          epithet:
+            "Trauma Team's contracts decide who lives. Saint is the only variable in that equation they haven't figured out how to price yet.",
+          images: ["images/saint_profile.png", "images/saint_01.png"],
+          stats: [
+            { label: "Species", value: "Human" },
+            { label: "Role", value: "Field Medic, Trauma Team International" },
+            {
+              label: "Affiliation",
+              value: "Trauma Team International (strike-team medic)",
+            },
+            { label: "Known For", value: "Mercy" },
+            {
+              label: "Reputation",
+              value:
+                "Selectively merciful — bends triage when he can get away with it, and only when he can",
+            },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Behind the callsign &ldquo;Saint&rdquo; is Heath Williams, a Trauma Team International field medic who once broke protocol to save an uncontracted patient and got away with it. It earned him a flagged personnel file — and a quiet reputation as the one person in the company willing to bend triage when he thinks he can get away with it again.",
+              ],
+            },
+            {
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "Without a valid contract, the company's answer is a clean, polite no while the response craft idles overhead. Saint is the one variable that answer doesn't always hold for — but he has to actually be the one who shows up.",
+                "He'll never promise a scan's results stay buried. The most he's ever offered anyone is a slower report filed late, not a missing one. Don't ask him for more than that.",
+                "Getting on his good side personally is worth more than getting on Trauma Team's. The company doesn't grant favors. He does, on his own time and at his own risk.",
+                "His personnel file already has one flag on it. He knows exactly what a second one costs him, and he still hasn't decided that's a reason to stop.",
+              ],
+            },
+          ],
+          quote: {
+            text: "I didn't take this job to watch people die by tier. I took it because somebody in this uniform has to be the one who hesitates.",
+            cite: "&ldquo;Saint,&rdquo; unconfirmed strike-comms chatter",
+          },
+        },
+
+        {
           id: "agency",
+          category: "organization",
           fileNo: "AG-000",
           stamp: "CLASSIFIED — DO NOT DISTRIBUTE",
           colors: {
@@ -1295,14 +1315,7 @@
             {
               heading: "Overview",
               paragraphs: [
-                "The Agency doesn't have a building with a sign on it, a spokesperson, or a name anyone's ever confirmed in print. What it has is jurisdiction — over every faded scrap of magic left in Fate City, and over every person unlucky or reckless enough to still carry an active one. Officially, it exists to register and monitor power-users for public safety. Unofficially, registration and disappearance have a way of looking identical from the outside.",
-                "Nobody currently knows who runs it, who funds it, or who they answer to. The contracts and hardware almost certainly trace back to corporate suppliers like S.K.AM Technologies, but a paper trail like that has a way of evaporating exactly at the point where it would start naming names.",
-              ],
-            },
-            {
-              heading: "How It Finds You",
-              paragraphs: [
-                "The Agency doesn't patrol the way the police do. It watches for pattern, signature, and spike — a power used too publicly, too often, too carelessly. Agency Suspicion rises quietly and rarely warns anyone before it does. By the time a crew realizes they're on a file, the file has usually existed for a while.",
+                "The Agency has no building, no spokesperson, and no name anyone's ever confirmed in print — just absolute jurisdiction over every scrap of magic left in Fate City. Officially it registers and monitors power-users for public safety. Unofficially, registration and disappearance have a way of looking identical from the outside.",
               ],
             },
             {
@@ -1321,7 +1334,65 @@
         },
 
         {
+          id: "traumateam",
+          category: "organization",
+          fileNo: "TT-013",
+          stamp: "CORPORATE / MEDICAL — RESTRICTED",
+          colors: {
+            rule: "#6b0f14",
+            accent: "#d4453d",
+            stripe: "#6b0f14",
+            stampColor: "#d4453d",
+          },
+          name: "TRAUMA TEAM INTERNATIONAL",
+          epithet:
+            "Everyone in this city eventually has the same medical emergency. The only thing that changes is which tier they bought.",
+          images: ["images/traumateam_profile.png"],
+          stats: [
+            { label: "Species", value: "N/A — organization" },
+            {
+              label: "Role",
+              value:
+                "Private emergency medical / paramilitary response corporation",
+            },
+            {
+              label: "Affiliation",
+              value:
+                "Independent multinational corporate entity — operates under a negotiated city airspace contract",
+            },
+            { label: "Known For", value: "Wealth / Reliability" },
+            {
+              label: "Reputation",
+              value:
+                "Absolute, for a price — the most effective force in the city, available exactly as far as your contract extends",
+            },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Trauma Team International is the private emergency response corporation everyone in Fate City already knows the pitch for: armored response craft, strike teams that never lose, and patients walking out alive who shouldn't be — for exactly as far as their contract extends. They're the most honest organization in this file about what they will and won't do for you, which is its own kind of cruelty.",
+              ],
+            },
+            {
+              heading: "A Note From Your Benefactor",
+              hooks: [
+                "Without a current, valid contract, the answer you get is a confirmed no, delivered politely, while the response craft idles overhead for someone else. Whatever's keeping any of you covered is worth keeping current.",
+                "Strike teams will fight straight through hostiles to extract a contracted patient and won't lift a finger for anyone standing next to them who isn't on the manifest. Don't expect chivalry from the uniform.",
+                "A Platinum or Corporate-tier contract is a genuine asset if anyone in the crew can land one &mdash; and a genuine liability the moment someone asks how a street-level operator is affording it.",
+                "There's exactly one name inside this organization worth knowing personally instead of just contractually. Worth finding out who that is before you ever need them.",
+              ],
+            },
+          ],
+          quote: {
+            text: "Patient confirmed Basic tier. Negative authorization for engagement. Returning to standby.",
+            cite: "Leaked Trauma Team dispatch audio (unconfirmed)",
+          },
+        },
+
+        {
           id: "benefactor",
+          category: "person",
           fileNo: "??-???",
           stamp: "UNKNOWN ORIGIN — UNCONFIRMED",
           colors: {
@@ -1430,9 +1501,36 @@
               </div>`;
       }
 
+      function renderSectionDivider(label, isFirst) {
+        return `
+              <div class="section-divider${isFirst ? " first" : ""}">
+                <span class="section-divider-label">${label}</span>
+              </div>`;
+      }
+
       function renderAll() {
         const root = document.getElementById("cards-root");
-        root.innerHTML = NPCS.map(renderCard).join("");
+        const briefings = NPCS.filter((n) => n.category === "briefing");
+        const persons = NPCS.filter((n) => n.category === "person");
+        const organizations = NPCS.filter((n) => n.category === "organization");
+
+        let html = "";
+        if (briefings.length) {
+          html += renderSectionDivider("City Briefing", true);
+          html += briefings.map(renderCard).join("");
+        }
+        if (persons.length) {
+          html += renderSectionDivider(
+            "Persons of Interest",
+            !briefings.length,
+          );
+          html += persons.map(renderCard).join("");
+        }
+        if (organizations.length) {
+          html += renderSectionDivider("Organizations of Interest", false);
+          html += organizations.map(renderCard).join("");
+        }
+        root.innerHTML = html;
         wireGalleries();
       }
 
