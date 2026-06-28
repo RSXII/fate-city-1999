@@ -338,6 +338,110 @@
         height: 24px;
       }
 
+      .redacted-gate {
+        margin: 4px 28px 18px;
+        padding: 14px 16px;
+        background: #0d0c0a;
+        border: 1px solid #000;
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+      }
+      .redacted-gate input {
+        background: #1a1815;
+        border: 1px solid #3a3630;
+        color: #cfc6b0;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        letter-spacing: 3px;
+        padding: 8px 12px;
+        width: 160px;
+        outline: none;
+      }
+      .redacted-gate input:focus {
+        border-color: #6b6660;
+      }
+      .redacted-gate button {
+        background: #1a1815;
+        border: 1px solid #3a3630;
+        color: #cfc6b0;
+        font-size: 16px;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+      .redacted-gate button:hover {
+        border-color: #6b6660;
+      }
+      .redacted-gate.shake {
+        animation: redacted-shake 0.4s ease;
+      }
+      @keyframes redacted-shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-6px);
+        }
+        75% {
+          transform: translateX(6px);
+        }
+      }
+      @media (max-width: 600px) {
+        .redacted-gate {
+          margin: 4px 16px 16px;
+          padding: 12px 14px;
+        }
+      }
+
+      .redacted-block {
+        margin: 4px 28px 18px;
+        padding: 16px 18px;
+        background: #0d0c0a;
+        border: 1px solid #000;
+        box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.6);
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition:
+          opacity 0.9s ease,
+          max-height 0.9s ease;
+      }
+      .redacted-block.revealed {
+        opacity: 1;
+        max-height: 2000px;
+      }
+      .redacted-block .redacted-heading {
+        font-family: "Arial", sans-serif;
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #c94f4f;
+        margin: 0 0 4px;
+      }
+      .redacted-block .redacted-sub {
+        font-family: "Arial", sans-serif;
+        font-style: italic;
+        font-size: 11px;
+        color: #6b6660;
+        margin: 0 0 14px;
+        line-height: 1.5;
+      }
+      .redacted-block p {
+        font-family: "Courier New", monospace;
+        font-size: 13.5px;
+        line-height: 1.7;
+        color: #cfc6b0;
+        margin: 0 0 12px;
+        letter-spacing: 0.3px;
+      }
+      @media (max-width: 600px) {
+        .redacted-block {
+          margin: 4px 16px 16px;
+          padding: 14px 14px;
+        }
+      }
+
       @media print {
         body {
           background: #fff;
@@ -1418,22 +1522,13 @@
           sections: [
             {
               heading: "Overview",
-              paragraphs: [
-                "This file exists because something has to account for the gap, and right now nothing does. The crew arrived in Fate City reimagined — different names, different lives, different rules — and to date, no one has claimed responsibility, taken credit, or asked for anything in return for whatever was done to get them here.",
-                "That silence is the only real evidence anyone has. No demand has been made. No price has been named. In a city where the working theory of everything is that it always costs something, a transaction with no visible bill attached is the single strangest thing the crew has encountered yet.",
-              ],
+              paragraphs: ["PASSWORD"],
             },
-            // {
-            //   heading: "GM Notes",
-            //   hooks: [
-            //     "Every other power player in Fate City charges for what they give. The Benefactor hasn't — which either means the price hasn't come due yet, or means something about Fate City's whole premise isn't what it looks like.",
-            //     "No NPC in the city has ever referenced the Benefactor directly. Whatever brought the crew here may not even be native to Fate City's normal economy of favors.",
-            //     "The first real clue to the Benefactor's identity should probably cost the crew something to obtain, if only to keep the theme honest.",
-            //     "Every other dossier in this file is written as if the Benefactor compiled it personally for the crew. This is the one entry they'd never write about themselves — keep their identity exactly as open as you need it for your table.",
-            //   ],
-            // },
           ],
           quote: null,
+
+          redactedEncoded:
+            "PHAgY2xhc3M9InJlZGFjdGVkLWhlYWRpbmciPlJlZGFjdGVkIEludGVsbGlnZW5jZSDigJQgUGFydGlhbCBEZWNsYXNzaWZpY2F0aW9uPC9wPjxwIGNsYXNzPSJyZWRhY3RlZC1zdWIiPlNvdXJjZSB1bmNvbmZpcm1lZC4gUmVjb3ZlcmVkIGluIGZyYWdtZW50cy4gU29tZSByZWRhY3Rpb25zIHBlcmZvcm1lZCBieSB0aGUgc3ViamVjdCB0aGVtc2VsZiDigJQgbWV0aG9kIHVua25vd24uPC9wPjxwPuKWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWkyBkaWQgbm90IGJlZ2luIGluIEZhdGUgQ2l0eS4g4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paTIGFycml2ZWQgYW4gb3V0c2lkZXIsIG9uZSBvZiB0aHJlZSBicm91Z2h0IGluIGFyb3VuZCB0aGUgc2FtZSB0aW1lIOKWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWkyB3YXMgc3RpbGwgY2xpbWJpbmcg4oCUIG5vdCB5ZXQgcG93ZXJmdWwsIGp1c3Qgc29tZW9uZSB3aXRoIG1vbmV5IGFuZCBhIGxvbmcgbGlzdCBvZiBwZW9wbGUgd2hvIGRpZG4ndCB5ZXQgb3dlIHRoZW0gYW55dGhpbmcuPC9wPjxwPlRoZSB0aHJlZSBvZiB0aGVtIGJ1aWx0IGEgcmVwdXRhdGlvbiB0aGUgb2xkLWZhc2hpb25lZCB3YXkuIFdoYXRldmVyIG5lZWRlZCBkaWdnaW5nIHVwLCB0aGV5IGR1Zy4gV2hhdGV2ZXIgbmVlZGVkIHRvIHF1aWV0bHkgc3RvcCBiZWluZyBhIHByb2JsZW0sIHN0b3BwZWQgYmVpbmcgYSBwcm9ibGVtLiBCeSB0aGUgdGltZSDilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpMgaGFkIHdoYXQgdGhleSB3YW50ZWQsIHRoZSB0aHJlZSBvZiB0aGVtIHdlcmVuJ3QganVzdCB1c2VmdWwgYW55bW9yZSDigJQgdGhleSB3ZXJlIHRoZSBvbmx5IGxpdmluZyByZWNvcmQgb2YgaG93IGl0IGhhZCBhY3R1YWxseSBoYXBwZW5lZC4gVGhhdCBzdG9wcGVkIGJlaW5nIHNhZmUgdG8gYmUsIGZvciBhbGwgdGhyZWUgb2YgdGhlbSwgb24gdGhlIHNhbWUgbmlnaHQuPC9wPjxwPlR3byBkaWQgbm90IHN1cnZpdmUgdGhhdCBuaWdodC4gVGhlIHRoaXJkIHdhcyBtZWFudCB0byBiZSB0aGUgdGhpcmQuIOKWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWkyDilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpMg4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paTLCBsZWZ0IGZvciBjb25maXJtZWQgZGVhZC4gTm9ib2R5IGV2ZXIgY2hlY2tlZCB0d2ljZS48L3A+PHA+4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paTIGRpZCBub3Qgc3VyZmFjZSBhZ2FpbiB1bmRlciB0aGUgc2FtZSBuYW1lLiDilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpPilpMg4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paTIOKWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWk+KWkyDigJQgYSBjbGVhbiBjb3ZlciwgbW9iaWxlLCBidWlsdCBvbiBhIGZhY2Ugbm9ib2R5IGlzIGxvb2tpbmcgZm9yLCBiZWNhdXNlIHRoZSBmYWNlIHRoZXkgcmVtZW1iZXIgaXNuJ3Qgc3VwcG9zZWQgdG8gZXhpc3QgYW55bW9yZS48L3A+PHA+VGhpcyBpcyBub3QgYWJvdXQgZXhwb3N1cmUuIFRoaXMgaXMgYWJvdXQgYmVjb21pbmcgdGhlIHRoaW5nIHRoYXQgYnVpbHQg4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paT4paTIGluIHRoZSBmaXJzdCBwbGFjZSDigJQgbGV2ZXJhZ2UsIHBhdGllbmNlLCBhIGxlZGdlciBub2JvZHkgc2VlcyB1bnRpbCBpdCdzIGFscmVhZHkgY2FsbGVkIGluLiBUaGVyZSBpcyBubyBmYWN0aW9uIGJlaGluZCB0aGlzLiBObyBwcm90ZWN0aW9uIHJhY2tldCwgbm8gbXVzY2xlIG9uIHJldGFpbmVyLiBPbmx5IHRoZSBzYW1lIHNraWxsc2V0IG9uY2UgdXNlZCB0byBidWlsZCBzb21lb25lIGVsc2UncyBwb3dlciwgbm93IGFpbWVkIGF0IHRoZSBvbmUgd2hvIHVzZWQgaXQuPC9wPg==",
         },
       ];
 
@@ -1481,6 +1576,14 @@
           ? `<blockquote>${npc.quote.text}<span class="cite">${npc.quote.cite}</span></blockquote>`
           : "";
 
+        const redacted = npc.redactedEncoded
+          ? `<div class="redacted-gate" data-redacted-gate="${npc.id}">
+                  <input type="password" autocomplete="off" spellcheck="false" />
+                  <button type="button">&#8594;</button>
+                </div>
+                <div class="redacted-block" data-redacted="${npc.id}" data-encoded="${npc.redactedEncoded}"></div>`
+          : "";
+
         return `
               <div class="card" style="--rule:${c.rule || "#b8902f"}; --accent:${c.accent || "#b8902f"}">
                 <div class="stripe" style="background:${c.stripe || c.rule || "#b8902f"}"></div>
@@ -1497,6 +1600,7 @@
                 <div class="stats">${stats}</div>
                 <div class="section">${sections}</div>
                 ${quote}
+                ${redacted}
                 <div class="footer-pad"></div>
               </div>`;
       }
@@ -1532,6 +1636,57 @@
         }
         root.innerHTML = html;
         wireGalleries();
+        wirePasswordReveal();
+      }
+
+      // ===================== HIDDEN REVEAL =====================
+      // NPCs with a `redactedEncoded` field get a bare password field
+      // rendered in place of their redacted dossier section. No label,
+      // no hint text — just the input. Correct password decodes the
+      // base64 payload client-side and swaps it in.
+      function wirePasswordReveal() {
+        const PASSWORD = "03171989";
+
+        document.querySelectorAll(".redacted-gate").forEach((gate) => {
+          const npcId = gate.getAttribute("data-redacted-gate");
+          const input = gate.querySelector("input");
+          const block = document.querySelector(
+            '.redacted-block[data-redacted="' + npcId + '"]',
+          );
+          if (!input || !block) return;
+
+          function attemptUnlock() {
+            const value = input.value.trim().toLowerCase();
+            if (value !== PASSWORD) {
+              input.value = "";
+              gate.classList.add("shake");
+              setTimeout(() => gate.classList.remove("shake"), 400);
+              return;
+            }
+            const encoded = block.getAttribute("data-encoded");
+            try {
+              const decoded = decodeURIComponent(
+                Array.prototype.map
+                  .call(
+                    atob(encoded),
+                    (c) =>
+                      "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2),
+                  )
+                  .join(""),
+              );
+              block.innerHTML = decoded;
+              block.classList.add("revealed");
+              gate.remove();
+            } catch (e) {
+              // decode failed silently — leave gate in place
+            }
+          }
+
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") attemptUnlock();
+          });
+          gate.querySelector("button").addEventListener("click", attemptUnlock);
+        });
       }
 
       // ===================== LIGHTBOX =====================
