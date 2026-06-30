@@ -69,8 +69,19 @@
         opacity: .9;
         line-height: 1;
         flex-shrink: 0;
+        position: relative;
+        padding: 8px;
+        margin: -8px;
       }
       .msg-back:hover { opacity: 1; }
+      .msg-back::before {
+        content: '';
+        position: absolute;
+        top: -8px;
+        bottom: -8px;
+        left: -8px;
+        right: -8px;
+      }
       .msg-live-dot {
         width: 7px; height: 7px; border-radius: 50%;
         background: #c9a227; flex-shrink: 0;

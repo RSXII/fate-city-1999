@@ -140,6 +140,17 @@
         line-height: 1;
         display: flex;
         align-items: center;
+        position: relative;
+        padding: 8px;
+        margin: -8px;
+      }
+      .wire-hdr-back::before {
+        content: '';
+        position: absolute;
+        top: -8px;
+        bottom: -8px;
+        left: -8px;
+        right: -8px;
       }
       .wire-hdr-back:hover { opacity: 1; }
       .wire-hdr-text { flex: 1; }
@@ -550,7 +561,7 @@
         color: #e8dfc8;
         font-size: 11px;
         font-weight: 600;
-        padding: 7px 14px;
+        padding: 10px 16px;
         border-radius: 20px;
         display: flex;
         align-items: center;
@@ -564,6 +575,14 @@
         font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
         text-decoration: none;
         cursor: pointer;
+      }
+      .wire-toast::before {
+        content: '';
+        position: absolute;
+        top: -10px;
+        bottom: -10px;
+        left: -10px;
+        right: -10px;
       }
       .wire-toast.show {
         opacity: 1;
