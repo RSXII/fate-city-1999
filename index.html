@@ -10,8 +10,11 @@
         --line: #cfc6b0;
         --gold: #b8902f;
       }
-      * { box-sizing: border-box; }
-      html, body {
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
         margin: 0;
         background: #0d1118;
         font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -25,14 +28,18 @@
       /* ===== WIRE CHROME ===== */
       .wire-once {
         position: fixed;
-        top: 0; left: 0; right: 0;
+        top: 0;
+        left: 0;
+        right: 0;
         height: 4px;
         background: #7c3aed;
         z-index: 200;
       }
       .wire-status {
         position: fixed;
-        top: 4px; left: 0; right: 0;
+        top: 4px;
+        left: 0;
+        right: 0;
         height: 36px;
         background: #0c0f16;
         border-bottom: 1px solid #1a2030;
@@ -62,7 +69,7 @@
       .wire-skam {
         font-size: 10px;
         font-weight: 600;
-        letter-spacing: .8px;
+        letter-spacing: 0.8px;
         color: #c9a227;
       }
       .wire-jail {
@@ -71,8 +78,8 @@
         letter-spacing: 1.5px;
         text-transform: uppercase;
         color: #e05a3a;
-        border: 1px solid rgba(224,90,58,.4);
-        background: rgba(224,90,58,.08);
+        border: 1px solid rgba(224, 90, 58, 0.4);
+        background: rgba(224, 90, 58, 0.08);
         padding: 2px 5px;
         border-radius: 2px;
       }
@@ -82,9 +89,12 @@
         transform: translateX(-50%);
         font-size: 11.5px;
         color: #6a7d90;
-        letter-spacing: .3px;
+        letter-spacing: 0.3px;
       }
-      .wire-status-right { display: flex; align-items: center; }
+      .wire-status-right {
+        display: flex;
+        align-items: center;
+      }
       .wire-batt {
         width: 20px;
         height: 11px;
@@ -94,7 +104,7 @@
         position: relative;
       }
       .wire-batt::after {
-        content: '';
+        content: "";
         position: absolute;
         right: -4px;
         top: 50%;
@@ -112,7 +122,9 @@
       }
       .wire-home {
         position: fixed;
-        bottom: 0; left: 0; right: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
         height: 32px;
         background: #0c0f16;
         border-top: 1px solid #1a2030;
@@ -128,7 +140,11 @@
         border-radius: 2px;
       }
       @media print {
-        .wire-once, .wire-status, .wire-home { display: none !important; }
+        .wire-once,
+        .wire-status,
+        .wire-home {
+          display: none !important;
+        }
       }
 
       /* ===== HOME SCREEN ===== */
@@ -143,7 +159,9 @@
         gap: 12px;
         padding: 0 22px;
       }
-      .hs-row + .hs-row { margin-top: 14px; }
+      .hs-row + .hs-row {
+        margin-top: 14px;
+      }
       .hs-icon {
         flex: 1 1 0;
         max-width: 110px;
@@ -158,9 +176,9 @@
         max-width: 78px;
         aspect-ratio: 1;
         margin: 0 auto;
-        border: 1px solid rgba(201,162,39,.35);
+        border: 1px solid rgba(201, 162, 39, 0.35);
         border-radius: 16px;
-        background: rgba(255,255,255,.025);
+        background: rgba(255, 255, 255, 0.025);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -187,9 +205,10 @@
         line-height: 1;
       }
       .hs-plat-glyph::after {
-        content: '';
+        content: "";
         position: absolute;
-        left: -7px; right: -7px;
+        left: -7px;
+        right: -7px;
         top: 50%;
         height: 2px;
         background: #c9a227;
@@ -204,12 +223,21 @@
       .hs-stage-static {
         min-height: 0;
       }
-      .hs-stage-fixed { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+      .hs-stage-fixed {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
 
       /* ===== BOOT SPLASH (index.html only) ===== */
       .boot-splash {
         position: fixed;
-        top: 0; right: 0; bottom: 0; left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
         background: #0c0f16;
         z-index: 500;
         display: flex;
@@ -217,7 +245,7 @@
         align-items: center;
         justify-content: center;
         gap: 18px;
-        transition: opacity .5s ease;
+        transition: opacity 0.5s ease;
       }
       .boot-splash.hide {
         opacity: 0;
@@ -225,7 +253,9 @@
       }
       .boot-splash-top {
         position: absolute;
-        top: 0; left: 0; right: 0;
+        top: 0;
+        left: 0;
+        right: 0;
         height: 4px;
         background: #7c3aed;
       }
@@ -255,17 +285,32 @@
         background: #7c3aed;
         animation: boot-pulse 1.2s ease-in-out infinite;
       }
-      .boot-dot:nth-child(2) { animation-delay: .22s; }
-      .boot-dot:nth-child(3) { animation-delay: .44s; }
+      .boot-dot:nth-child(2) {
+        animation-delay: 0.22s;
+      }
+      .boot-dot:nth-child(3) {
+        animation-delay: 0.44s;
+      }
       @keyframes boot-pulse {
-        0%, 100% { opacity: .18; transform: scale(.75); }
-        50% { opacity: 1; transform: scale(1); }
+        0%,
+        100% {
+          opacity: 0.18;
+          transform: scale(0.75);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1);
+        }
       }
       @media print {
-        .boot-splash { display: none !important; }
+        .boot-splash {
+          display: none !important;
+        }
       }
       .hs-fade {
-        transition: opacity .45s ease, transform .45s ease;
+        transition:
+          opacity 0.45s ease,
+          transform 0.45s ease;
       }
       .hs-fade-hidden {
         opacity: 0;
@@ -276,10 +321,12 @@
       .hs-warn-box {
         position: relative;
         margin: 0 22px;
-        border: 1px solid rgba(224,90,58,.32);
+        border: 1px solid rgba(224, 90, 58, 0.32);
         border-radius: 4px;
-        background: rgba(224,90,58,.07);
-        box-shadow: 0 0 18px rgba(224,90,58,.22), inset 0 0 16px rgba(224,90,58,.08);
+        background: rgba(224, 90, 58, 0.07);
+        box-shadow:
+          0 0 18px rgba(224, 90, 58, 0.22),
+          inset 0 0 16px rgba(224, 90, 58, 0.08);
         padding: 20px 16px;
         text-align: center;
         animation: warn-pulse 0.9s ease-in-out infinite;
@@ -288,17 +335,49 @@
         position: absolute;
         width: 13px;
         height: 13px;
-        border: 2px solid rgba(224,90,58,.9);
+        border: 2px solid rgba(224, 90, 58, 0.9);
       }
-      .hs-warn-corner.tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
-      .hs-warn-corner.tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
-      .hs-warn-corner.bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
-      .hs-warn-corner.br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+      .hs-warn-corner.tl {
+        top: -2px;
+        left: -2px;
+        border-right: none;
+        border-bottom: none;
+      }
+      .hs-warn-corner.tr {
+        top: -2px;
+        right: -2px;
+        border-left: none;
+        border-bottom: none;
+      }
+      .hs-warn-corner.bl {
+        bottom: -2px;
+        left: -2px;
+        border-right: none;
+        border-top: none;
+      }
+      .hs-warn-corner.br {
+        bottom: -2px;
+        right: -2px;
+        border-left: none;
+        border-top: none;
+      }
       @keyframes warn-pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: .3; }
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
       }
-      .hs-warn-icon { width: 26px; height: 26px; color: #e05a3a; margin: 0 auto 10px; stroke: currentColor; fill: none; }
+      .hs-warn-icon {
+        width: 26px;
+        height: 26px;
+        color: #e05a3a;
+        margin: 0 auto 10px;
+        stroke: currentColor;
+        fill: none;
+      }
       .hs-warn-line {
         font-size: 10px;
         font-weight: 700;
@@ -309,7 +388,7 @@
       .hs-warn-hr {
         height: 1px;
         width: 65%;
-        background: rgba(224,90,58,.35);
+        background: rgba(224, 90, 58, 0.35);
         margin: 9px auto;
       }
       .hs-warn-big {
@@ -331,23 +410,29 @@
         display: flex;
         gap: 12px;
         align-items: flex-start;
-        background: rgba(124,58,237,.16);
-        border: 1px solid rgba(124,58,237,.45);
+        background: rgba(124, 58, 237, 0.16);
+        border: 1px solid rgba(124, 58, 237, 0.45);
         border-radius: 14px;
         padding: 12px 14px;
         text-decoration: none;
-        box-shadow: 0 0 16px rgba(124,58,237,.16);
-        transition: background .2s ease, transform .15s ease;
+        box-shadow: 0 0 16px rgba(124, 58, 237, 0.16);
+        transition:
+          background 0.2s ease,
+          transform 0.15s ease;
       }
-      .hs-notif:hover { background: rgba(124,58,237,.23); }
-      .hs-notif:active { transform: scale(.98); }
+      .hs-notif:hover {
+        background: rgba(124, 58, 237, 0.23);
+      }
+      .hs-notif:active {
+        transform: scale(0.98);
+      }
       .hs-notif-avatar {
         flex-shrink: 0;
         width: 32px;
         height: 32px;
         border-radius: 50%;
         background: #241531;
-        border: 1px solid rgba(154,111,217,.6);
+        border: 1px solid rgba(154, 111, 217, 0.6);
         color: #c9b3f0;
         display: flex;
         align-items: center;
@@ -355,7 +440,10 @@
         font-size: 13px;
         font-weight: 700;
       }
-      .hs-notif-body { flex: 1; min-width: 0; }
+      .hs-notif-body {
+        flex: 1;
+        min-width: 0;
+      }
       .hs-notif-top {
         display: flex;
         justify-content: space-between;
@@ -370,13 +458,13 @@
       }
       .hs-notif-time {
         font-size: 9px;
-        color: rgba(240,234,249,.5);
+        color: rgba(240, 234, 249, 0.5);
         flex-shrink: 0;
       }
       .hs-notif-text {
         font-size: 11.5px;
         line-height: 1.45;
-        color: rgba(240,234,249,.9);
+        color: rgba(240, 234, 249, 0.9);
       }
 
       .hs-dots {
@@ -389,19 +477,28 @@
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background: rgba(201,162,39,.3);
+        background: rgba(201, 162, 39, 0.3);
       }
-      .hs-dot.active { background: #c9a227; }
+      .hs-dot.active {
+        background: #c9a227;
+      }
 
       @media (max-width: 420px) {
-        .hs-row { padding: 0 16px; }
-        .hs-notifs { padding: 0 16px; }
-        .hs-warn-box { margin: 0 16px; }
+        .hs-row {
+          padding: 0 16px;
+        }
+        .hs-notifs {
+          padding: 0 16px;
+        }
+        .hs-warn-box {
+          margin: 0 16px;
+        }
       }
-    
+
       /* ===== WIRE NOTIFICATIONS (unread badge + toast) ===== */
       .wire-unread-dot {
-        width: 7px; height: 7px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
         background: #c9a227;
         display: none;
@@ -409,15 +506,25 @@
         flex-shrink: 0;
         animation: wire-live-pulse 2s ease-in-out infinite;
       }
-      .wire-unread-dot.show { display: inline-block; }
-      @keyframes wire-live-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+      .wire-unread-dot.show {
+        display: inline-block;
+      }
+      @keyframes wire-live-pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
       .wire-toast {
         position: fixed;
         top: 44px;
         left: 50%;
         transform: translateX(-50%) translateY(-10px);
         background: #1a1530;
-        border: 1px solid rgba(201,162,39,.4);
+        border: 1px solid rgba(201, 162, 39, 0.4);
         color: #e8dfc8;
         font-size: 11px;
         font-weight: 600;
@@ -429,8 +536,10 @@
         z-index: 300;
         opacity: 0;
         pointer-events: none;
-        transition: opacity .3s ease, transform .3s ease;
-        box-shadow: 0 6px 18px rgba(0,0,0,.45);
+        transition:
+          opacity 0.3s ease,
+          transform 0.3s ease;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
         white-space: nowrap;
         font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
         text-decoration: none;
@@ -444,7 +553,7 @@
     </style>
   </head>
   <body>
-<div class="boot-splash" id="boot-splash">
+    <div class="boot-splash" id="boot-splash">
       <div class="boot-splash-top" aria-hidden="true"></div>
       <div class="boot-brand">S.K.AM</div>
       <div class="boot-tag">Wire &middot; Initializing</div>
@@ -460,15 +569,19 @@
     <div class="wire-status">
       <div class="wire-status-left">
         <div class="wire-sig" aria-label="Signal: 4 of 5 bars">
-          <span style="height:4px"></span>
-          <span style="height:6px"></span>
-          <span style="height:9px"></span>
-          <span style="height:11px"></span>
-          <span style="height:12px;opacity:.28"></span>
+          <span style="height: 4px"></span>
+          <span style="height: 6px"></span>
+          <span style="height: 9px"></span>
+          <span style="height: 11px"></span>
+          <span style="height: 12px; opacity: 0.28"></span>
         </div>
         <span class="wire-skam">S.K.AM</span>
         <span class="wire-jail">JAILBROKEN</span>
-        <span class="wire-unread-dot" id="wire-unread-dot" aria-hidden="true"></span>
+        <span
+          class="wire-unread-dot"
+          id="wire-unread-dot"
+          aria-hidden="true"
+        ></span>
       </div>
       <span class="wire-clock" id="wire-clock"></span>
       <div class="wire-status-right">
@@ -478,39 +591,94 @@
       </div>
     </div>
     <a class="wire-toast" id="wire-toast" href="messages.html">
-      <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.6 6.8l8.4 6.3 8.4-6.3"/></svg>
+      <svg
+        viewBox="0 0 24 24"
+        width="12"
+        height="12"
+        stroke="currentColor"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
+        <path d="M3.6 6.8l8.4 6.3 8.4-6.3" />
+      </svg>
       <span id="wire-toast-text">New message</span>
     </a>
 
-
-    <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Fate City: 1999 Wire home screen</h1>
+    <h1
+      style="
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+      "
+    >
+      Fate City: 1999 Wire home screen
+    </h1>
 
     <div class="hs-wrap">
       <div class="hs-row hs-row-top">
         <a class="hs-icon" href="messages.html">
           <div class="hs-icon-tile">
-            <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>
+            <svg
+              viewBox="0 0 24 24"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"
+              />
             </svg>
           </div>
           <span class="hs-icon-label">Messages</span>
         </a>
         <div class="hs-icon">
           <div class="hs-icon-tile">
-            <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z"/>
+            <svg
+              viewBox="0 0 24 24"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z"
+              />
             </svg>
           </div>
           <span class="hs-icon-label">Phone</span>
         </div>
         <div class="hs-icon">
           <div class="hs-icon-tile">
-            <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="4" y="5" width="16" height="15" rx="1.5"/>
-              <line x1="4" y1="9.5" x2="20" y2="9.5"/>
-              <line x1="8" y1="3" x2="8" y2="6.2"/>
-              <line x1="16" y1="3" x2="16" y2="6.2"/>
-              <text x="12" y="16.3" font-size="6.5" text-anchor="middle" fill="currentColor" stroke="none" font-family="Arial, sans-serif" font-weight="700">31</text>
+            <svg
+              viewBox="0 0 24 24"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="4" y="5" width="16" height="15" rx="1.5" />
+              <line x1="4" y1="9.5" x2="20" y2="9.5" />
+              <line x1="8" y1="3" x2="8" y2="6.2" />
+              <line x1="16" y1="3" x2="16" y2="6.2" />
+              <text
+                x="12"
+                y="16.3"
+                font-size="6.5"
+                text-anchor="middle"
+                fill="currentColor"
+                stroke="none"
+                font-family="Arial, sans-serif"
+                font-weight="700"
+              >
+                31
+              </text>
             </svg>
           </div>
           <span class="hs-icon-label">Calendar</span>
@@ -522,15 +690,57 @@
           <div class="hs-row hs-row-mid">
             <div class="hs-icon">
               <div class="hs-icon-tile">
-                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="5.5" y="3" width="13" height="18" rx="1.5"/>
-                  <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5"/>
-                  <circle cx="8.4" cy="13" r="0.85" fill="currentColor" stroke="none"/>
-                  <circle cx="12" cy="13" r="0.85" fill="currentColor" stroke="none"/>
-                  <circle cx="15.6" cy="13" r="0.85" fill="currentColor" stroke="none"/>
-                  <circle cx="8.4" cy="16.2" r="0.85" fill="currentColor" stroke="none"/>
-                  <circle cx="12" cy="16.2" r="0.85" fill="currentColor" stroke="none"/>
-                  <circle cx="15.6" cy="16.2" r="0.85" fill="currentColor" stroke="none"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
+                  <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
+                  <circle
+                    cx="8.4"
+                    cy="13"
+                    r="0.85"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="12"
+                    cy="13"
+                    r="0.85"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="15.6"
+                    cy="13"
+                    r="0.85"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="8.4"
+                    cy="16.2"
+                    r="0.85"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="12"
+                    cy="16.2"
+                    r="0.85"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="15.6"
+                    cy="16.2"
+                    r="0.85"
+                    fill="currentColor"
+                    stroke="none"
+                  />
                 </svg>
               </div>
               <span class="hs-icon-label">Calculator</span>
@@ -543,10 +753,22 @@
             </div>
             <div class="hs-icon">
               <div class="hs-icon-tile">
-                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="8.2"/>
-                  <circle cx="12" cy="12" r="4.6"/>
-                  <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="8.2" />
+                  <circle cx="12" cy="12" r="4.6" />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                    fill="currentColor"
+                    stroke="none"
+                  />
                 </svg>
               </div>
               <span class="hs-icon-label">O.N.C.E.</span>
@@ -555,36 +777,60 @@
           <div class="hs-row hs-row-bottom">
             <div class="hs-icon">
               <div class="hs-icon-tile">
-                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="7.5" width="18" height="12.5" rx="2"/>
-                  <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3"/>
-                  <circle cx="12" cy="13.7" r="3.3"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+                  <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
+                  <circle cx="12" cy="13.7" r="3.3" />
                 </svg>
               </div>
               <span class="hs-icon-label">Camera</span>
             </div>
             <div class="hs-icon">
               <div class="hs-icon-tile">
-                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="5.5" width="18" height="13" rx="1.5"/>
-                  <path d="M3.6 6.8l8.4 6.3 8.4-6.3"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
+                  <path d="M3.6 6.8l8.4 6.3 8.4-6.3" />
                 </svg>
               </div>
               <span class="hs-icon-label">Email</span>
             </div>
             <div class="hs-icon">
               <div class="hs-icon-tile">
-                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3.8"/>
-                  <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>
-                  <line x1="12" y1="2.3" x2="12" y2="5.3"/>
-                  <line x1="12" y1="18.7" x2="12" y2="21.7"/>
-                  <line x1="2.3" y1="12" x2="5.3" y2="12"/>
-                  <line x1="18.7" y1="12" x2="21.7" y2="12"/>
-                  <line x1="5.1" y1="5.1" x2="7.2" y2="7.2"/>
-                  <line x1="16.8" y1="16.8" x2="18.9" y2="18.9"/>
-                  <line x1="5.1" y1="18.9" x2="7.2" y2="16.8"/>
-                  <line x1="16.8" y1="7.2" x2="18.9" y2="5.1"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3.8" />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <line x1="12" y1="2.3" x2="12" y2="5.3" />
+                  <line x1="12" y1="18.7" x2="12" y2="21.7" />
+                  <line x1="2.3" y1="12" x2="5.3" y2="12" />
+                  <line x1="18.7" y1="12" x2="21.7" y2="12" />
+                  <line x1="5.1" y1="5.1" x2="7.2" y2="7.2" />
+                  <line x1="16.8" y1="16.8" x2="18.9" y2="18.9" />
+                  <line x1="5.1" y1="18.9" x2="7.2" y2="16.8" />
+                  <line x1="16.8" y1="7.2" x2="18.9" y2="5.1" />
                 </svg>
               </div>
               <span class="hs-icon-label">Settings</span>
@@ -598,10 +844,23 @@
             <span class="hs-warn-corner tr"></span>
             <span class="hs-warn-corner bl"></span>
             <span class="hs-warn-corner br"></span>
-            <svg class="hs-warn-icon" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 3.2L21.5 20H2.5L12 3.2z" stroke-linejoin="round"/>
-              <line x1="12" y1="9.5" x2="12" y2="14"/>
-              <circle cx="12" cy="16.8" r="0.6" fill="currentColor" stroke="none"/>
+            <svg
+              class="hs-warn-icon"
+              viewBox="0 0 24 24"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3.2L21.5 20H2.5L12 3.2z" stroke-linejoin="round" />
+              <line x1="12" y1="9.5" x2="12" y2="14" />
+              <circle
+                cx="12"
+                cy="16.8"
+                r="0.6"
+                fill="currentColor"
+                stroke="none"
+              />
             </svg>
             <div class="hs-warn-line">Unauthorized firmware detected</div>
             <div class="hs-warn-hr"></div>
@@ -611,7 +870,10 @@
           </div>
         </div>
 
-<div class="hs-stage-fixed hs-fade hs-notifs hs-fade-hidden" id="hs-notifs">
+        <div
+          class="hs-stage-fixed hs-fade hs-notifs hs-fade-hidden"
+          id="hs-notifs"
+        >
           <a class="hs-notif" href="persons.html">
             <div class="hs-notif-avatar">M</div>
             <div class="hs-notif-body">
@@ -619,7 +881,10 @@
                 <span class="hs-notif-sender">Unknown</span>
                 <span class="hs-notif-time">Now</span>
               </div>
-              <div class="hs-notif-text">Persons of Interest is ready. Everyone worth knowing in Fate City &mdash; for now.</div>
+              <div class="hs-notif-text">
+                Persons of Interest is ready. Everyone worth knowing in Fate
+                City &mdash; for now.
+              </div>
             </div>
           </a>
           <a class="hs-notif" href="locations.html">
@@ -629,7 +894,10 @@
                 <span class="hs-notif-sender">Unknown</span>
                 <span class="hs-notif-time">Now</span>
               </div>
-              <div class="hs-notif-text">Locations is ready. Every address worth remembering, starting with the ones you'll need first.</div>
+              <div class="hs-notif-text">
+                Locations is ready. Every address worth remembering, starting
+                with the ones you'll need first.
+              </div>
             </div>
           </a>
         </div>
@@ -648,15 +916,14 @@
     </div>
 
     <script>
-
       // ===== WIRE CLOCK =====
       function tick() {
-        var el = document.getElementById('wire-clock');
+        var el = document.getElementById("wire-clock");
         if (!el) return;
         var n = new Date();
-        var h = String(n.getHours()).padStart(2, '0');
-        var m = String(n.getMinutes()).padStart(2, '0');
-        el.textContent = h + ':' + m;
+        var h = String(n.getHours()).padStart(2, "0");
+        var m = String(n.getMinutes()).padStart(2, "0");
+        el.textContent = h + ":" + m;
       }
       tick();
       setInterval(tick, 15000);
@@ -667,38 +934,38 @@
       // Phase 2: warning clears, full icon grid settles into place
       // Phase 3: grid clears, Benefactor texts arrive in its place
       (function () {
-        var splash = document.getElementById('boot-splash');
-        var warning = document.getElementById('hs-warning');
-        var grid = document.getElementById('hs-grid');
-        var notifs = document.getElementById('hs-notifs');
+        var splash = document.getElementById("boot-splash");
+        var warning = document.getElementById("hs-warning");
+        var grid = document.getElementById("hs-grid");
+        var notifs = document.getElementById("hs-notifs");
 
         setTimeout(function () {
-          splash.classList.add('hide');
-        }, 1100);
+          splash.classList.add("hide");
+        }, 3100);
 
         setTimeout(function () {
-          warning.classList.remove('hs-fade-hidden');
-        }, 1450);
+          warning.classList.remove("hs-fade-hidden");
+        }, 4250);
 
         setTimeout(function () {
-          warning.classList.add('hs-fade-hidden');
-          grid.classList.remove('hs-fade-hidden');
-        }, 3050);
+          warning.classList.add("hs-fade-hidden");
+          grid.classList.remove("hs-fade-hidden");
+        }, 6650);
 
         setTimeout(function () {
-          grid.classList.add('hs-fade-hidden');
-          notifs.classList.remove('hs-fade-hidden');
-        }, 4150);
+          grid.classList.add("hs-fade-hidden");
+          notifs.classList.remove("hs-fade-hidden");
+        }, 7450);
       })();
 
-    
       // ===== WIRE NOTIFICATIONS (unread badge + toast, polls Firebase) =====
       (function () {
-        var FIREBASE_URL = 'https://cpr-wire-device-default-rtdb.firebaseio.com';
-        var LAST_SEEN_MAP_KEY = 'wire-last-seen-map';
-        var dot = document.getElementById('wire-unread-dot');
-        var toast = document.getElementById('wire-toast');
-        var toastText = document.getElementById('wire-toast-text');
+        var FIREBASE_URL =
+          "https://cpr-wire-device-default-rtdb.firebaseio.com";
+        var LAST_SEEN_MAP_KEY = "wire-last-seen-map";
+        var dot = document.getElementById("wire-unread-dot");
+        var toast = document.getElementById("wire-toast");
+        var toastText = document.getElementById("wire-toast-text");
         if (!dot || !toast) return;
 
         var toastTimer = null;
@@ -715,15 +982,17 @@
         }
 
         function showToast(n) {
-          toastText.textContent = n === 1 ? 'New message' : (n + ' new messages');
-          toast.classList.add('show');
+          toastText.textContent = n === 1 ? "New message" : n + " new messages";
+          toast.classList.add("show");
           clearTimeout(toastTimer);
-          toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 4000);
+          toastTimer = setTimeout(function () {
+            toast.classList.remove("show");
+          }, 4000);
         }
 
         async function pollUnread() {
           try {
-            var res = await fetch(FIREBASE_URL + '/messages.json');
+            var res = await fetch(FIREBASE_URL + "/messages.json");
             if (!res.ok) return;
             var data = await res.json();
             var lastSeenMap = getLastSeenMap();
@@ -737,12 +1006,12 @@
               });
             }
             if (unread > 0) {
-              dot.classList.add('show');
+              dot.classList.add("show");
               if (!isFirstPoll && unread > lastUnreadCount) {
                 showToast(unread - lastUnreadCount);
               }
             } else {
-              dot.classList.remove('show');
+              dot.classList.remove("show");
             }
             lastUnreadCount = unread;
             isFirstPoll = false;
@@ -754,7 +1023,6 @@
         pollUnread();
         setInterval(pollUnread, 5000);
       })();
-
     </script>
   </body>
 </html>
