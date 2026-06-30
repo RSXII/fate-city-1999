@@ -350,6 +350,66 @@
           display: none !important;
         }
       }
+
+      /* ===== PRE-BOOT POWER SCREEN ===== */
+      .pre-boot {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: #050709;
+        z-index: 600;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        cursor: pointer;
+        transition: opacity 0.4s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+      .pre-boot.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .pre-boot-btn {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(201, 162, 39, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(201, 162, 39, 0.35);
+        transition:
+          border-color 0.2s ease,
+          color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .pre-boot:hover .pre-boot-btn {
+        border-color: rgba(201, 162, 39, 0.6);
+        color: rgba(201, 162, 39, 0.75);
+        box-shadow: 0 0 20px rgba(201, 162, 39, 0.15);
+      }
+      .pre-boot:active .pre-boot-btn {
+        border-color: rgba(201, 162, 39, 0.9);
+        color: #c9a227;
+        box-shadow: 0 0 30px rgba(201, 162, 39, 0.3);
+      }
+      .pre-boot-label {
+        font-size: 9px;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: rgba(201, 162, 39, 0.2);
+      }
+      @media print {
+        .pre-boot {
+          display: none !important;
+        }
+      }
+
       .hs-fade {
         transition:
           opacity 0.45s ease,
@@ -640,6 +700,15 @@
     </style>
   </head>
   <body>
+    <div class="pre-boot" id="pre-boot">
+      <div class="pre-boot-btn">
+        <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v4M8.3 5.7A7 7 0 1 0 15.7 5.7"/>
+        </svg>
+      </div>
+      <span class="pre-boot-label">Power on</span>
+    </div>
+
     <div class="boot-splash" id="boot-splash">
       <div class="boot-splash-top" aria-hidden="true"></div>
       <div class="boot-brand">S.K.AM</div>
@@ -1003,49 +1072,37 @@
       setInterval(tick, 15000);
 
       // ===== BOOT SEQUENCE =====
-      // Phase 0: S.K.AM splash while the device "starts up"
-      // Phase 1: splash clears, jailbreak warning slides in over the icon grid
-      // Phase 2: warning clears, full icon grid settles into place
+      // Power-on tap → boot sound → S.K.AM splash → jailbreak warning → icon grid
       (function () {
+        var preBoot = document.getElementById("pre-boot");
         var splash = document.getElementById("boot-splash");
         var warning = document.getElementById("hs-warning");
         var grid = document.getElementById("hs-grid");
 
-        // Boot sound plays immediately on load.
         var bootAudio = new Audio("./sounds/boot.mp3");
         bootAudio.volume = 0.8;
-        var bootPlayed = false;
-        function playBoot() {
-          if (bootPlayed) return;
-          bootPlayed = true;
-          bootAudio.play().catch(function () {});
-        }
-        bootAudio
-          .play()
-          .then(function () {
-            bootPlayed = true;
-          })
-          .catch(function () {
-            document.addEventListener("pointerdown", playBoot, { once: true });
-          });
-
-        // Jailbreak sound plays when the warning appears.
         var jailbreakAudio = new Audio("./sounds/jailbreak.mp3");
         jailbreakAudio.volume = 0.8;
 
-        setTimeout(function () {
-          splash.classList.add("hide");
-        }, 3100);
+        preBoot.addEventListener("click", function () {
+          preBoot.classList.add("hide");
 
-        setTimeout(function () {
-          warning.classList.remove("hs-fade-hidden");
-          jailbreakAudio.play().catch(function () {});
-        }, 4250);
+          bootAudio.play().catch(function () {});
 
-        setTimeout(function () {
-          warning.classList.add("hs-fade-hidden");
-          grid.classList.remove("hs-fade-hidden");
-        }, 6650);
+          setTimeout(function () {
+            splash.classList.add("hide");
+          }, 3100);
+
+          setTimeout(function () {
+            warning.classList.remove("hs-fade-hidden");
+            jailbreakAudio.play().catch(function () {});
+          }, 4250);
+
+          setTimeout(function () {
+            warning.classList.add("hs-fade-hidden");
+            grid.classList.remove("hs-fade-hidden");
+          }, 6650);
+        }, { once: true });
       })();
 
       // ===== WIRE NOTIFICATIONS (unread badge + toast, polls Firebase) =====
