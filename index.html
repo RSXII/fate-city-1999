@@ -702,8 +702,18 @@
   <body>
     <div class="pre-boot" id="pre-boot">
       <div class="pre-boot-btn">
-        <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v4M8.3 5.7A7 7 0 1 0 15.7 5.7"/>
+        <svg
+          viewBox="0 0 24 24"
+          width="28"
+          height="28"
+          stroke="currentColor"
+          stroke-width="1.6"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3v4M8.3 5.7A7 7 0 1 0 15.7 5.7" />
         </svg>
       </div>
       <span class="pre-boot-label">Power on</span>
@@ -1084,25 +1094,29 @@
         var jailbreakAudio = new Audio("./sounds/jailbreak.mp3");
         jailbreakAudio.volume = 0.8;
 
-        preBoot.addEventListener("click", function () {
-          preBoot.classList.add("hide");
+        preBoot.addEventListener(
+          "click",
+          function () {
+            preBoot.classList.add("hide");
 
-          bootAudio.play().catch(function () {});
+            bootAudio.play().catch(function () {});
 
-          setTimeout(function () {
-            splash.classList.add("hide");
-          }, 3100);
+            setTimeout(function () {
+              splash.classList.add("hide");
+            }, 3100);
 
-          setTimeout(function () {
-            warning.classList.remove("hs-fade-hidden");
-            jailbreakAudio.play().catch(function () {});
-          }, 4250);
+            setTimeout(function () {
+              warning.classList.remove("hs-fade-hidden");
+              jailbreakAudio.play().catch(function () {});
+            }, 4250);
 
-          setTimeout(function () {
-            warning.classList.add("hs-fade-hidden");
-            grid.classList.remove("hs-fade-hidden");
-          }, 6650);
-        }, { once: true });
+            setTimeout(function () {
+              warning.classList.add("hs-fade-hidden");
+              grid.classList.remove("hs-fade-hidden");
+            }, 6650);
+          },
+          { once: true },
+        );
       })();
 
       // ===== WIRE NOTIFICATIONS (unread badge + toast, polls Firebase) =====
