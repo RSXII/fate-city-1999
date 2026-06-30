@@ -1011,12 +1011,35 @@
         var warning = document.getElementById("hs-warning");
         var grid = document.getElementById("hs-grid");
 
+        // Boot sound plays immediately on load.
+        var bootAudio = new Audio("./sounds/boot.mp3");
+        bootAudio.volume = 0.8;
+        var bootPlayed = false;
+        function playBoot() {
+          if (bootPlayed) return;
+          bootPlayed = true;
+          bootAudio.play().catch(function () {});
+        }
+        bootAudio
+          .play()
+          .then(function () {
+            bootPlayed = true;
+          })
+          .catch(function () {
+            document.addEventListener("pointerdown", playBoot, { once: true });
+          });
+
+        // Jailbreak sound plays when the warning appears.
+        var jailbreakAudio = new Audio("./sounds/jailbreak.mp3");
+        jailbreakAudio.volume = 0.8;
+
         setTimeout(function () {
           splash.classList.add("hide");
         }, 3100);
 
         setTimeout(function () {
           warning.classList.remove("hs-fade-hidden");
+          jailbreakAudio.play().catch(function () {});
         }, 4250);
 
         setTimeout(function () {
