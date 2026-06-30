@@ -18,62 +18,279 @@
       }
       body {
         margin: 0;
-        background: #15130f;
+        background: #0d1118;
         font-family: "Georgia", "Times New Roman", serif;
         color: var(--ink);
-        padding: 32px 16px 80px;
+        padding-top: 94px;
+        padding-bottom: 48px;
+        overflow-x: hidden;
       }
-      .cover {
-        max-width: 760px;
-        margin: 0 auto 40px;
-        text-align: center;
-        color: #f3efe6;
-        padding: 60px 20px 40px;
+      /* ===== WIRE CHROME ===== */
+      .wire-once {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #7c3aed;
+        z-index: 200;
       }
-      .cover h1 {
-        font-family: "Arial Black", "Arial", sans-serif;
-        font-size: 52px;
-        letter-spacing: 4px;
-        margin: 0;
-        background: linear-gradient(180deg, #f3d27a, #b8902f);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        text-shadow: 0 0 30px rgba(184, 144, 47, 0.3);
+      .wire-status {
+        position: fixed;
+        top: 4px;
+        left: 0;
+        right: 0;
+        height: 36px;
+        background: #0c0f16;
+        border-bottom: 1px solid #1a2030;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        z-index: 200;
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
       }
-      .cover h2 {
-        font-family: "Arial", sans-serif;
-        font-weight: 400;
-        letter-spacing: 6px;
-        font-size: 18px;
-        color: #b8902f;
-        margin: 10px 0 18px;
+      .wire-status-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .wire-sig {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 12px;
+      }
+      .wire-sig span {
+        width: 3px;
+        border-radius: 1px;
+        background: #c9a227;
+        display: inline-block;
+      }
+      .wire-skam {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        color: #c9a227;
+      }
+      .wire-jail {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
+        color: #e05a3a;
+        border: 1px solid rgba(224, 90, 58, 0.4);
+        background: rgba(224, 90, 58, 0.08);
+        padding: 2px 5px;
+        border-radius: 2px;
       }
-      .cover p {
-        font-style: italic;
-        color: #a9a08e;
-        font-size: 15px;
-        max-width: 520px;
-        margin: 0 auto;
-        line-height: 1.6;
+      .wire-clock {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 11.5px;
+        color: #6a7d90;
+        letter-spacing: 0.3px;
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
       }
-      .cover-rule {
-        width: 120px;
-        height: 2px;
-        background: var(--gold);
-        margin: 24px auto;
+      .wire-status-right {
+        display: flex;
+        align-items: center;
+      }
+      .wire-batt {
+        width: 20px;
+        height: 11px;
+        border: 1.5px solid #4a5a6a;
+        border-radius: 2px;
+        padding: 1.5px;
+        position: relative;
+      }
+      .wire-batt::after {
+        content: "";
+        position: absolute;
+        right: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 2px;
+        height: 5px;
+        background: #4a5a6a;
+        border-radius: 0 1px 1px 0;
+      }
+      .wire-batt-fill {
+        height: 100%;
+        width: 72%;
+        background: #c9a227;
+        border-radius: 1px;
+      }
+      .wire-header {
+        position: fixed;
+        top: 40px;
+        left: 0;
+        right: 0;
+        height: 50px;
+        background: #0c0f16;
+        border-bottom: 1px solid #1a2030;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 12px;
+        z-index: 200;
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+      }
+      .wire-hdr-back {
+        font-size: 22px;
+        color: #c9a227;
+        opacity: 0.9;
+        user-select: none;
+      }
+      .wire-hdr-text {
+        flex: 1;
+      }
+      .wire-hdr-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: #e8dfc8;
+        line-height: 1.1;
+      }
+      .wire-hdr-sub {
+        font-size: 9.5px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #3a4a5a;
+        margin-top: 2px;
+      }
+      .wire-hdr-more {
+        font-size: 18px;
+        color: #3a4a5a;
+      }
+      .wire-home {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 32px;
+        background: #0c0f16;
+        border-top: 1px solid #1a2030;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+      }
+      .wire-home-ind {
+        width: 90px;
+        height: 4px;
+        background: #1e2840;
+        border-radius: 2px;
+      }
+      /* ===== BOOT LOADER ===== */
+      .wire-loader {
+        position: fixed;
+        inset: 0;
+        background: #0c0f16;
+        z-index: 500;
+        overflow: hidden;
+      }
+      .lp {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+      }
+      .lp-top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+      }
+      .lp-brand {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 6px;
+        text-transform: uppercase;
+        color: #c9a227;
+      }
+      .lp-tag {
+        font-size: 9px;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: #2e3d4a;
+        margin-top: -8px;
+      }
+      .lp-dots {
+        display: flex;
+        gap: 9px;
+        margin-top: 2px;
+      }
+      .lp-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #7c3aed;
+        animation: pdot 1.2s ease-in-out infinite;
+      }
+      .lp-dot:nth-child(2) {
+        animation-delay: 0.22s;
+      }
+      .lp-dot:nth-child(3) {
+        animation-delay: 0.44s;
+      }
+      @keyframes pdot {
+        0%,
+        100% {
+          opacity: 0.18;
+          transform: scale(0.75);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes warn-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.28;
+        }
+      }
+      .lp-warn {
+        text-align: center;
+        animation: warn-pulse 0.9s ease-in-out infinite;
+      }
+      .lp-warn-sm {
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #c94f4f;
+        line-height: 2;
+      }
+      .lp-warn-lg {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: #e05a3a;
+        margin-top: 10px;
       }
 
       .section-divider {
         max-width: 760px;
-        margin: 56px auto 28px;
+        margin: 48px auto 24px;
         display: flex;
         align-items: center;
         gap: 18px;
       }
       .section-divider.first {
-        margin-top: 8px;
+        margin-top: 28px;
       }
       .section-divider::before,
       .section-divider::after {
@@ -83,7 +300,7 @@
         background: linear-gradient(
           90deg,
           transparent,
-          rgba(184, 144, 47, 0.55),
+          rgba(184, 144, 47, 0.25),
           transparent
         );
       }
@@ -92,7 +309,7 @@
         font-size: 13px;
         letter-spacing: 4px;
         text-transform: uppercase;
-        color: #d8b86a;
+        color: #8a7a3a;
         white-space: nowrap;
       }
 
@@ -451,29 +668,21 @@
           box-shadow: none;
           page-break-after: always;
         }
-        .cover {
-          color: #1c1a17;
+        .wire-once,
+        .wire-status,
+        .wire-header,
+        .wire-home,
+        .wire-loader {
+          display: none !important;
         }
       }
 
       @media (max-width: 600px) {
         body {
-          padding: 16px 0 60px;
-        }
-        .cover {
-          max-width: 100%;
-          padding: 40px 16px 28px;
-        }
-        .cover h1 {
-          font-size: 36px;
-          letter-spacing: 2px;
-        }
-        .cover h2 {
-          font-size: 15px;
-          letter-spacing: 4px;
-        }
-        .cover p {
-          font-size: 16px;
+          padding-top: 94px;
+          padding-bottom: 48px;
+          padding-left: 0;
+          padding-right: 0;
         }
         .card {
           max-width: 100%;
@@ -528,17 +737,57 @@
     </style>
   </head>
   <body>
-    <div class="cover">
-      <h1>FATE CITY: 1999</h1>
-      <h2>Persons of Interest</h2>
-      <div class="cover-rule"></div>
-      <p>
-        This compilation gathers everything the crew has been able to piece
-        together — public record, tabloid gossip, underworld whisper, and a few
-        sources that shouldn't exist — on the names that keep surfacing in Fate
-        City's night. Treat anything sourced to Nocturnal with suspicion. Treat
-        anything sourced to the Agency with more.
-      </p>
+    <!-- ===== WIRE BOOT LOADER ===== -->
+    <div id="wire-loader" class="wire-loader">
+      <div id="lp1" class="lp">
+        <div class="lp-top" style="background: #7c3aed"></div>
+        <div class="lp-brand">S.K.AM</div>
+        <div class="lp-tag">Wire &middot; Initializing</div>
+        <div class="lp-dots">
+          <div class="lp-dot"></div>
+          <div class="lp-dot"></div>
+          <div class="lp-dot"></div>
+        </div>
+      </div>
+      <div id="lp2" class="lp" style="display: none; opacity: 0">
+        <div class="lp-top" style="background: #c94f4f"></div>
+        <div class="lp-warn">
+          <div class="lp-warn-sm">
+            UNAUTHORIZED FIRMWARE DETECTED<br />DEVICE INTEGRITY UNVERIFIED
+          </div>
+          <div class="lp-warn-lg">JAILBROKEN</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== WIRE CHROME ===== -->
+    <div class="wire-once" aria-hidden="true"></div>
+    <div class="wire-status">
+      <div class="wire-status-left">
+        <div class="wire-sig" aria-label="Signal: 4 of 5 bars">
+          <span style="height: 4px"></span>
+          <span style="height: 6px"></span>
+          <span style="height: 9px"></span>
+          <span style="height: 11px"></span>
+          <span style="height: 12px; opacity: 0.28"></span>
+        </div>
+        <span class="wire-skam">S.K.AM</span>
+        <span class="wire-jail">JAILBROKEN</span>
+      </div>
+      <span class="wire-clock" id="wire-clock"></span>
+      <div class="wire-status-right">
+        <div class="wire-batt" aria-label="Battery 72%">
+          <div class="wire-batt-fill"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wire-header">
+      <span class="wire-hdr-back" aria-hidden="true">&lsaquo;</span>
+      <div class="wire-hdr-text">
+        <div class="wire-hdr-title">Persons of Interest</div>
+        <div class="wire-hdr-sub">Fate City: 1999 &mdash; Benefactor File</div>
+      </div>
+      <span class="wire-hdr-more" aria-hidden="true">&vellip;</span>
     </div>
 
     <div id="cards-root"></div>
@@ -575,7 +824,7 @@
           images: ["images/fate_city_logo.png"],
           stats: [
             { label: "Currency", value: "Platinum (\u201cplat\u201d)" },
-            { label: "Districts", value: "21, and growing" },
+            { label: "Districts", value: "Nineteen, and growing" },
             {
               label: "Tech Level",
               value: "Modern-adjacent \u2014 Weave-fused, not chrome",
@@ -2014,6 +2263,48 @@
       }
 
       renderAll();
+      // ===== WIRE BOOT SEQUENCE =====
+      (function () {
+        var loader = document.getElementById("wire-loader");
+        var lp1 = document.getElementById("lp1");
+        var lp2 = document.getElementById("lp2");
+
+        function tick() {
+          var el = document.getElementById("wire-clock");
+          if (!el) return;
+          var n = new Date();
+          var h = String(n.getHours()).padStart(2, "0");
+          var m = String(n.getMinutes()).padStart(2, "0");
+          el.textContent = h + ":" + m;
+        }
+        tick();
+        setInterval(tick, 15000);
+
+        setTimeout(function () {
+          lp1.style.transition = "opacity .25s ease";
+          lp1.style.opacity = "0";
+          lp2.style.display = "flex";
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              lp2.style.transition = "opacity .25s ease";
+              lp2.style.opacity = "1";
+            });
+          });
+        }, 3500);
+
+        setTimeout(function () {
+          loader.style.transition = "opacity .7s ease";
+          loader.style.opacity = "0";
+          setTimeout(function () {
+            if (loader && loader.parentNode)
+              loader.parentNode.removeChild(loader);
+          }, 700);
+        }, 7500);
+      })();
     </script>
+    <!-- ===== WIRE HOME BAR ===== -->
+    <div class="wire-home">
+      <div class="wire-home-ind" aria-hidden="true"></div>
+    </div>
   </body>
 </html>
