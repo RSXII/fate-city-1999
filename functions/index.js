@@ -38,8 +38,17 @@ exports.notifyOnNewMessage = onValueCreated(
 
     // Build { pushId, token } pairs. pushId is the Firebase-generated key
     // stored in localStorage on the client so it can be deleted on unsubscribe.
+    // Deduplicate by token: if the same FCM token was stored under multiple
+    // pushIds (e.g. the user re-subscribed after clearing localStorage),
+    // sending to each entry would deliver multiple notifications to one device.
+    const seenTokens = new Set();
     const entries = Object.entries(subs)
       .filter(([, val]) => val && typeof val.token === "string")
+      .filter(([, val]) => {
+        if (seenTokens.has(val.token)) return false;
+        seenTokens.add(val.token);
+        return true;
+      })
       .map(([pushId, val]) => ({ pushId, token: val.token }));
 
     if (!entries.length) {
@@ -53,7 +62,6 @@ exports.notifyOnNewMessage = onValueCreated(
     // data is kept alongside so onMessage/onBackgroundMessage still receive it.
     const response = await admin.messaging().sendEachForMulticast({
       tokens: entries.map((e) => e.token),
-      data: { title, body },
       webpush: {
         headers: { Urgency: "high" },
         notification: {
