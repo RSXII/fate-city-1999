@@ -28,18 +28,14 @@
       /* ===== WIRE CHROME ===== */
       .wire-once {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: 0; left: 0; right: 0;
         height: 4px;
         background: #7c3aed;
         z-index: 200;
       }
       .wire-status {
         position: fixed;
-        top: 4px;
-        left: 0;
-        right: 0;
+        top: 4px; left: 0; right: 0;
         height: 36px;
         background: #0c0f16;
         border-bottom: 1px solid #1a2030;
@@ -70,7 +66,7 @@
       .wire-skam {
         font-size: 10px;
         font-weight: 600;
-        letter-spacing: 0.8px;
+        letter-spacing: .8px;
         color: #c9a227;
       }
       .wire-jail {
@@ -79,8 +75,8 @@
         letter-spacing: 1.5px;
         text-transform: uppercase;
         color: #e05a3a;
-        border: 1px solid rgba(224, 90, 58, 0.4);
-        background: rgba(224, 90, 58, 0.08);
+        border: 1px solid rgba(224,90,58,.4);
+        background: rgba(224,90,58,.08);
         padding: 2px 5px;
         border-radius: 2px;
       }
@@ -90,7 +86,7 @@
         transform: translateX(-50%);
         font-size: 11.5px;
         color: #6a7d90;
-        letter-spacing: 0.3px;
+        letter-spacing: .3px;
         font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
       }
       .wire-status-right {
@@ -106,7 +102,7 @@
         position: relative;
       }
       .wire-batt::after {
-        content: "";
+        content: '';
         position: absolute;
         right: -4px;
         top: 50%;
@@ -124,9 +120,7 @@
       }
       .wire-header {
         position: fixed;
-        top: 40px;
-        left: 0;
-        right: 0;
+        top: 40px; left: 0; right: 0;
         height: 50px;
         background: #0c0f16;
         border-bottom: 1px solid #1a2030;
@@ -140,12 +134,15 @@
       .wire-hdr-back {
         font-size: 22px;
         color: #c9a227;
-        opacity: 0.9;
+        opacity: .9;
         user-select: none;
+        text-decoration: none;
+        line-height: 1;
+        display: flex;
+        align-items: center;
       }
-      .wire-hdr-text {
-        flex: 1;
-      }
+      .wire-hdr-back:hover { opacity: 1; }
+      .wire-hdr-text { flex: 1; }
       .wire-hdr-title {
         font-size: 13.5px;
         font-weight: 600;
@@ -167,9 +164,7 @@
       }
       .wire-home {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        bottom: 0; left: 0; right: 0;
         height: 32px;
         background: #0c0f16;
         border-top: 1px solid #1a2030;
@@ -184,104 +179,6 @@
         background: #1e2840;
         border-radius: 2px;
       }
-      /* ===== BOOT LOADER ===== */
-      .wire-loader {
-        position: fixed;
-        inset: 0;
-        background: #0c0f16;
-        z-index: 500;
-        overflow: hidden;
-      }
-      .lp {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 18px;
-        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-      }
-      .lp-top {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-      }
-      .lp-brand {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 6px;
-        text-transform: uppercase;
-        color: #c9a227;
-      }
-      .lp-tag {
-        font-size: 9px;
-        letter-spacing: 2.5px;
-        text-transform: uppercase;
-        color: #2e3d4a;
-        margin-top: -8px;
-      }
-      .lp-dots {
-        display: flex;
-        gap: 9px;
-        margin-top: 2px;
-      }
-      .lp-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #7c3aed;
-        animation: pdot 1.2s ease-in-out infinite;
-      }
-      .lp-dot:nth-child(2) {
-        animation-delay: 0.22s;
-      }
-      .lp-dot:nth-child(3) {
-        animation-delay: 0.44s;
-      }
-      @keyframes pdot {
-        0%,
-        100% {
-          opacity: 0.18;
-          transform: scale(0.75);
-        }
-        50% {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-      @keyframes warn-pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.28;
-        }
-      }
-      .lp-warn {
-        text-align: center;
-        animation: warn-pulse 0.9s ease-in-out infinite;
-      }
-      .lp-warn-sm {
-        font-size: 9.5px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: #c94f4f;
-        line-height: 2;
-      }
-      .lp-warn-lg {
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: 4px;
-        text-transform: uppercase;
-        color: #e05a3a;
-        margin-top: 10px;
-      }
-
       .section-divider {
         max-width: 760px;
         margin: 48px auto 24px;
@@ -671,8 +568,7 @@
         .wire-once,
         .wire-status,
         .wire-header,
-        .wire-home,
-        .wire-loader {
+        .wire-home {
           display: none !important;
         }
       }
@@ -737,39 +633,16 @@
     </style>
   </head>
   <body>
-    <!-- ===== WIRE BOOT LOADER ===== -->
-    <div id="wire-loader" class="wire-loader">
-      <div id="lp1" class="lp">
-        <div class="lp-top" style="background: #7c3aed"></div>
-        <div class="lp-brand">S.K.AM</div>
-        <div class="lp-tag">Wire &middot; Initializing</div>
-        <div class="lp-dots">
-          <div class="lp-dot"></div>
-          <div class="lp-dot"></div>
-          <div class="lp-dot"></div>
-        </div>
-      </div>
-      <div id="lp2" class="lp" style="display: none; opacity: 0">
-        <div class="lp-top" style="background: #c94f4f"></div>
-        <div class="lp-warn">
-          <div class="lp-warn-sm">
-            UNAUTHORIZED FIRMWARE DETECTED<br />DEVICE INTEGRITY UNVERIFIED
-          </div>
-          <div class="lp-warn-lg">JAILBROKEN</div>
-        </div>
-      </div>
-    </div>
-
     <!-- ===== WIRE CHROME ===== -->
     <div class="wire-once" aria-hidden="true"></div>
     <div class="wire-status">
       <div class="wire-status-left">
         <div class="wire-sig" aria-label="Signal: 4 of 5 bars">
-          <span style="height: 4px"></span>
-          <span style="height: 6px"></span>
-          <span style="height: 9px"></span>
-          <span style="height: 11px"></span>
-          <span style="height: 12px; opacity: 0.28"></span>
+          <span style="height:4px"></span>
+          <span style="height:6px"></span>
+          <span style="height:9px"></span>
+          <span style="height:11px"></span>
+          <span style="height:12px;opacity:.28"></span>
         </div>
         <span class="wire-skam">S.K.AM</span>
         <span class="wire-jail">JAILBROKEN</span>
@@ -782,7 +655,7 @@
       </div>
     </div>
     <div class="wire-header">
-      <span class="wire-hdr-back" aria-hidden="true">&lsaquo;</span>
+      <a class="wire-hdr-back" href="home.html" aria-label="Back to home screen">&lsaquo;</a>
       <div class="wire-hdr-text">
         <div class="wire-hdr-title">Persons of Interest</div>
         <div class="wire-hdr-sub">Fate City: 1999 &mdash; Benefactor File</div>
@@ -2263,43 +2136,19 @@
       }
 
       renderAll();
-      // ===== WIRE BOOT SEQUENCE =====
-      (function () {
-        var loader = document.getElementById("wire-loader");
-        var lp1 = document.getElementById("lp1");
-        var lp2 = document.getElementById("lp2");
 
+      // ===== WIRE CLOCK =====
+      (function () {
         function tick() {
-          var el = document.getElementById("wire-clock");
+          var el = document.getElementById('wire-clock');
           if (!el) return;
           var n = new Date();
-          var h = String(n.getHours()).padStart(2, "0");
-          var m = String(n.getMinutes()).padStart(2, "0");
-          el.textContent = h + ":" + m;
+          var h = String(n.getHours()).padStart(2, '0');
+          var m = String(n.getMinutes()).padStart(2, '0');
+          el.textContent = h + ':' + m;
         }
         tick();
         setInterval(tick, 15000);
-
-        setTimeout(function () {
-          lp1.style.transition = "opacity .25s ease";
-          lp1.style.opacity = "0";
-          lp2.style.display = "flex";
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              lp2.style.transition = "opacity .25s ease";
-              lp2.style.opacity = "1";
-            });
-          });
-        }, 3500);
-
-        setTimeout(function () {
-          loader.style.transition = "opacity .7s ease";
-          loader.style.opacity = "0";
-          setTimeout(function () {
-            if (loader && loader.parentNode)
-              loader.parentNode.removeChild(loader);
-          }, 700);
-        }, 7500);
       })();
     </script>
     <!-- ===== WIRE HOME BAR ===== -->
