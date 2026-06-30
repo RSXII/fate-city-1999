@@ -47,12 +47,22 @@ exports.notifyOnNewMessage = onValueCreated(
       return null;
     }
 
-    // Data-only payload: onBackgroundMessage in sw.js handles the display,
-    // keeping icon resolution client-side and avoiding hardcoded URLs here.
+    // Notification payload: the webpush.notification block lets the browser
+    // display the alert natively when the PWA is closed or backgrounded,
+    // which is required for iOS Safari 16.4+ and more reliable on Android.
+    // data is kept alongside so onMessage/onBackgroundMessage still receive it.
     const response = await admin.messaging().sendEachForMulticast({
       tokens: entries.map((e) => e.token),
       data: { title, body },
-      webpush: { headers: { Urgency: "high" } },
+      webpush: {
+        headers: { Urgency: "high" },
+        notification: {
+          title,
+          body,
+          icon: "/images/icon-192.png",
+          badge: "/images/icon-192.png",
+        },
+      },
     });
 
     console.log(
