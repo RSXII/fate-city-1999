@@ -18,11 +18,7 @@
         flex-direction: column;
         height: 100vh;
       }
-      .wire-once {
-        height: 4px;
-        background: #7c3aed;
-        flex-shrink: 0;
-      }
+      .wire-once { height: 4px; background: #7c3aed; flex-shrink: 0; }
       .wire-status {
         height: 36px;
         background: #0c0f16;
@@ -75,12 +71,21 @@
         flex-shrink: 0;
       }
       .msg-back:hover { opacity: 1; }
+      .msg-live-dot {
         width: 7px; height: 7px; border-radius: 50%;
         background: #c9a227; flex-shrink: 0;
         animation: live-pulse 2s ease-in-out infinite;
       }
       @keyframes live-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-      .msg-header-title { font-size: 14px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: #e8dfc8; }
+      .msg-header-avatar {
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        border: 1px solid;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10.5px; font-weight: 700;
+        flex-shrink: 0;
+      }
+      .msg-header-title { font-size: 14px; font-weight: 600; letter-spacing: .5px; color: #e8dfc8; }
       .msg-header-sub { font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: #3a4a5a; margin-top: 2px; }
 
       .msg-feed {
@@ -93,6 +98,7 @@
       .msg-feed::-webkit-scrollbar { width: 3px; }
       .msg-feed::-webkit-scrollbar-thumb { background: rgba(184,144,47,.25); border-radius: 2px; }
 
+      /* ---- thread (single-sender) view ---- */
       .msg-row {
         display: flex;
         gap: 10px;
@@ -112,12 +118,7 @@
         font-size: 11.5px; font-weight: 700;
       }
       .msg-content { flex: 1; min-width: 0; }
-      .msg-top {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 4px;
-      }
+      .msg-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
       .msg-name { font-size: 12.5px; font-weight: 600; }
       .msg-time { font-size: 9.5px; color: rgba(232,223,200,.4); }
       .msg-bubble {
@@ -130,6 +131,45 @@
         color: rgba(232,223,200,.92);
         word-wrap: break-word;
       }
+
+      /* ---- conversation list view ---- */
+      .conv-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 12px 6px;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255,255,255,.045);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity .35s ease, transform .35s ease;
+      }
+      .conv-row.in { opacity: 1; transform: translateY(0); }
+      .conv-row:active { background: rgba(255,255,255,.03); }
+      .conv-avatar {
+        flex-shrink: 0;
+        width: 38px; height: 38px;
+        border-radius: 50%;
+        border: 1px solid;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; font-weight: 700;
+      }
+      .conv-content { flex: 1; min-width: 0; }
+      .conv-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; gap: 8px; }
+      .conv-name { font-size: 13.5px; font-weight: 600; color: #e8dfc8; }
+      .conv-name.unread { color: #f3efe6; }
+      .conv-time { font-size: 10px; color: rgba(232,223,200,.4); flex-shrink: 0; }
+      .conv-preview {
+        font-size: 12px;
+        color: rgba(232,223,200,.55);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .conv-preview.unread { color: rgba(232,223,200,.92); font-weight: 600; }
+      .conv-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #c9a227; flex-shrink: 0; }
 
       .msg-empty {
         max-width: 320px;
@@ -164,7 +204,7 @@
     </style>
   </head>
   <body>
-    <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Fate City: 1999 Wire Messages, a read-only live group thread</h1>
+    <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Fate City: 1999 Wire Messages</h1>
 
     <div class="wire-once" aria-hidden="true"></div>
     <div class="wire-status">
@@ -183,14 +223,7 @@
       <div class="wire-batt" aria-label="Battery 72%"><div class="wire-batt-fill"></div></div>
     </div>
 
-    <div class="msg-header">
-      <a class="msg-back" href="home.html" aria-label="Back to home screen">&lsaquo;</a>
-      <span class="msg-live-dot" aria-hidden="true"></span>
-      <div>
-        <div class="msg-header-title">Messages</div>
-        <div class="msg-header-sub">Group &middot; Fate City</div>
-      </div>
-    </div>
+    <div class="msg-header" id="msg-header"></div>
 
     <div class="msg-feed" id="msg-feed"></div>
     <div class="msg-footer-note">Read only &middot; updates live</div>
@@ -198,9 +231,38 @@
     <div class="wire-home"><div class="wire-home-ind" aria-hidden="true"></div></div>
 
     <script>
+      var SENDERS = [
+        { name: 'Casven Elm', color: '#1f6fb2' },
+        { name: 'Elarthis Löfgren', color: '#8c3a5d' },
+        { name: 'Solenne Galvère', color: '#8c2e2e' },
+        { name: 'Meros Zarzer', color: '#7a4fc9' },
+        { name: 'Nocturne', color: '#c9a227' },
+        { name: 'Sim-Belle', color: '#1a6e6e' },
+        { name: 'Durn Thalgor', color: '#c9512f' },
+        { name: 'Tivy Glintspark', color: '#9a7fd9' },
+        { name: 'Night Crows', color: '#a13c3c' },
+        { name: 'Laurent Virel', color: '#2f7fa6' },
+        { name: 'Patch', color: '#4caf50' },
+        { name: 'Street Enforcer', color: '#c94f4f' },
+        { name: 'Saint', color: '#d98c3f' },
+        { name: 'The Agency', color: '#6b6b6b' },
+        { name: 'Trauma Team', color: '#d4453d' },
+        { name: 'Galvère', color: '#8c2e2e' },
+        { name: 'S.K.AM', color: '#2f7fa6' },
+        { name: 'FCPD', color: '#6b8aa6' },
+        { name: 'Fate City Records', color: '#d9a23f' }
+      ];
+
+      var FIREBASE_URL = 'https://cpr-wire-device-default-rtdb.firebaseio.com';
+      var LAST_SEEN_MAP_KEY = 'wire-last-seen-map';
+
+      var params = new URLSearchParams(window.location.search);
+      var activeSender = params.get('sender'); // null = list view, name = thread view
+
       var feed = document.getElementById('msg-feed');
-      var renderedCount = 0;
+      var headerEl = document.getElementById('msg-header');
       var renderedIds = {};
+      var renderedAny = false;
 
       function tickClock() {
         var el = document.getElementById('wire-clock');
@@ -223,7 +285,7 @@
         var h = String(hex).replace('#', '');
         var r = parseInt(h.substring(0, 2), 16);
         var g = parseInt(h.substring(2, 4), 16);
-        var b = parseInt(h.substring(4, 6),16);
+        var b = parseInt(h.substring(4, 6), 16);
         return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
       }
 
@@ -247,19 +309,68 @@
         return d + 'd ago';
       }
 
-      function showEmptyState() {
-        if (feed.querySelector('.msg-empty')) return;
-        feed.innerHTML = '<div class="msg-empty">Nothing yet. The city is usually loud &mdash; enjoy the quiet while it lasts.</div>';
+      function colorFor(name) {
+        var found = SENDERS.filter(function (s) { return s.name === name; })[0];
+        return found ? found.color : '#b8902f';
       }
 
+      function threadUrl(name) {
+        return 'messages.html?sender=' + encodeURIComponent(name);
+      }
+
+      // ---- last-seen, tracked per sender ----
+      function getLastSeenMap() {
+        try {
+          var raw = localStorage.getItem(LAST_SEEN_MAP_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+          return {};
+        }
+      }
+      function setLastSeenForSender(name, ts) {
+        var map = getLastSeenMap();
+        if (!map[name] || ts > map[name]) {
+          map[name] = ts;
+          localStorage.setItem(LAST_SEEN_MAP_KEY, JSON.stringify(map));
+        }
+      }
+
+      // ---- header ----
+      function renderHeader() {
+        if (activeSender) {
+          var color = colorFor(activeSender);
+          headerEl.innerHTML =
+            '<a class="msg-back" href="messages.html" aria-label="Back to all conversations">&lsaquo;</a>' +
+            '<div class="msg-header-avatar" style="background:' + hexToRgba(color, 0.16) + ';border-color:' + color + ';color:' + color + '">' + escapeHtml(initials(activeSender)) + '</div>' +
+            '<div>' +
+              '<div class="msg-header-title" style="color:' + color + '">' + escapeHtml(activeSender) + '</div>' +
+              '<div class="msg-header-sub">Fate City</div>' +
+            '</div>';
+        } else {
+          headerEl.innerHTML =
+            '<a class="msg-back" href="home.html" aria-label="Back to home screen">&lsaquo;</a>' +
+            '<span class="msg-live-dot" aria-hidden="true"></span>' +
+            '<div>' +
+              '<div class="msg-header-title">Messages</div>' +
+              '<div class="msg-header-sub">Fate City</div>' +
+            '</div>';
+        }
+      }
+      renderHeader();
+
+      function showEmptyState(text) {
+        if (feed.querySelector('.msg-empty')) return;
+        feed.innerHTML = '<div class="msg-empty">' + text + '</div>';
+      }
       function clearEmptyState() {
         var empty = feed.querySelector('.msg-empty');
         if (empty) empty.remove();
       }
 
+      // ---- thread (single sender) rendering ----
       function appendMessage(m) {
         clearEmptyState();
-        var color = m.color || '#b8902f';
+        var color = m.color || colorFor(m.sender);
         var row = document.createElement('div');
         row.className = 'msg-row';
         row.setAttribute('data-id', m.id);
@@ -278,25 +389,72 @@
         });
       }
 
+      function renderThread(messages) {
+        var filtered = messages.filter(function (m) { return m.sender === activeSender; });
+        if (!filtered.length) {
+          if (!renderedAny) showEmptyState('Nothing from ' + escapeHtml(activeSender) + ' yet.');
+          return;
+        }
+        var hadNew = false;
+        var maxTs = 0;
+        filtered.forEach(function (m) {
+          if (m.ts > maxTs) maxTs = m.ts;
+          if (!renderedIds[m.id]) {
+            appendMessage(m);
+            renderedIds[m.id] = true;
+            hadNew = true;
+          }
+        });
+        renderedAny = true;
+        refreshTimestamps();
+        if (hadNew) feed.scrollTop = feed.scrollHeight;
+        setLastSeenForSender(activeSender, maxTs);
+      }
+
+      // ---- conversation list rendering ----
+      function renderList(messages) {
+        if (!messages.length) {
+          showEmptyState('Nothing yet. The city is usually loud &mdash; enjoy the quiet while it lasts.');
+          return;
+        }
+        var groups = {};
+        messages.forEach(function (m) {
+          var key = m.sender;
+          if (!groups[key]) groups[key] = { name: m.sender, color: m.color || colorFor(m.sender), lastTs: 0, lastText: '', unread: false };
+          if (m.ts >= groups[key].lastTs) {
+            groups[key].lastTs = m.ts;
+            groups[key].lastText = m.text;
+          }
+        });
+        var lastSeenMap = getLastSeenMap();
+        var rows = Object.keys(groups).map(function (k) { return groups[k]; });
+        rows.forEach(function (g) {
+          var seen = lastSeenMap[g.name] || 0;
+          g.unread = g.lastTs > seen;
+        });
+        rows.sort(function (a, b) { return b.lastTs - a.lastTs; });
+
+        feed.innerHTML = rows.map(function (g) {
+          var c = g.color;
+          return '<a class="conv-row in" href="' + threadUrl(g.name) + '">' +
+            '<div class="conv-avatar" style="background:' + hexToRgba(c, 0.16) + ';border-color:' + c + ';color:' + c + '">' + escapeHtml(initials(g.name)) + '</div>' +
+            '<div class="conv-content">' +
+              '<div class="conv-top">' +
+                '<span class="conv-name' + (g.unread ? ' unread' : '') + '" style="' + (g.unread ? '' : 'color:' + c) + '">' + escapeHtml(g.name) + '</span>' +
+                '<span class="conv-time">' + relTime(g.lastTs) + '</span>' +
+              '</div>' +
+              '<div class="conv-preview' + (g.unread ? ' unread' : '') + '">' + escapeHtml(g.lastText) + '</div>' +
+            '</div>' +
+            (g.unread ? '<span class="conv-unread-dot" aria-hidden="true"></span>' : '') +
+          '</a>';
+        }).join('');
+      }
+
       function refreshTimestamps() {
-        var nodes = feed.querySelectorAll('.msg-time');
-        nodes.forEach(function (el) {
+        feed.querySelectorAll('.msg-time').forEach(function (el) {
           var ts = parseInt(el.getAttribute('data-ts'), 10);
           if (!isNaN(ts)) el.textContent = relTime(ts);
         });
-      }
-
-      function scrollToBottom() {
-        feed.scrollTop = feed.scrollHeight;
-      }
-
-      var FIREBASE_URL = 'https://cpr-wire-device-default-rtdb.firebaseio.com';
-      var LAST_SEEN_KEY = 'wire-last-seen-ts';
-
-      function setLastSeen(ts) {
-        var current = localStorage.getItem(LAST_SEEN_KEY);
-        current = current ? parseInt(current, 10) : 0;
-        if (ts > current) localStorage.setItem(LAST_SEEN_KEY, String(ts));
       }
 
       async function poll() {
@@ -317,26 +475,15 @@
           messages = [];
         }
 
-        if (!messages.length) {
-          if (renderedCount === 0) showEmptyState();
-          refreshTimestamps();
-          return;
-        }
-
-        var hadNew = false;
-        var maxTs = 0;
-        messages.forEach(function (m) {
-          if (m.ts > maxTs) maxTs = m.ts;
-          if (!renderedIds[m.id]) {
-            appendMessage(m);
-            renderedIds[m.id] = true;
-            hadNew = true;
+        if (activeSender) {
+          renderThread(messages);
+        } else {
+          if (!messages.length) {
+            showEmptyState('Nothing yet. The city is usually loud &mdash; enjoy the quiet while it lasts.');
+          } else {
+            renderList(messages);
           }
-        });
-        renderedCount = messages.length;
-        refreshTimestamps();
-        if (hadNew) scrollToBottom();
-        setLastSeen(maxTs);
+        }
       }
 
       poll();

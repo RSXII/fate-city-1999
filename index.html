@@ -959,7 +959,7 @@
       (function () {
         var FIREBASE_URL =
           "https://cpr-wire-device-default-rtdb.firebaseio.com";
-        var LAST_SEEN_KEY = "wire-last-seen-ts";
+        var LAST_SEEN_MAP_KEY = "wire-last-seen-map";
         var dot = document.getElementById("wire-unread-dot");
         var toast = document.getElementById("wire-toast");
         var toastText = document.getElementById("wire-toast-text");
@@ -969,9 +969,13 @@
         var lastUnreadCount = 0;
         var isFirstPoll = true;
 
-        function getLastSeen() {
-          var v = localStorage.getItem(LAST_SEEN_KEY);
-          return v ? parseInt(v, 10) : 0;
+        function getLastSeenMap() {
+          try {
+            var raw = localStorage.getItem(LAST_SEEN_MAP_KEY);
+            return raw ? JSON.parse(raw) : {};
+          } catch (e) {
+            return {};
+          }
         }
 
         function showToast(n) {
@@ -988,11 +992,14 @@
             var res = await fetch(FIREBASE_URL + "/messages.json");
             if (!res.ok) return;
             var data = await res.json();
-            var lastSeen = getLastSeen();
+            var lastSeenMap = getLastSeenMap();
             var unread = 0;
             if (data) {
               Object.keys(data).forEach(function (k) {
-                if (data[k] && data[k].ts > lastSeen) unread++;
+                var m = data[k];
+                if (!m) return;
+                var seen = lastSeenMap[m.sender] || 0;
+                if (m.ts > seen) unread++;
               });
             }
             if (unread > 0) {
