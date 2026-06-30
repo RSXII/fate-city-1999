@@ -28,7 +28,7 @@ messaging.onBackgroundMessage((payload) => {
   if (payload.notification) return;
 
   const title = (payload.data && payload.data.title) || "New Wire Message";
-  const body  = (payload.data && payload.data.body)  || "";
+  const body = (payload.data && payload.data.body) || "";
   return self.registration.showNotification(title, {
     body,
     icon: "images/icon-192.png",
