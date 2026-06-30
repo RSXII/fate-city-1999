@@ -20,19 +20,17 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Background messages (app not in foreground).
-// Firebase intercepts the push event internally; returning the showNotification
-// promise here lets Firebase's waitUntil() keep the SW alive until it resolves.
+// When webpush.notification is present in the FCM payload, the Firebase SDK
+// automatically displays that notification. Calling showNotification here too
+// would produce a second (duplicate) notification. Only show manually for
+// data-only messages (no notification block) so a single alert is shown.
 messaging.onBackgroundMessage((payload) => {
-  const title =
-    (payload.notification && payload.notification.title) ||
-    (payload.data && payload.data.title) ||
-    "New Wire Message";
-  const body =
-    (payload.notification && payload.notification.body) ||
-    (payload.data && payload.data.body) ||
-    "";
+  if (payload.notification) return;
+
+  const title = (payload.data && payload.data.title) || "New Wire Message";
+  const body  = (payload.data && payload.data.body)  || "";
   return self.registration.showNotification(title, {
-    body: body,
+    body,
     icon: "images/icon-192.png",
   });
 });
