@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="theme-color" content="#0c0f16" />
+    <script src="sw-register.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+    <title>Fate City: 1999 &mdash; Settings</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #0d1118;
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+        overflow-x: hidden;
+        height: 100%;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      /* ===== WIRE CHROME ===== */
+      .wire-once {
+        height: 4px;
+        background: #7c3aed;
+        flex-shrink: 0;
+      }
+      .wire-status {
+        height: 36px;
+        background: #0c0f16;
+        border-bottom: 1px solid #1a2030;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .wire-status-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .wire-sig {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 12px;
+      }
+      .wire-sig span {
+        width: 3px;
+        border-radius: 1px;
+        background: #c9a227;
+        display: inline-block;
+      }
+      .wire-skam {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        color: #c9a227;
+      }
+      .wire-jail {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #e05a3a;
+        border: 1px solid rgba(224, 90, 58, 0.4);
+        background: rgba(224, 90, 58, 0.08);
+        padding: 2px 5px;
+        border-radius: 2px;
+      }
+      .wire-clock {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 11.5px;
+        color: #6a7d90;
+        letter-spacing: 0.3px;
+      }
+      .wire-status-right {
+        display: flex;
+        align-items: center;
+      }
+      .wire-batt {
+        width: 20px;
+        height: 11px;
+        border: 1.5px solid #4a5a6a;
+        border-radius: 2px;
+        padding: 1.5px;
+        position: relative;
+      }
+      .wire-batt::after {
+        content: "";
+        position: absolute;
+        right: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 2px;
+        height: 5px;
+        background: #4a5a6a;
+        border-radius: 0 1px 1px 0;
+      }
+      .wire-batt-fill {
+        height: 100%;
+        width: 72%;
+        background: #c9a227;
+        border-radius: 1px;
+      }
+
+      /* ===== PAGE HEADER ===== */
+      .wire-header {
+        height: 50px;
+        background: #0c0f16;
+        border-bottom: 1px solid #1a2030;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .wire-hdr-back {
+        font-size: 22px;
+        color: #c9a227;
+        opacity: 0.9;
+        user-select: none;
+        text-decoration: none;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        position: relative;
+        padding: 8px;
+        margin: -8px;
+      }
+      .wire-hdr-back::before {
+        content: "";
+        position: absolute;
+        top: -8px;
+        bottom: -8px;
+        left: -8px;
+        right: -8px;
+      }
+      .wire-hdr-back:hover {
+        opacity: 1;
+      }
+      .wire-hdr-text {
+        flex: 1;
+      }
+      .wire-hdr-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: #e8dfc8;
+        line-height: 1.1;
+      }
+
+      /* ===== SETTINGS CONTENT ===== */
+      .sg-scroll {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 28px 0 24px;
+      }
+      .sg-section {
+        margin-bottom: 32px;
+      }
+      .sg-section-label {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: rgba(201, 162, 39, 0.4);
+        padding: 0 20px 10px;
+      }
+      .sg-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 20px;
+        background: rgba(255, 255, 255, 0.028);
+        border-top: 1px solid #1a2030;
+        border-bottom: 1px solid #1a2030;
+      }
+      .sg-row-icon {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(201, 162, 39, 0.07);
+        border: 1px solid rgba(201, 162, 39, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #c9a227;
+      }
+      .sg-row-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .sg-row-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #e8dfc8;
+        letter-spacing: 0.2px;
+      }
+      .sg-row-desc {
+        font-size: 10.5px;
+        color: #3a4a5a;
+        margin-top: 3px;
+        line-height: 1.4;
+      }
+
+      /* ===== NOTIFICATION TOGGLE ===== */
+      .hs-notif-toggle {
+        background: none;
+        border: 1px solid rgba(201, 162, 39, 0.3);
+        border-radius: 20px;
+        color: rgba(201, 162, 39, 0.55);
+        font-size: 10.5px;
+        font-family: inherit;
+        letter-spacing: 0.8px;
+        padding: 5px 14px 5px 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        transition:
+          border-color 0.15s,
+          color 0.15s;
+      }
+      .hs-notif-toggle:hover {
+        border-color: rgba(201, 162, 39, 0.6);
+        color: #c9a227;
+      }
+      .hs-notif-toggle.enabled {
+        border-color: rgba(99, 153, 34, 0.5);
+        color: rgba(99, 153, 34, 0.8);
+      }
+      .hs-notif-toggle.denied {
+        border-color: rgba(226, 75, 74, 0.4);
+        color: rgba(226, 75, 74, 0.55);
+        cursor: default;
+      }
+
+      /* ===== HOME BAR ===== */
+      .wire-home {
+        height: 32px;
+        background: #0c0f16;
+        border-top: 1px solid #1a2030;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .wire-home-ind {
+        width: 90px;
+        height: 4px;
+        background: #1e2840;
+        border-radius: 2px;
+      }
+
+      @media print {
+        .wire-once,
+        .wire-status,
+        .wire-home {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wire-once" aria-hidden="true"></div>
+
+    <div class="wire-status">
+      <div class="wire-status-left">
+        <div class="wire-sig" aria-label="Signal: 4 of 5 bars">
+          <span style="height: 4px"></span>
+          <span style="height: 6px"></span>
+          <span style="height: 9px"></span>
+          <span style="height: 11px"></span>
+          <span style="height: 12px; opacity: 0.28"></span>
+        </div>
+        <span class="wire-skam">S.K.AM</span>
+        <span class="wire-jail">JAILBROKEN</span>
+      </div>
+      <span class="wire-clock" id="wire-clock"></span>
+      <div class="wire-status-right">
+        <div class="wire-batt" aria-label="Battery 72%">
+          <div class="wire-batt-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wire-header">
+      <a class="wire-hdr-back" href="home.html" aria-label="Back to home screen"
+        >&lsaquo;</a
+      >
+      <div class="wire-hdr-text">
+        <div class="wire-hdr-title">Settings</div>
+      </div>
+    </div>
+
+    <div class="sg-scroll">
+      <div class="sg-section">
+        <div class="sg-section-label">Notifications</div>
+        <div class="sg-row">
+          <div class="sg-row-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              stroke="currentColor"
+              stroke-width="1.8"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </div>
+          <div class="sg-row-body">
+            <div class="sg-row-title">Push Alerts</div>
+            <div class="sg-row-desc">
+              Receive a notification when new messages arrive.
+            </div>
+          </div>
+          <button class="hs-notif-toggle" id="hs-notif-toggle" type="button">
+            <svg
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              stroke="currentColor"
+              stroke-width="1.8"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span id="hs-notif-toggle-label">Enable alerts</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="wire-home">
+      <div class="wire-home-ind" aria-hidden="true"></div>
+    </div>
+
+    <script>
+      // ===== WIRE CLOCK =====
+      (function () {
+        function tick() {
+          var el = document.getElementById("wire-clock");
+          if (!el) return;
+          var n = new Date();
+          var h = String(n.getHours()).padStart(2, "0");
+          var m = String(n.getMinutes()).padStart(2, "0");
+          el.textContent = h + ":" + m;
+        }
+        tick();
+        setInterval(tick, 15000);
+      })();
+
+      // ===== PUSH NOTIFICATION TOGGLE =====
+      (function () {
+        var FIREBASE_CONFIG = {
+          apiKey: "AIzaSyA7OmVO18bOequMLYUieWGhVabB4_vTlOs",
+          authDomain: "cpr-wire-device.firebaseapp.com",
+          databaseURL: "https://cpr-wire-device-default-rtdb.firebaseio.com",
+          projectId: "cpr-wire-device",
+          storageBucket: "cpr-wire-device.firebasestorage.app",
+          messagingSenderId: "435892659027",
+          appId: "1:435892659027:web:dbdffda17e128484a437a6",
+        };
+        var VAPID_KEY =
+          "BFefOJuvufeaGGn5xFw1459T68qdlzHRiaAm09QHQPOKieibhCmLPgSZAZvaahUva765ROwxya_hpRj8qblXVpo";
+        var FIREBASE_URL =
+          "https://cpr-wire-device-default-rtdb.firebaseio.com";
+        var LS_KEY = "wire-notif-sub"; // { pushId, token }
+
+        var btn = document.getElementById("hs-notif-toggle");
+        var labelEl = document.getElementById("hs-notif-toggle-label");
+
+        if (
+          !btn ||
+          !("Notification" in window) ||
+          !("serviceWorker" in navigator)
+        ) {
+          if (btn) btn.style.display = "none";
+          return;
+        }
+
+        var messaging;
+        try {
+          if (!firebase.apps.length) {
+            firebase.initializeApp(FIREBASE_CONFIG);
+          }
+          messaging = firebase.messaging();
+        } catch (e) {
+          btn.style.display = "none";
+          return;
+        }
+
+        function getSub() {
+          try {
+            return JSON.parse(localStorage.getItem(LS_KEY)) || null;
+          } catch (e) {
+            return null;
+          }
+        }
+        function setSub(sub) {
+          if (sub) localStorage.setItem(LS_KEY, JSON.stringify(sub));
+          else localStorage.removeItem(LS_KEY);
+        }
+        function setButtonState(state) {
+          btn.className = "hs-notif-toggle" + (state ? " " + state : "");
+          btn.disabled = state === "denied";
+          labelEl.textContent =
+            state === "enabled"
+              ? "Alerts on"
+              : state === "denied"
+                ? "Alerts blocked"
+                : "Enable alerts";
+        }
+
+        (function syncState() {
+          var perm = Notification.permission;
+          var sub = getSub();
+          if (perm === "denied") {
+            setSub(null);
+            setButtonState("denied");
+          } else if (perm === "granted" && sub) {
+            setButtonState("enabled");
+          } else {
+            setSub(null);
+            setButtonState("");
+          }
+        })();
+
+        async function subscribe() {
+          try {
+            var perm = await Notification.requestPermission();
+            if (perm !== "granted") {
+              setButtonState(perm === "denied" ? "denied" : "");
+              return;
+            }
+            var swReg = await navigator.serviceWorker.ready;
+            var token = await messaging.getToken({
+              vapidKey: VAPID_KEY,
+              serviceWorkerRegistration: swReg,
+            });
+            var res = await fetch(FIREBASE_URL + "/subscriptions.json", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: token, ts: Date.now() }),
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            var data = await res.json();
+            setSub({ pushId: data.name, token: token });
+            setButtonState("enabled");
+          } catch (e) {
+            console.error("Wire: subscribe failed", e);
+            setButtonState("");
+          }
+        }
+
+        async function unsubscribe() {
+          var sub = getSub();
+          if (sub && sub.pushId) {
+            try {
+              await fetch(
+                FIREBASE_URL + "/subscriptions/" + sub.pushId + ".json",
+                { method: "DELETE" },
+              );
+            } catch (e) {
+              console.warn("Wire: server unsubscribe failed", e);
+            }
+          }
+          setSub(null);
+          setButtonState("");
+        }
+
+        btn.addEventListener("click", function () {
+          if (getSub() && Notification.permission === "granted") {
+            unsubscribe();
+          } else {
+            subscribe();
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

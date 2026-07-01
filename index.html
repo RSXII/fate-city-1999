@@ -8,9 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="theme-color" content="#0c0f16" />
+    <script>
+      if (sessionStorage.getItem("wire-booted")) {
+        location.replace("home.html");
+      }
+    </script>
     <script src="sw-register.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
     <title>Fate City: 1999 &mdash; Wire</title>
     <style>
       :root {
@@ -661,42 +664,6 @@
         transform: translateX(-50%) translateY(0);
         pointer-events: auto;
       }
-      .hs-notif-toggle-row {
-        display: flex;
-        justify-content: center;
-        padding-top: 12px;
-      }
-      .hs-notif-toggle {
-        background: none;
-        border: 1px solid rgba(201, 162, 39, 0.3);
-        border-radius: 20px;
-        color: rgba(201, 162, 39, 0.55);
-        font-size: 10.5px;
-        font-family: inherit;
-        letter-spacing: 0.8px;
-        padding: 5px 14px 5px 10px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        text-transform: uppercase;
-        transition:
-          border-color 0.15s,
-          color 0.15s;
-      }
-      .hs-notif-toggle:hover {
-        border-color: rgba(201, 162, 39, 0.6);
-        color: #c9a227;
-      }
-      .hs-notif-toggle.enabled {
-        border-color: rgba(99, 153, 34, 0.5);
-        color: rgba(99, 153, 34, 0.8);
-      }
-      .hs-notif-toggle.denied {
-        border-color: rgba(226, 75, 74, 0.4);
-        color: rgba(226, 75, 74, 0.55);
-        cursor: default;
-      }
     </style>
   </head>
   <body>
@@ -1003,25 +970,6 @@
               <span class="hs-icon-label">Settings</span>
             </div>
           </div>
-          <div class="hs-notif-toggle-row">
-            <button class="hs-notif-toggle" id="hs-notif-toggle" type="button">
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                stroke="currentColor"
-                stroke-width="1.8"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span id="hs-notif-toggle-label">Enable alerts</span>
-            </button>
-          </div>
         </div>
 
         <div class="hs-stage-fixed hs-fade hs-fade-hidden" id="hs-warning">
@@ -1113,6 +1061,10 @@
             setTimeout(function () {
               warning.classList.add("hs-fade-hidden");
               grid.classList.remove("hs-fade-hidden");
+              setTimeout(function () {
+                sessionStorage.setItem("wire-booted", "1");
+                location.replace("home.html");
+              }, 800);
             }, 6650);
           },
           { once: true },
@@ -1183,137 +1135,6 @@
 
         pollUnread();
         setInterval(pollUnread, 5000);
-      })();
-
-      // ===== PUSH NOTIFICATION TOGGLE =====
-      (function () {
-        var FIREBASE_CONFIG = {
-          apiKey: "AIzaSyA7OmVO18bOequMLYUieWGhVabB4_vTlOs",
-          authDomain: "cpr-wire-device.firebaseapp.com",
-          databaseURL: "https://cpr-wire-device-default-rtdb.firebaseio.com",
-          projectId: "cpr-wire-device",
-          storageBucket: "cpr-wire-device.firebasestorage.app",
-          messagingSenderId: "435892659027",
-          appId: "1:435892659027:web:dbdffda17e128484a437a6",
-        };
-        var VAPID_KEY =
-          "BFefOJuvufeaGGn5xFw1459T68qdlzHRiaAm09QHQPOKieibhCmLPgSZAZvaahUva765ROwxya_hpRj8qblXVpo";
-        var FIREBASE_URL =
-          "https://cpr-wire-device-default-rtdb.firebaseio.com";
-        var LS_KEY = "wire-notif-sub"; // { pushId, token }
-
-        var btn = document.getElementById("hs-notif-toggle");
-        var labelEl = document.getElementById("hs-notif-toggle-label");
-
-        // Hide if Notifications API or SW not supported
-        if (
-          !btn ||
-          !("Notification" in window) ||
-          !("serviceWorker" in navigator)
-        ) {
-          if (btn) btn.style.display = "none";
-          return;
-        }
-
-        var messaging;
-        try {
-          if (!firebase.apps.length) {
-            firebase.initializeApp(FIREBASE_CONFIG);
-          }
-          messaging = firebase.messaging();
-        } catch (e) {
-          btn.style.display = "none";
-          return;
-        }
-
-        function getSub() {
-          try {
-            return JSON.parse(localStorage.getItem(LS_KEY)) || null;
-          } catch (e) {
-            return null;
-          }
-        }
-        function setSub(sub) {
-          if (sub) localStorage.setItem(LS_KEY, JSON.stringify(sub));
-          else localStorage.removeItem(LS_KEY);
-        }
-        function setButtonState(state) {
-          btn.className = "hs-notif-toggle" + (state ? " " + state : "");
-          btn.disabled = state === "denied";
-          labelEl.textContent =
-            state === "enabled"
-              ? "Alerts on"
-              : state === "denied"
-                ? "Alerts blocked"
-                : "Enable alerts";
-        }
-
-        // On load: Notification.permission is the source of truth — reset
-        // localStorage if permission state no longer matches the stored sub.
-        (function syncState() {
-          var perm = Notification.permission;
-          var sub = getSub();
-          if (perm === "denied") {
-            setSub(null);
-            setButtonState("denied");
-          } else if (perm === "granted" && sub) {
-            setButtonState("enabled");
-          } else {
-            setSub(null);
-            setButtonState("");
-          }
-        })();
-
-        async function subscribe() {
-          try {
-            var perm = await Notification.requestPermission();
-            if (perm !== "granted") {
-              setButtonState(perm === "denied" ? "denied" : "");
-              return;
-            }
-            var swReg = await navigator.serviceWorker.ready;
-            var token = await messaging.getToken({
-              vapidKey: VAPID_KEY,
-              serviceWorkerRegistration: swReg,
-            });
-            var res = await fetch(FIREBASE_URL + "/subscriptions.json", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token: token, ts: Date.now() }),
-            });
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            var data = await res.json();
-            setSub({ pushId: data.name, token: token });
-            setButtonState("enabled");
-          } catch (e) {
-            console.error("Wire: subscribe failed", e);
-            setButtonState("");
-          }
-        }
-
-        async function unsubscribe() {
-          var sub = getSub();
-          if (sub && sub.pushId) {
-            try {
-              await fetch(
-                FIREBASE_URL + "/subscriptions/" + sub.pushId + ".json",
-                { method: "DELETE" },
-              );
-            } catch (e) {
-              console.warn("Wire: server unsubscribe failed", e);
-            }
-          }
-          setSub(null);
-          setButtonState("");
-        }
-
-        btn.addEventListener("click", function () {
-          if (getSub() && Notification.permission === "granted") {
-            unsubscribe();
-          } else {
-            subscribe();
-          }
-        });
       })();
     </script>
   </body>
