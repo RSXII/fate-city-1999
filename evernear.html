@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="sw-register.js" defer></script>
     <title>EverNear</title>
     <style>
       :root {
@@ -1024,8 +1025,8 @@
     <div class="ad-banner">
       <span class="ad-tag">Ad</span>
       <span class="ad-text" id="ad-text"
-        >Season of Tender™ is LIVE — don't miss limited rewards before they're
-        gone forever</span
+        >Agent ECHO-7 is LIVE — don't miss limited rewards before they're gone
+        forever</span
       >
       <button class="ad-cta">View</button>
     </div>
@@ -1313,7 +1314,7 @@
     <div class="screen" id="screen-store">
       <!-- Limited edition featured -->
       <div class="limited-card">
-        <div class="limited-title">Season of Tender™ Pull</div>
+        <div class="limited-title">Agent ECHO-7™ Pull</div>
         <div class="limited-sub">
           Limited resonance banner &mdash; exclusive cosmetics &amp; voice packs
         </div>
@@ -1502,7 +1503,7 @@
         </div>
         <div class="lock-row" style="border-bottom: none">
           <div class="lock-row-left">
-            <div class="lock-row-name">Season of Tender™ Pass</div>
+            <div class="lock-row-name">Agent ECHO-7™ Pass</div>
             <div class="lock-row-value">
               45 BT upfront + 8 RS/week &nbsp;•&nbsp; no end date
             </div>
@@ -1761,26 +1762,14 @@
     <!-- ── WIRE HOME BAR ────────────────────────────── -->
     <div class="wire-home"><div class="wire-home-ind"></div></div>
 
-    <script>
-      // ── WIRE CLOCK ──────────────────────────────────
-      (function () {
-        function tick() {
-          var el = document.getElementById("wire-clock");
-          if (!el) return;
-          var n = new Date();
-          el.textContent =
-            String(n.getHours()).padStart(2, "0") +
-            ":" +
-            String(n.getMinutes()).padStart(2, "0");
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      startClock();
 
       // ── AD ROTATION ─────────────────────────────────
       (function () {
         var ads = [
-          "Season of Tender\u2122 is LIVE \u2014 don\u2019t miss limited rewards before they\u2019re gone forever",
+          "Agent ECHO-7 is LIVE \u2014 don\u2019t miss limited rewards before they\u2019re gone forever",
           "ECHO-7 misses you. Upgrade Memory Silver and she\u2019ll remember. 1,200 NP/mo.",
           "New: Nyan Nyan Racer \u2014 Limited Edition collab with Fate City Records. Get it before it\u2019s gone.",
           "Companion Drift is real. Stabilize for 500 NP/mo before she forgets who you are.",

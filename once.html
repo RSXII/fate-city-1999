@@ -364,20 +364,9 @@
       <div class="wire-home-ind" aria-hidden="true"></div>
     </a>
 
-    <script>
-      (function () {
-        var el = document.getElementById("wire-clock");
-        function tick() {
-          if (!el) return;
-          var n = new Date();
-          el.textContent =
-            String(n.getHours()).padStart(2, "0") +
-            ":" +
-            String(n.getMinutes()).padStart(2, "0");
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      startClock();
     </script>
   </body>
 </html>

@@ -692,9 +692,10 @@
     <!--  Categories: culture, infrastructure, technology,        -->
     <!--  services, substances                                    -->
     <!-- ======================================================= -->
-    <script>
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      import { startNotifications } from "./js/wire-notifications.js";
       const ENTRIES = [
-
         // ── CULTURE ──────────────────────────────────────────────
 
         {
@@ -714,7 +715,10 @@
           images: ["images/fantac_magazine.png"],
           stats: [
             { label: "Status", value: "Citywide, and still climbing" },
-            { label: "Cost", value: "Plat up front; Seam-essence under the hood" },
+            {
+              label: "Cost",
+              value: "Plat up front; Seam-essence under the hood",
+            },
             { label: "Fray Cost", value: "None \u2014 purely cosmetic" },
             {
               label: "Market Leaders",
@@ -768,10 +772,14 @@
             "S.K.AM\u2019s network in your pocket. Every call, every message, every location ping \u2014 running on infrastructure the company never fully stopped owning.",
           images: [],
           stats: [
-            { label: "Manufacturer", value: "S.K.AM Technologies (consumer division)" },
+            {
+              label: "Manufacturer",
+              value: "S.K.AM Technologies (consumer division)",
+            },
             {
               label: "Network",
-              value: "S.K.AM proprietary \u2014 citywide coverage, logged by default on stock units",
+              value:
+                "S.K.AM proprietary \u2014 citywide coverage, logged by default on stock units",
             },
             {
               label: "Standard Apps",
@@ -840,11 +848,13 @@
           stats: [
             {
               label: "Developer",
-              value: "Nexkin Inc. \u2014 formerly TetHer Social, rebranded following Series C",
+              value:
+                "Nexkin Inc. \u2014 formerly TetHer Social, rebranded following Series C",
             },
             {
               label: "Infrastructure",
-              value: "S.K.AM Technologies (network & Weave-layer licensing only)",
+              value:
+                "S.K.AM Technologies (network & Weave-layer licensing only)",
             },
             {
               label: "Status",
@@ -856,7 +866,8 @@
             },
             {
               label: "Fray Cost",
-              value: "None \u2014 Nexkin insists this is purely a comfort product",
+              value:
+                "None \u2014 Nexkin insists this is purely a comfort product",
             },
             {
               label: "Market Position",
@@ -908,8 +919,7 @@
             stampColor: "#8b52c8",
           },
           name: "TRACE",
-          epithet:
-            "Borrowed power. Someone else paid for it first.",
+          epithet: "Borrowed power. Someone else paid for it first.",
           images: [],
           stats: [
             {
@@ -925,10 +935,14 @@
               label: "Detection",
               value: "Leaves a measurable biological signature post-use",
             },
-            { label: "Cost", value: "Premium \u2014 not advertised, not sold publicly" },
+            {
+              label: "Cost",
+              value: "Premium \u2014 not advertised, not sold publicly",
+            },
             {
               label: "Comedown",
-              value: "Significant \u2014 described as something being taken away a second time",
+              value:
+                "Significant \u2014 described as something being taken away a second time",
             },
           ],
           sections: [
@@ -954,7 +968,6 @@
             cite: "Anonymous, recovered from Nocturne exit survey (redacted)",
           },
         },
-
       ];
 
       // ===================== RENDER ENGINE =====================
@@ -1031,18 +1044,20 @@
       function renderAll() {
         const root = document.getElementById("cards-root");
 
-        const culture        = ENTRIES.filter((e) => e.category === "culture");
-        const infrastructure = ENTRIES.filter((e) => e.category === "infrastructure");
-        const technology     = ENTRIES.filter((e) => e.category === "technology");
-        const services       = ENTRIES.filter((e) => e.category === "services");
-        const substances     = ENTRIES.filter((e) => e.category === "substances");
+        const culture = ENTRIES.filter((e) => e.category === "culture");
+        const infrastructure = ENTRIES.filter(
+          (e) => e.category === "infrastructure",
+        );
+        const technology = ENTRIES.filter((e) => e.category === "technology");
+        const services = ENTRIES.filter((e) => e.category === "services");
+        const substances = ENTRIES.filter((e) => e.category === "substances");
 
         const groups = [
-          { entries: culture,        label: "Culture" },
+          { entries: culture, label: "Culture" },
           { entries: infrastructure, label: "Infrastructure" },
-          { entries: technology,     label: "Technology" },
-          { entries: services,       label: "Services" },
-          { entries: substances,     label: "Substances" },
+          { entries: technology, label: "Technology" },
+          { entries: services, label: "Services" },
+          { entries: substances, label: "Substances" },
         ];
 
         let html = "";
@@ -1071,8 +1086,12 @@
           lbImg.src = thumb.getAttribute("data-full");
           lbCaption.textContent = thumb.getAttribute("data-caption") || "";
           const multi = currentGallery.length > 1;
-          document.getElementById("lb-prev").style.display = multi ? "block" : "none";
-          document.getElementById("lb-next").style.display = multi ? "block" : "none";
+          document.getElementById("lb-prev").style.display = multi
+            ? "block"
+            : "none";
+          document.getElementById("lb-next").style.display = multi
+            ? "block"
+            : "none";
         }
 
         function openLightbox(galleryName, index) {
@@ -1123,91 +1142,15 @@
           if (!lightbox.classList.contains("open")) return;
           if (e.key === "Escape") closeLightbox();
           if (e.key === "ArrowLeft") document.getElementById("lb-prev").click();
-          if (e.key === "ArrowRight") document.getElementById("lb-next").click();
+          if (e.key === "ArrowRight")
+            document.getElementById("lb-next").click();
         });
       }
 
       renderAll();
 
-      // ===== WIRE CLOCK =====
-      (function () {
-        function tick() {
-          var el = document.getElementById("wire-clock");
-          if (!el) return;
-          var n = new Date();
-          var h = String(n.getHours()).padStart(2, "0");
-          var m = String(n.getMinutes()).padStart(2, "0");
-          el.textContent = h + ":" + m;
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
-
-      // ===== WIRE NOTIFICATIONS (unread badge + toast, polls Firebase) =====
-      (function () {
-        var FIREBASE_URL =
-          "https://cpr-wire-device-default-rtdb.firebaseio.com";
-        var LAST_SEEN_MAP_KEY = "wire-last-seen-map";
-        var dot = document.getElementById("wire-unread-dot");
-        var toast = document.getElementById("wire-toast");
-        var toastText = document.getElementById("wire-toast-text");
-        if (!dot || !toast) return;
-
-        var toastTimer = null;
-        var lastUnreadCount = 0;
-        var isFirstPoll = true;
-
-        function getLastSeenMap() {
-          try {
-            var raw = localStorage.getItem(LAST_SEEN_MAP_KEY);
-            return raw ? JSON.parse(raw) : {};
-          } catch (e) {
-            return {};
-          }
-        }
-
-        function showToast(n) {
-          toastText.textContent = n === 1 ? "New message" : n + " new messages";
-          toast.classList.add("show");
-          clearTimeout(toastTimer);
-          toastTimer = setTimeout(function () {
-            toast.classList.remove("show");
-          }, 4000);
-        }
-
-        async function pollUnread() {
-          try {
-            var res = await fetch(FIREBASE_URL + "/messages.json");
-            if (!res.ok) return;
-            var data = await res.json();
-            var lastSeenMap = getLastSeenMap();
-            var unread = 0;
-            if (data) {
-              Object.keys(data).forEach(function (k) {
-                var m = data[k];
-                if (!m) return;
-                var seen = lastSeenMap[m.sender] || 0;
-                if (m.ts > seen) unread++;
-              });
-            }
-            if (unread > 0) {
-              dot.classList.add("show");
-              if (!isFirstPoll && unread > lastUnreadCount) {
-                showToast(unread - lastUnreadCount);
-              }
-            } else {
-              dot.classList.remove("show");
-            }
-            lastUnreadCount = unread;
-            isFirstPoll = false;
-          } catch (e) {
-            // network hiccup -- just retry next interval
-          }
-        }
-
-        pollUnread();
-        setInterval(pollUnread, 5000);
-      })();
+      startClock();
+      startNotifications();
     </script>
     <!-- ===== WIRE HOME BAR ===== -->
     <div class="wire-home">

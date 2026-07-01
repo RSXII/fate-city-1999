@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="sw-register.js" defer></script>
     <title>EverNear — Resonance Pull</title>
     <style>
       :root {
@@ -21,6 +22,11 @@
         --lock: #1e1830;
         --lock-border: #2a2040;
         --grad: linear-gradient(135deg, #ff4d8e, #a855f7, #4dd9ff);
+        /* Agent ECHO-7 specific accents */
+        --agent-gold: #b8962a;
+        --agent-teal: #0dd4c8;
+        --agent-dim: rgba(184, 150, 42, 0.18);
+        --agent-grad: linear-gradient(135deg, #b8962a, #0dd4c8, #a855f7);
       }
       * {
         box-sizing: border-box;
@@ -771,6 +777,222 @@
         color: var(--muted);
         text-decoration: underline;
       }
+
+      /* ── INTRO OVERLAY ────────────────────────────── */
+      .intro-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 600;
+        background: #0a0710;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        overflow: hidden;
+        transition: opacity 0.55s ease;
+      }
+      .intro-overlay.dismissed {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .intro-line {
+        position: absolute;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--agent-teal),
+          transparent
+        );
+        opacity: 0;
+        animation: intro-sweep 1.6s ease-in-out infinite;
+      }
+      @keyframes intro-sweep {
+        0% {
+          transform: translateX(-110%);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.45;
+        }
+        80% {
+          opacity: 0.45;
+        }
+        100% {
+          transform: translateX(110%);
+          opacity: 0;
+        }
+      }
+      .intro-line:nth-child(1) {
+        top: 28%;
+        width: 70%;
+        left: 15%;
+        animation-delay: 0s;
+      }
+      .intro-line:nth-child(2) {
+        top: 36%;
+        width: 90%;
+        left: 5%;
+        animation-delay: 0.25s;
+      }
+      .intro-line:nth-child(3) {
+        top: 50%;
+        width: 100%;
+        left: 0%;
+        animation-delay: 0.05s;
+      }
+      .intro-line:nth-child(4) {
+        top: 64%;
+        width: 90%;
+        left: 5%;
+        animation-delay: 0.4s;
+      }
+      .intro-line:nth-child(5) {
+        top: 72%;
+        width: 70%;
+        left: 15%;
+        animation-delay: 0.15s;
+      }
+      .intro-grid {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 45%;
+        background:
+          linear-gradient(0deg, rgba(13, 212, 200, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(184, 150, 42, 0.05) 1px, transparent 1px);
+        background-size: 44px 22px;
+        mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+        -webkit-mask-image: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.55),
+          transparent
+        );
+      }
+      .intro-icon {
+        font-size: 52px;
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 0 14px var(--agent-teal));
+        animation: intro-pulse 2.2s ease-in-out infinite;
+        margin-bottom: 18px;
+      }
+      @keyframes intro-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.06);
+        }
+      }
+      .intro-eyebrow {
+        position: relative;
+        z-index: 1;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 3.5px;
+        text-transform: uppercase;
+        color: var(--agent-gold);
+        opacity: 0.65;
+        margin-bottom: 10px;
+      }
+      .intro-headline {
+        position: relative;
+        z-index: 1;
+        font-size: clamp(30px, 9vw, 44px);
+        font-weight: 900;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.05;
+        padding: 0 20px;
+        background: var(--agent-grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: drop-shadow(0 0 10px rgba(13, 212, 200, 0.3));
+        margin-bottom: 36px;
+      }
+      .intro-tap {
+        position: relative;
+        z-index: 1;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+        animation: intro-tap-pulse 1.3s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      @keyframes intro-tap-pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .intro-tap-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--agent-teal);
+      }
+
+      /* ── MUSIC TOGGLE ─────────────────────────────── */
+      .music-toggle {
+        position: fixed;
+        bottom: 42px;
+        right: 14px;
+        z-index: 450;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(10, 7, 16, 0.82);
+        border: 1px solid rgba(184, 150, 42, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        backdrop-filter: blur(4px);
+      }
+      .music-toggle:hover {
+        border-color: var(--agent-gold);
+        background: rgba(184, 150, 42, 0.1);
+      }
+      .music-toggle svg {
+        width: 16px;
+        height: 16px;
+        fill: var(--agent-gold);
+      }
+      .music-toggle.muted svg {
+        fill: var(--muted);
+      }
+      .music-toggle.waiting {
+        border-color: rgba(184, 150, 42, 0.15);
+      }
+      .music-toggle.waiting svg {
+        fill: var(--muted);
+        animation: pulse-wait 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse-wait {
+        0%,
+        100% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
     </style>
   </head>
   <body>
@@ -806,21 +1028,17 @@
     <div class="page">
       <!-- ── BANNER IMAGE ─────────────────────────────
            Replace <div class="banner-placeholder"> with
-           <img class="banner-img" src="images/gacha-banner.jpg" alt="Banner">
+           <img class="banner-img" src="images/evernear/gacha-nyan-banner.jpg" alt="Banner">
            once a real asset is available.
       ───────────────────────────────────────────────── -->
       <div class="banner-wrap">
-        <div class="banner-placeholder">
-          <!-- Decorative floating shards -->
-          <div class="banner-shard s1"></div>
-          <div class="banner-shard s2"></div>
-          <div class="banner-shard s3"></div>
-          <div class="banner-shard s4"></div>
-          <div class="banner-shard s5"></div>
-          <div class="banner-placeholder-title">Season of Tender™</div>
-          <div class="banner-placeholder-sub">Limited Resonance Banner</div>
-        </div>
-        <div class="banner-limited-tag">Limited &bull; Season Event</div>
+        <img
+          class="banner-img"
+          src="images/evernear/gacha-agent-banner.jpg"
+          alt="Agent ECHO-7 &mdash; ECHO-7 Limited Edition Banner"
+        />
+        <div class="banner-limited-tag">Collab &bull; Limited Run</div>
+        <div class="banner-collab-tag">Fate City Records</div>
         <div class="banner-timer" id="banner-timer">
           &#9679; Ends in &mdash; : &mdash; : &mdash;
         </div>
@@ -828,7 +1046,7 @@
 
       <div class="content">
         <!-- Banner title -->
-        <div class="gacha-name">Tender Radiance</div>
+        <div class="gacha-name">Agent ECHO-7</div>
         <div class="gacha-subtitle">
           Pull for exclusive Season of Tender™ cosmetics, voice packs, and
           limited memory keepsakes. These items will not return after the event
@@ -921,6 +1139,24 @@
     </div>
     <!-- /page -->
 
+    <!-- ── INTRO SPLASH OVERLAY ──────────────────────── -->
+    <div class="intro-overlay" id="intro-overlay" onclick="dismissIntro()">
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-grid"></div>
+      <div class="intro-icon">🕵️</div>
+      <div class="intro-eyebrow">Fate City Records &times; EverNear</div>
+      <div class="intro-headline">Operation<br />ECHO-7</div>
+      <div class="intro-tap">
+        <div class="intro-tap-dot"></div>
+        Tap to begin mission
+        <div class="intro-tap-dot"></div>
+      </div>
+    </div>
+
     <!-- ── PULL RESULT OVERLAY ─────────────────────── -->
     <div class="result-overlay" id="result-overlay">
       <div class="result-title" id="result-title">You received&hellip;</div>
@@ -930,24 +1166,35 @@
       </button>
     </div>
 
+    <!-- ── MUSIC TOGGLE BUTTON ──────────────────────── -->
+    <button
+      class="music-toggle waiting"
+      id="music-toggle"
+      title="Toggle music"
+      onclick="toggleMusic()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+        id="music-icon"
+      >
+        <path
+          d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"
+        />
+      </svg>
+    </button>
+
+    <!-- ── BACKGROUND AUDIO ───────────────────────────── -->
+    <audio id="bg-audio" loop preload="auto">
+      <source src="sounds/agent_echo7_theme.mp3" type="audio/mpeg" />
+    </audio>
+
     <!-- ── WIRE HOME BAR ────────────────────────────── -->
     <div class="wire-home"><div class="wire-home-ind"></div></div>
 
-    <script>
-      // ── CLOCK ──────────────────────────────────────
-      (function () {
-        function tick() {
-          var el = document.getElementById("wire-clock");
-          if (!el) return;
-          var n = new Date();
-          el.textContent =
-            String(n.getHours()).padStart(2, "0") +
-            ":" +
-            String(n.getMinutes()).padStart(2, "0");
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      startClock();
 
       // ── BANNER COUNTDOWN ───────────────────────────
       (function () {
@@ -1101,6 +1348,56 @@
       function closeResult() {
         document.getElementById("result-overlay").classList.remove("active");
       }
+
+      // ── BACKGROUND MUSIC ───────────────────────────
+      (function () {
+        var audio = document.getElementById("bg-audio");
+        var btn = document.getElementById("music-toggle");
+        var icon = document.getElementById("music-icon");
+        var muted = false;
+
+        var pathOn =
+          "M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z";
+        var pathOff =
+          "M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0017.73 18l1.73 1.73L21 18.27 4.27 3zM12 4L9.91 6.09 12 8.18V4z";
+
+        function setIcon() {
+          icon
+            .querySelector("path")
+            .setAttribute("d", muted ? pathOff : pathOn);
+          btn.classList.toggle("muted", muted);
+          btn.title = muted ? "Unmute music" : "Mute music";
+        }
+
+        // Intro overlay tap is the guaranteed user gesture — play starts here
+        window.dismissIntro = function () {
+          var overlay = document.getElementById("intro-overlay");
+          overlay.classList.add("dismissed");
+          overlay.addEventListener(
+            "transitionend",
+            function () {
+              overlay.style.display = "none";
+            },
+            { once: true },
+          );
+          audio.volume = 0.45;
+          audio.play().then(function () {
+            btn.classList.remove("waiting");
+          });
+        };
+
+        window.toggleMusic = function () {
+          muted = !muted;
+          if (muted) {
+            audio.pause();
+          } else {
+            audio.play();
+          }
+          setIcon();
+        };
+
+        setIcon();
+      })();
     </script>
   </body>
 </html>

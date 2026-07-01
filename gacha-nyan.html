@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="sw-register.js" defer></script>
     <title>EverNear — Nyan Nyan Racer Pull</title>
     <style>
       :root {
@@ -1141,7 +1142,7 @@
     <div class="banner-wrap">
       <img
         class="banner-img"
-        src="images/gacha-nyan-banner.jpg"
+        src="images/evernear/gacha-nyan-banner.jpg"
         alt="Nyan Nyan Racer &mdash; ECHO-7 Limited Edition Banner"
       />
       <div class="banner-limited-tag">Collab &bull; Limited Run</div>
@@ -1337,21 +1338,9 @@
     <!-- ── WIRE HOME BAR ────────────────────────────── -->
     <div class="wire-home"><div class="wire-home-ind"></div></div>
 
-    <script>
-      // ── CLOCK ──────────────────────────────────────
-      (function () {
-        function tick() {
-          var el = document.getElementById("wire-clock");
-          if (!el) return;
-          var n = new Date();
-          el.textContent =
-            String(n.getHours()).padStart(2, "0") +
-            ":" +
-            String(n.getMinutes()).padStart(2, "0");
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      startClock();
 
       // ── BANNER COUNTDOWN ───────────────────────────
       (function () {
