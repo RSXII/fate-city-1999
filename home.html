@@ -267,6 +267,7 @@
         position: relative;
         min-height: 218px;
         overflow: hidden;
+        touch-action: pan-y;
       }
       .hs-stage-static {
         min-height: 0;
@@ -846,15 +847,47 @@
                 <div class="hs-icon-tile evernear-tile">
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <defs>
-                      <linearGradient id="en-ring" x1="4" y1="12" x2="20" y2="12" gradientUnits="userSpaceOnUse">
+                      <linearGradient
+                        id="en-ring"
+                        x1="4"
+                        y1="12"
+                        x2="20"
+                        y2="12"
+                        gradientUnits="userSpaceOnUse"
+                      >
                         <stop offset="0%" stop-color="#d946ef" />
                         <stop offset="100%" stop-color="#38bdf8" />
                       </linearGradient>
                     </defs>
-                    <circle cx="12" cy="11.5" r="7.8" style="stroke: url(#en-ring); fill: none;" stroke-width="1.6" />
-                    <rect x="9.2" y="8.8" width="2" height="3.2" rx="1" style="fill: white; stroke: none;" />
-                    <rect x="12.8" y="8.8" width="2" height="3.2" rx="1" style="fill: white; stroke: none;" />
-                    <path d="M9.8 14.2 Q12 15.9 14.2 14.2" style="stroke: white; fill: none;" stroke-width="1.2" stroke-linecap="round" />
+                    <circle
+                      cx="12"
+                      cy="11.5"
+                      r="7.8"
+                      style="stroke: url(#en-ring); fill: none"
+                      stroke-width="1.6"
+                    />
+                    <rect
+                      x="9.2"
+                      y="8.8"
+                      width="2"
+                      height="3.2"
+                      rx="1"
+                      style="fill: white; stroke: none"
+                    />
+                    <rect
+                      x="12.8"
+                      y="8.8"
+                      width="2"
+                      height="3.2"
+                      rx="1"
+                      style="fill: white; stroke: none"
+                    />
+                    <path
+                      d="M9.8 14.2 Q12 15.9 14.2 14.2"
+                      style="stroke: white; fill: none"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                    />
                   </svg>
                 </div>
                 <span class="hs-icon-label">EverNear</span>
@@ -991,6 +1024,7 @@
       // ===== HOME SCREEN CAROUSEL =====
       (function () {
         var carousel = document.getElementById("hs-carousel");
+        var stage = document.getElementById("hs-stage");
         var dots = document.querySelectorAll(".hs-dot[data-page]");
         var totalPages = dots.length;
         var currentPage = 0;
@@ -1013,7 +1047,7 @@
           });
         });
 
-        carousel.addEventListener(
+        stage.addEventListener(
           "touchstart",
           function (e) {
             touchStartX = e.touches[0].clientX;
@@ -1022,7 +1056,7 @@
           { passive: true },
         );
 
-        carousel.addEventListener(
+        stage.addEventListener(
           "touchend",
           function (e) {
             var dx = e.changedTouches[0].clientX - touchStartX;
