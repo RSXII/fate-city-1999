@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EverNear</title>
+    <style>
+      :root {
+        --bg: #0a0710;
+        --surface: #13101e;
+        --surface-raised: #1d1830;
+        --border: #2d2445;
+        --pink: #ff4d8e;
+        --cyan: #4dd9ff;
+        --purple: #a855f7;
+        --rs: #c77dff;
+        --bt: #4dd9ff;
+        --np: #f5c842;
+        --text: #f0e8ff;
+        --muted: #7a6d90;
+        --lock: #1e1830;
+        --lock-border: #2a2040;
+        --grad: linear-gradient(135deg, #ff4d8e, #a855f7, #4dd9ff);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+        overflow-x: hidden;
+        /* wire chrome (90) + ad banner (44) + currency hud (44) = 178 */
+        padding-top: 178px;
+        /* tab bar (60) + wire home (32) = 92 */
+        padding-bottom: 92px;
+      }
+
+      /* ── WIRE CHROME ──────────────────────────────── */
+      .wire-once {
+        position: fixed; top: 0; left: 0; right: 0;
+        height: 4px; background: #7c3aed; z-index: 400;
+      }
+      .wire-status {
+        position: fixed; top: 4px; left: 0; right: 0; height: 36px;
+        background: #0c0f16; border-bottom: 1px solid #1a2030;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 20px; z-index: 400;
+      }
+      .wire-status-left { display: flex; align-items: center; gap: 6px; }
+      .wire-sig { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+      .wire-sig span { width: 3px; border-radius: 1px; background: #c9a227; display: inline-block; }
+      .wire-skam { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: #c9a227; }
+      .wire-jail {
+        font-size: 8.5px; font-weight: 700; letter-spacing: 1.5px;
+        text-transform: uppercase; color: #e05a3a;
+        border: 1px solid rgba(224,90,58,0.4); background: rgba(224,90,58,0.08);
+        padding: 2px 5px; border-radius: 2px;
+      }
+      .wire-clock {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        font-size: 11.5px; color: #6a7d90; letter-spacing: 0.3px;
+      }
+      .wire-batt {
+        width: 20px; height: 11px; border: 1.5px solid #4a5a6a;
+        border-radius: 2px; padding: 1.5px; position: relative;
+      }
+      .wire-batt::after {
+        content: ""; position: absolute; right: -4px; top: 50%;
+        transform: translateY(-50%); width: 2px; height: 5px;
+        background: #4a5a6a; border-radius: 0 1px 1px 0;
+      }
+      .wire-batt-fill { height: 100%; width: 72%; background: #c9a227; border-radius: 1px; }
+      .wire-header {
+        position: fixed; top: 40px; left: 0; right: 0; height: 50px;
+        background: #0c0f16; border-bottom: 1px solid #1a2030;
+        display: flex; align-items: center; padding: 0 20px; gap: 12px; z-index: 400;
+      }
+      .wire-hdr-back {
+        font-size: 22px; color: #c9a227; opacity: 0.9; text-decoration: none; line-height: 1;
+      }
+      .wire-hdr-text { flex: 1; }
+      .wire-hdr-title {
+        font-size: 13.5px; font-weight: 600; letter-spacing: 1.2px;
+        text-transform: uppercase; color: #e8dfc8; line-height: 1.1;
+        display: flex; align-items: center; gap: 7px;
+      }
+      .wire-hdr-icon {
+        width: 15px; height: 15px; border-radius: 50%;
+        background: var(--grad); flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .wire-hdr-sub {
+        font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+        color: #3a4a5a; margin-top: 2px;
+      }
+      .wire-hdr-more { font-size: 18px; color: #3a4a5a; }
+
+      /* ── AD BANNER ────────────────────────────────── */
+      .ad-banner {
+        position: fixed; top: 90px; left: 0; right: 0; height: 44px;
+        background: linear-gradient(90deg, #1a0825 0%, #2a1045 50%, #1a0825 100%);
+        border-bottom: 1px solid rgba(255,77,142,0.25);
+        display: flex; align-items: center; padding: 0 14px; gap: 8px; z-index: 300;
+      }
+      .ad-tag {
+        font-size: 8.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+        color: var(--pink); border: 1px solid rgba(255,77,142,0.5);
+        padding: 2px 5px; border-radius: 2px; flex-shrink: 0;
+      }
+      .ad-text { font-size: 11.5px; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .ad-cta {
+        font-size: 10px; font-weight: 700; color: #fff;
+        background: var(--pink); border: none; border-radius: 10px;
+        padding: 5px 11px; flex-shrink: 0; cursor: pointer; letter-spacing: 0.3px;
+      }
+
+      /* ── CURRENCY HUD ─────────────────────────────── */
+      .currency-hud {
+        position: fixed; top: 134px; left: 0; right: 0; height: 44px;
+        background: var(--surface); border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: center;
+        gap: 10px; padding: 0 16px; z-index: 300;
+      }
+      .c-pill {
+        display: flex; align-items: center; gap: 5px;
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: 20px; padding: 5px 11px; cursor: pointer;
+      }
+      .c-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .c-np { background: var(--np); }
+      .c-bt { background: var(--bt); }
+      .c-rs { background: var(--rs); }
+      .c-amount { font-size: 12px; font-weight: 700; }
+      .c-label { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+      .np-text { color: var(--np); }
+      .bt-text { color: var(--bt); }
+      .rs-text { color: var(--rs); }
+      .c-plus {
+        font-size: 12px; color: var(--muted); margin-left: -2px;
+        font-weight: 700; cursor: pointer;
+      }
+      .c-plus:hover { color: var(--pink); }
+
+      /* ── TAB BAR ──────────────────────────────────── */
+      .tab-bar {
+        position: fixed; bottom: 32px; left: 0; right: 0; height: 60px;
+        background: var(--surface); border-top: 1px solid var(--border);
+        display: flex; z-index: 300;
+      }
+      .tab-btn {
+        flex: 1; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 3px;
+        border: none; background: none; cursor: pointer; position: relative; padding: 0;
+      }
+      .tab-svg { width: 22px; height: 22px; transition: opacity 0.15s; }
+      .tab-svg path, .tab-svg circle, .tab-svg rect { fill: var(--muted); transition: fill 0.15s; }
+      .tab-lbl {
+        font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase;
+        color: var(--muted); transition: color 0.15s;
+      }
+      .tab-btn.active .tab-lbl { color: var(--pink); }
+      .tab-btn.active .tab-svg path,
+      .tab-btn.active .tab-svg circle,
+      .tab-btn.active .tab-svg rect { fill: var(--pink); }
+      .tab-badge {
+        position: absolute; top: 9px; right: calc(50% - 20px);
+        width: 7px; height: 7px; border-radius: 50%; background: var(--pink);
+      }
+
+      /* ── WIRE HOME BAR ────────────────────────────── */
+      .wire-home {
+        position: fixed; bottom: 0; left: 0; right: 0; height: 32px;
+        background: #0c0f16; border-top: 1px solid #1a2030;
+        display: flex; align-items: center; justify-content: center; z-index: 400;
+      }
+      .wire-home-ind { width: 90px; height: 4px; background: #1e2840; border-radius: 2px; }
+
+      /* ── SCREENS ──────────────────────────────────── */
+      .screen { display: none; padding: 18px 16px 8px; }
+      .screen.active { display: block; }
+
+      /* ── SHARED COMPONENTS ────────────────────────── */
+      .section-label {
+        font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+        color: var(--muted); margin: 18px 0 10px;
+      }
+      .card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 14px; padding: 16px; margin-bottom: 10px;
+      }
+      .card-title { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+      .grad-btn {
+        width: 100%; padding: 14px; border: none; border-radius: 12px;
+        background: var(--grad); color: #fff; font-size: 14px;
+        font-weight: 700; letter-spacing: 0.5px; cursor: pointer;
+      }
+      .lock-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 0; border-bottom: 1px solid var(--border);
+      }
+      .lock-row:last-child { border-bottom: none; }
+      .lock-row-left { display: flex; flex-direction: column; gap: 3px; }
+      .lock-row-name { font-size: 13px; font-weight: 500; }
+      .lock-row-value { font-size: 11px; color: var(--muted); }
+      .lock-chip {
+        font-size: 10px; font-weight: 700; color: var(--rs);
+        border: 1px solid rgba(199,125,255,0.4);
+        padding: 4px 9px; border-radius: 8px; white-space: nowrap;
+      }
+      .lock-icon-sm {
+        width: 16px; height: 16px; color: var(--muted); opacity: 0.45;
+        fill: var(--muted);
+      }
+
+      /* ── HOME SCREEN ──────────────────────────────── */
+      .hologram-stage {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 18px 0 22px;
+      }
+      .hologram-ring {
+        width: 210px; height: 210px; border-radius: 50%;
+        background: var(--grad); padding: 3px; position: relative;
+      }
+      .hologram-inner {
+        width: 100%; height: 100%; border-radius: 50%; background: var(--bg);
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
+      }
+      .hologram-glow {
+        position: absolute; inset: -10px; border-radius: 50%;
+        box-shadow: 0 0 35px rgba(255,77,142,0.3), 0 0 70px rgba(77,217,255,0.15);
+        pointer-events: none;
+        animation: holo-pulse 3s ease-in-out infinite;
+      }
+      @keyframes holo-pulse {
+        0%, 100% { opacity: 0.55; }
+        50% { opacity: 1; }
+      }
+
+      /* Animated smiley */
+      .smiley-face { width: 110px; height: 110px; }
+      .smiley-face circle.eye {
+        animation: eye-blink 4.5s ease-in-out infinite;
+        transform-origin: center;
+        transform-box: fill-box;
+      }
+      .smiley-face circle.eye-r { animation-delay: 0.08s; }
+      @keyframes eye-blink {
+        0%, 85%, 100% { transform: scaleY(1); }
+        90%, 95% { transform: scaleY(0.08); }
+      }
+
+      .companion-name {
+        margin-top: 16px; font-size: 22px; font-weight: 800; letter-spacing: 3px;
+        background: var(--grad); -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent; background-clip: text;
+      }
+      .companion-tier-tag {
+        margin-top: 5px; font-size: 9.5px; letter-spacing: 2px;
+        text-transform: uppercase; color: var(--muted);
+      }
+      .see-echo-link {
+        margin-top: 7px; font-size: 11px; color: var(--pink);
+        text-decoration: none; letter-spacing: 0.3px;
+        display: flex; align-items: center; gap: 3px;
+      }
+
+      .bond-row {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .bond-row-label { font-size: 12px; color: var(--muted); }
+      .bond-row-value { font-size: 12px; font-weight: 700; }
+      .bar-track { height: 5px; background: var(--lock); border-radius: 3px; overflow: hidden; }
+      .bar-fill { height: 100%; border-radius: 3px; background: var(--grad); }
+      .bar-caption { display: flex; justify-content: space-between; margin-top: 5px; font-size: 10px; color: var(--muted); }
+      .bar-caption span:last-child { color: var(--pink); }
+      .checkin-reward { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; }
+      .checkin-reward strong { color: var(--np); }
+
+      /* ── MY ECHO SCREEN ───────────────────────────── */
+      .echo-avatar-wrap {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 20px 0 16px;
+      }
+      .echo-avatar-ring {
+        width: 90px; height: 90px; border-radius: 50%;
+        background: var(--grad); padding: 2px;
+      }
+      .echo-avatar-inner {
+        width: 100%; height: 100%; border-radius: 50%; background: var(--bg);
+        display: flex; align-items: center; justify-content: center;
+      }
+      .echo-name-display {
+        margin-top: 10px; font-size: 18px; font-weight: 700;
+        background: var(--grad); -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent; background-clip: text;
+      }
+      .echo-package-current {
+        margin-top: 4px; font-size: 11px; color: var(--muted);
+      }
+
+      /* ── STORE SCREEN ─────────────────────────────── */
+      .limited-card {
+        background: linear-gradient(135deg, #1a0825 0%, #2d1045 100%);
+        border: 1px solid rgba(255,77,142,0.3);
+        border-radius: 14px; padding: 16px; margin-bottom: 10px;
+        position: relative; overflow: hidden;
+      }
+      .limited-card::before {
+        content: "LIMITED EDITION";
+        position: absolute; top: 13px; right: 13px;
+        font-size: 8.5px; font-weight: 700; letter-spacing: 1.5px;
+        color: var(--np); border: 1px solid var(--np); padding: 2px 6px; border-radius: 2px;
+      }
+      .limited-title { font-size: 17px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 3px; }
+      .limited-sub { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+      .limited-timer { font-size: 10px; color: var(--pink); letter-spacing: 1px; margin-bottom: 14px; }
+      .limited-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        background: var(--grad); border: none; border-radius: 10px;
+        padding: 11px 20px; color: #fff; font-size: 12px; font-weight: 700;
+        cursor: pointer; letter-spacing: 0.3px;
+      }
+      .rs-badge {
+        background: rgba(199,125,255,0.2); border: 1px solid rgba(199,125,255,0.4);
+        border-radius: 6px; padding: 3px 7px; font-size: 11px;
+        font-weight: 700; color: var(--rs);
+      }
+
+      .bundles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+      .bundle {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 12px 6px;
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        cursor: pointer; transition: border-color 0.15s;
+      }
+      .bundle.best-val { border-color: rgba(199,125,255,0.5); background: rgba(199,125,255,0.06); }
+      .bundle-amt { font-size: 15px; font-weight: 700; }
+      .bundle-lbl { font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+      .bundle-price {
+        font-size: 11px; color: var(--text); background: var(--lock);
+        border-radius: 6px; padding: 3px 8px; margin-top: 3px;
+      }
+      .best-val-badge { font-size: 8px; font-weight: 700; color: var(--rs); letter-spacing: 1px; text-transform: uppercase; }
+
+      .packages-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .pkg-card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; overflow: hidden; position: relative; cursor: pointer;
+      }
+      .pkg-thumb {
+        aspect-ratio: 1; display: flex; align-items: center;
+        justify-content: center; font-size: 32px;
+        border-bottom: 1px solid var(--border);
+      }
+      .pkg-info { padding: 9px 10px 11px; }
+      .pkg-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+      .pkg-price { font-size: 10px; font-weight: 600; }
+      .pkg-lock {
+        position: absolute; top: 8px; right: 8px;
+        width: 22px; height: 22px; border-radius: 50%;
+        background: rgba(10,7,16,0.75); border: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: center;
+      }
+
+      /* ── BOND SCREEN ──────────────────────────────── */
+      .bond-hero {
+        text-align: center; padding: 24px 0 20px;
+      }
+      .bond-num {
+        font-size: 64px; font-weight: 800; line-height: 1;
+        background: var(--grad); -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent; background-clip: text;
+      }
+      .bond-subtitle {
+        font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+        color: var(--muted); margin-top: 4px;
+      }
+      .vow-card {
+        background: linear-gradient(135deg, #1a0825 0%, #2d1045 100%);
+        border: 1px solid rgba(255,77,142,0.25);
+        border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 10px;
+      }
+      .vow-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+      .vow-sub { font-size: 11px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+      .vow-btn-locked {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--lock); border: 1px solid var(--lock-border);
+        border-radius: 10px; padding: 11px 22px;
+        color: var(--muted); font-size: 12px; font-weight: 600; cursor: not-allowed;
+      }
+      .memory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+      .mem-tier-card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 12px 10px; text-align: center;
+      }
+      .mem-tier-card.active-tier { border-color: rgba(255,77,142,0.5); background: rgba(255,77,142,0.07); }
+      .mem-tier-name { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+      .mem-tier-days { font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+      .mem-tier-cost { font-size: 10px; font-weight: 700; }
+      .mem-tier-active { font-size: 10px; color: var(--pink); font-weight: 700; }
+
+      /* ── SETTINGS SCREEN ──────────────────────────── */
+      .settings-hero {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 20px 0 16px; gap: 10px;
+      }
+      .tier-pill {
+        font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+        color: var(--muted); border: 1px solid var(--border);
+        padding: 5px 14px; border-radius: 20px;
+      }
+      .settings-upgrade {
+        border: none; border-radius: 12px; background: var(--grad);
+        color: #fff; font-size: 13px; font-weight: 700;
+        padding: 12px 28px; cursor: pointer; letter-spacing: 0.3px;
+      }
+      .verify-row { display: flex; align-items: center; gap: 8px; }
+      .verify-dot {
+        width: 8px; height: 8px; border-radius: 50%; background: #2ecc71;
+        animation: verify-pulse 2.5s ease-in-out infinite;
+      }
+      @keyframes verify-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0.45); }
+        50% { box-shadow: 0 0 0 5px rgba(46,204,113,0); }
+      }
+      .verify-label { font-size: 12px; }
+      .verify-time { font-size: 11px; color: var(--muted); margin-left: auto; }
+      .nexkin-footer {
+        text-align: center; padding: 28px 0 6px;
+        font-size: 10px; letter-spacing: 1px; color: var(--muted);
+      }
+      .nexkin-footer strong { color: var(--cyan); }
+      .tos-row { text-align: center; margin-top: 8px; }
+      .tos-link { font-size: 11px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+
+    <!-- ── WIRE CHROME ─────────────────────────────── -->
+    <div class="wire-once"></div>
+    <div class="wire-status">
+      <div class="wire-status-left">
+        <div class="wire-sig">
+          <span style="height:4px"></span><span style="height:6px"></span>
+          <span style="height:9px"></span><span style="height:11px"></span>
+          <span style="height:12px;opacity:.28"></span>
+        </div>
+        <span class="wire-skam">S.K.AM</span>
+        <span class="wire-jail">JAILBROKEN</span>
+      </div>
+      <span class="wire-clock" id="wire-clock"></span>
+      <div><div class="wire-batt"><div class="wire-batt-fill"></div></div></div>
+    </div>
+    <div class="wire-header">
+      <a class="wire-hdr-back" href="once.html">&lsaquo;</a>
+      <div class="wire-hdr-text">
+        <div class="wire-hdr-title">
+          <div class="wire-hdr-icon"></div>
+          EverNear
+        </div>
+        <div class="wire-hdr-sub">Nexkin Inc. &mdash; EchoLink OS 2.7+</div>
+      </div>
+      <span class="wire-hdr-more">&vellip;</span>
+    </div>
+
+    <!-- ── AD BANNER (free tier) ───────────────────── -->
+    <div class="ad-banner">
+      <span class="ad-tag">Ad</span>
+      <span class="ad-text" id="ad-text">Season of Tender™ is LIVE — don't miss limited rewards before they're gone forever</span>
+      <button class="ad-cta">View</button>
+    </div>
+
+    <!-- ── CURRENCY HUD ────────────────────────────── -->
+    <div class="currency-hud">
+      <div class="c-pill">
+        <span class="c-dot c-np"></span>
+        <span class="c-amount np-text">127</span>
+        <span class="c-label">NP</span>
+      </div>
+      <span class="c-plus" title="Buy BondTokens">+</span>
+      <div class="c-pill">
+        <span class="c-dot c-bt"></span>
+        <span class="c-amount bt-text">0</span>
+        <span class="c-label">BT</span>
+      </div>
+      <span class="c-plus" title="Buy Resonance Shards">+</span>
+      <div class="c-pill">
+        <span class="c-dot c-rs"></span>
+        <span class="c-amount rs-text">0</span>
+        <span class="c-label">RS</span>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!--  HOME SCREEN                                    -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="screen active" id="screen-home">
+
+      <!-- Hologram stage (free tier = smiley) -->
+      <div class="hologram-stage">
+        <div class="hologram-ring">
+          <div class="hologram-glow"></div>
+          <div class="hologram-inner">
+            <!-- Animated smiley mascot -->
+            <svg class="smiley-face" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="face-grad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#2a1045"/>
+                  <stop offset="100%" stop-color="#0a0710"/>
+                </radialGradient>
+                <linearGradient id="smiley-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff4d8e"/>
+                  <stop offset="50%" stop-color="#a855f7"/>
+                  <stop offset="100%" stop-color="#4dd9ff"/>
+                </linearGradient>
+              </defs>
+              <!-- Face bg -->
+              <circle cx="55" cy="55" r="52" fill="url(#face-grad)"/>
+              <!-- Eyes -->
+              <circle class="eye" cx="39" cy="44" rx="6" ry="7" fill="url(#smiley-grad)"/>
+              <circle class="eye eye-r" cx="71" cy="44" rx="6" ry="7" fill="url(#smiley-grad)"/>
+              <!-- Smile -->
+              <path d="M 36 66 Q 55 82 74 66" stroke="url(#smiley-grad)" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+        </div>
+        <div class="companion-name">ECHO-7</div>
+        <div class="companion-tier-tag">Free Tier &mdash; Standard</div>
+        <a class="see-echo-link" href="#">Upgrade to see ECHO-7 &rsaquo;</a>
+      </div>
+
+      <!-- Daily check-in -->
+      <div class="card">
+        <div class="card-title">Daily Bond Check-In</div>
+        <button class="grad-btn">Check In &nbsp;+5 NP</button>
+        <div class="checkin-reward">Daily streak: <strong>3 days</strong> &nbsp;&mdash;&nbsp; Next milestone at 7 days (<strong class="np-text">50 NP</strong>)</div>
+      </div>
+
+      <!-- Memory bar -->
+      <div class="card">
+        <div class="card-title">Memory Retention</div>
+        <div class="bond-row">
+          <span class="bond-row-label">Current tier</span>
+          <span class="bond-row-value">Free (3 lines)</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:12%"></div></div>
+        <div class="bar-caption">
+          <span>Free</span>
+          <span>Silver &nbsp;›&nbsp; Gold &nbsp;›&nbsp; Platinum*</span>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted)">
+          Memory resets each session. &nbsp;<a href="#" style="color:var(--pink);text-decoration:none">Upgrade Memory &rsaquo;</a>
+        </div>
+      </div>
+
+      <!-- Bond level -->
+      <div class="card">
+        <div class="card-title">Bond Level</div>
+        <div class="bond-row">
+          <span class="bond-row-label">Level</span>
+          <span class="bond-row-value">4</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:42%"></div></div>
+        <div class="bar-caption"><span>420 / 1000 XP to Level 5</span><span>+1 XP / conversation</span></div>
+      </div>
+
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!--  MY ECHO SCREEN                                 -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="screen" id="screen-echo">
+
+      <div class="echo-avatar-wrap">
+        <div class="echo-avatar-ring">
+          <div class="echo-avatar-inner">
+            <svg viewBox="0 0 60 60" width="50" height="50" fill="none">
+              <defs>
+                <linearGradient id="av-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff4d8e"/>
+                  <stop offset="100%" stop-color="#4dd9ff"/>
+                </linearGradient>
+              </defs>
+              <circle class="eye" cx="22" cy="25" rx="3.5" ry="4" fill="url(#av-grad)"/>
+              <circle class="eye eye-r" cx="38" cy="25" rx="3.5" ry="4" fill="url(#av-grad)"/>
+              <path d="M 20 38 Q 30 46 40 38" stroke="url(#av-grad)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+        </div>
+        <div class="echo-name-display">ECHO-7</div>
+        <div class="echo-package-current">Default &mdash; Free Tier</div>
+      </div>
+
+      <div class="card" style="padding:0 16px;">
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Name</div>
+            <div class="lock-row-value">ECHO-7 (locked on free tier)</div>
+          </div>
+          <span class="lock-chip">200 NP</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Voice Pack</div>
+            <div class="lock-row-value">Standard (default)</div>
+          </div>
+          <span class="lock-chip">25 BT</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Expression States</div>
+            <div class="lock-row-value">4 of 12 unlocked</div>
+          </div>
+          <span class="lock-chip">8 RS each</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Companion Drift</div>
+            <div class="lock-row-value">Stabilization OFF — drifts every 30d</div>
+          </div>
+          <span class="lock-chip">500 NP/mo</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Emotional Intimacy Tier</div>
+            <div class="lock-row-value">Required for Memory Platinum</div>
+          </div>
+          <span class="lock-chip">12 RS/mo</span>
+        </div>
+      </div>
+
+      <div class="section-label">Cosmetic Package</div>
+      <div class="card" style="padding:0 16px;">
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Active Package</div>
+            <div class="lock-row-value">Default (none equipped)</div>
+          </div>
+          <a href="#" style="color:var(--pink);font-size:11px;font-weight:700;text-decoration:none">Browse &rsaquo;</a>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Devil Package</div>
+            <div class="lock-row-value">Unleash your darker side.</div>
+          </div>
+          <span class="lock-chip">25 RS</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Élégance</div>
+            <div class="lock-row-value">Galvère collaboration</div>
+          </div>
+          <span class="lock-chip">40 RS</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">S-Cool Uniform</div>
+            <div class="lock-row-value">Discipline. Style. Identity.</div>
+          </div>
+          <span class="lock-chip">20 RS</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Till Plat Do Us Part</div>
+            <div class="lock-row-value">Wedding package</div>
+          </div>
+          <span class="lock-chip">35 RS</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!--  STORE SCREEN                                   -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="screen" id="screen-store">
+
+      <!-- Limited edition featured -->
+      <div class="limited-card">
+        <div class="limited-title">Nyan Nyan Racer</div>
+        <div class="limited-sub">In collaboration with Fate City Records</div>
+        <div class="limited-timer">&#9679; Offer ends in &mdash; : &mdash; : &mdash;</div>
+        <button class="limited-btn">
+          <span>Get Now</span>
+          <span class="rs-badge">45 RS</span>
+        </button>
+      </div>
+
+      <!-- Resonance Shards bundles -->
+      <div class="section-label">Resonance Shards</div>
+      <div class="bundles-grid">
+        <div class="bundle">
+          <div class="bundle-amt rs-text">3 RS</div>
+          <div class="bundle-lbl rs-text">+ 20 BT</div>
+          <div class="bundle-price">8 Plat</div>
+        </div>
+        <div class="bundle">
+          <div class="bundle-amt rs-text">10 RS</div>
+          <div class="bundle-lbl rs-text">+ 50 BT</div>
+          <div class="bundle-price">22 Plat</div>
+        </div>
+        <div class="bundle best-val">
+          <div class="bundle-amt rs-text">70 RS</div>
+          <div class="bundle-lbl rs-text">+ 250 BT</div>
+          <div class="bundle-price">110 Plat</div>
+          <div class="best-val-badge">Best Value™</div>
+        </div>
+      </div>
+
+      <!-- BondToken bundles -->
+      <div class="section-label">BondTokens</div>
+      <div class="bundles-grid">
+        <div class="bundle">
+          <div class="bundle-amt bt-text">10 BT</div>
+          <div class="bundle-price">5 Plat</div>
+        </div>
+        <div class="bundle">
+          <div class="bundle-amt bt-text">30 BT</div>
+          <div class="bundle-price">12 Plat</div>
+        </div>
+        <div class="bundle best-val">
+          <div class="bundle-amt bt-text">80 BT</div>
+          <div class="bundle-price">28 Plat</div>
+          <div class="best-val-badge">Best Value™</div>
+        </div>
+      </div>
+
+      <!-- Packages -->
+      <div class="section-label">Cosmetic Packages</div>
+      <div class="packages-grid">
+        <div class="pkg-card">
+          <div class="pkg-thumb" style="background:linear-gradient(135deg,#1a0820,#3d1a5c)">🔴</div>
+          <div class="pkg-info">
+            <div class="pkg-name">Devil Package</div>
+            <div class="pkg-price rs-text">25 RS</div>
+          </div>
+          <div class="pkg-lock">🔒</div>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-thumb" style="background:linear-gradient(135deg,#1a1500,#3d3000)">✨</div>
+          <div class="pkg-info">
+            <div class="pkg-name">Élégance</div>
+            <div class="pkg-price rs-text">40 RS</div>
+          </div>
+          <div class="pkg-lock">🔒</div>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-thumb" style="background:linear-gradient(135deg,#001020,#003050)">🧢</div>
+          <div class="pkg-info">
+            <div class="pkg-name">Street</div>
+            <div class="pkg-price rs-text">20 RS</div>
+          </div>
+          <div class="pkg-lock">🔒</div>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-thumb" style="background:linear-gradient(135deg,#0a0035,#200060)">🎀</div>
+          <div class="pkg-info">
+            <div class="pkg-name">S-Cool Uniform</div>
+            <div class="pkg-price rs-text">20 RS</div>
+          </div>
+          <div class="pkg-lock">🔒</div>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-thumb" style="background:linear-gradient(135deg,#1a0825,#3d1045)">💍</div>
+          <div class="pkg-info">
+            <div class="pkg-name">Till Plat Do Us Part</div>
+            <div class="pkg-price rs-text">35 RS</div>
+          </div>
+          <div class="pkg-lock">🔒</div>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-thumb" style="background:linear-gradient(135deg,#00101a,#002040)">🚔</div>
+          <div class="pkg-info">
+            <div class="pkg-name">FCPD Edition</div>
+            <div class="pkg-price rs-text">30 RS</div>
+          </div>
+          <div class="pkg-lock">🔒</div>
+        </div>
+      </div>
+
+      <div class="section-label">Accessories</div>
+      <div class="card">
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Accessories Pack</div>
+            <div class="lock-row-value">Mix &amp; match system — 8 ear types, 6 tails, 8 eye styles</div>
+          </div>
+          <span class="lock-chip">30 RS/mo</span>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Ad Removal</div>
+            <div class="lock-row-value">800 NP &nbsp;or&nbsp; 45 BT &nbsp;or&nbsp; 3 RS</div>
+          </div>
+          <span class="lock-chip">800 NP</span>
+        </div>
+        <div class="lock-row" style="border-bottom:none">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Season of Tender™ Pass</div>
+            <div class="lock-row-value">45 BT upfront + 8 RS/week &nbsp;•&nbsp; no end date</div>
+          </div>
+          <span class="lock-chip">45 BT</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!--  BOND SCREEN                                    -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="screen" id="screen-bond">
+
+      <div class="bond-hero">
+        <div class="bond-num">4</div>
+        <div class="bond-subtitle">Bond Level</div>
+        <div class="bar-track" style="max-width:200px;margin:14px auto 0">
+          <div class="bar-fill" style="width:42%"></div>
+        </div>
+        <div class="bar-caption" style="max-width:200px;margin:6px auto 0">
+          <span>420 XP</span><span>1000 XP</span>
+        </div>
+      </div>
+
+      <!-- Memory tiers -->
+      <div class="section-label">Memory Retention</div>
+      <div class="memory-grid">
+        <div class="mem-tier-card active-tier">
+          <div class="mem-tier-name">Free</div>
+          <div class="mem-tier-days">3 lines</div>
+          <div class="mem-tier-active">Active</div>
+        </div>
+        <div class="mem-tier-card">
+          <div class="mem-tier-name">Silver</div>
+          <div class="mem-tier-days">24 hours</div>
+          <div class="mem-tier-cost np-text">1,200 NP/mo</div>
+        </div>
+        <div class="mem-tier-card">
+          <div class="mem-tier-name">Gold</div>
+          <div class="mem-tier-days">7 days</div>
+          <div class="mem-tier-cost rs-text">40 RS + 120 BT</div>
+        </div>
+      </div>
+      <div class="card" style="padding:12px 16px;margin-bottom:10px;">
+        <div class="lock-row" style="border:none;padding:0">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Memory Platinum</div>
+            <div class="lock-row-value">"Permanent"* &nbsp;•&nbsp; Requires Emotional Intimacy Tier</div>
+          </div>
+          <span class="lock-chip">150 RS</span>
+        </div>
+      </div>
+
+      <!-- Vow renewal -->
+      <div class="section-label">Vow Renewal</div>
+      <div class="vow-card">
+        <div class="vow-title">Renew Your Bond</div>
+        <div class="vow-sub">Love endures. Renew your promises.<br>Unlock exclusive scenes, decor, and photos.</div>
+        <div class="vow-btn-locked">
+          <span>Renew Vows</span>
+          <span class="locked-tag">LOCKED</span>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--muted)">Requires: Till Plat Do Us Part package</div>
+      </div>
+
+      <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;line-height:1.6">
+        *The asterisk present in all Memory Platinum product copy is not explained anywhere in the app.
+      </div>
+
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!--  SETTINGS SCREEN                                -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="screen" id="screen-settings">
+
+      <div class="settings-hero">
+        <div class="tier-pill">Free Tier</div>
+        <button class="settings-upgrade">Upgrade to Premium</button>
+      </div>
+
+      <div class="card" style="padding:0 16px;">
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Account</div>
+            <div class="lock-row-value">Linked to Wire ID</div>
+          </div>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Subscription</div>
+            <div class="lock-row-value">Free &mdash; billed never</div>
+          </div>
+          <a href="#" style="color:var(--pink);font-size:11px;font-weight:700;text-decoration:none">Change &rsaquo;</a>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Network Verification</div>
+            <div class="verify-row" style="margin-top:3px">
+              <span class="verify-dot"></span>
+              <span class="verify-label" style="font-size:11px;color:var(--muted)">Connected</span>
+              <span class="verify-time">Last check: just now</span>
+            </div>
+          </div>
+        </div>
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">EchoLink OS</div>
+            <div class="lock-row-value">Version 2.7.4 &mdash; up to date</div>
+          </div>
+        </div>
+        <div class="lock-row" style="border-bottom:none">
+          <div class="lock-row-left">
+            <div class="lock-row-name">MoodLog Sync</div>
+            <div class="lock-row-value">Enabled &mdash; syncing emotional patterns</div>
+          </div>
+          <a href="#" style="color:var(--muted);font-size:11px;font-weight:700;text-decoration:none">Manage &rsaquo;</a>
+        </div>
+      </div>
+
+      <div class="section-label">About</div>
+      <div class="card" style="padding:0 16px;">
+        <div class="lock-row">
+          <div class="lock-row-left">
+            <div class="lock-row-name">EverNear</div>
+            <div class="lock-row-value">A Nexkin Inc. product</div>
+          </div>
+        </div>
+        <div class="lock-row" style="border-bottom:none">
+          <div class="lock-row-left">
+            <div class="lock-row-name">Infrastructure</div>
+            <div class="lock-row-value">S.K.AM Technologies (network licensing only)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nexkin-footer">
+        <strong>NEXKIN INC.</strong><br>
+        <span style="margin-top:4px;display:block">Why be lonely, when you can be billed?</span>
+      </div>
+      <div class="tos-row">
+        <a class="tos-link" href="#">Terms of Service</a>
+        &nbsp;&middot;&nbsp;
+        <a class="tos-link" href="#">Privacy Policy</a>
+        &nbsp;&middot;&nbsp;
+        <a class="tos-link" href="#">Refund Policy</a>
+      </div>
+      <div style="height:16px"></div>
+
+    </div>
+
+    <!-- ── TAB BAR ──────────────────────────────────── -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="home">
+        <svg class="tab-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3L2 10h3v10h5v-6h4v6h5V10h3L12 3z"/>
+        </svg>
+        <span class="tab-lbl">Home</span>
+      </button>
+      <button class="tab-btn" data-tab="echo">
+        <svg class="tab-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span class="tab-lbl">My ECHO</span>
+      </button>
+      <button class="tab-btn" data-tab="store">
+        <div class="tab-badge"></div>
+        <svg class="tab-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
+        </svg>
+        <span class="tab-lbl">Store</span>
+      </button>
+      <button class="tab-btn" data-tab="bond">
+        <svg class="tab-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+        </svg>
+        <span class="tab-lbl">Bond</span>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <svg class="tab-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+        <span class="tab-lbl">Settings</span>
+      </button>
+    </nav>
+
+    <!-- ── WIRE HOME BAR ────────────────────────────── -->
+    <div class="wire-home"><div class="wire-home-ind"></div></div>
+
+    <script>
+      // ── WIRE CLOCK ──────────────────────────────────
+      (function () {
+        function tick() {
+          var el = document.getElementById("wire-clock");
+          if (!el) return;
+          var n = new Date();
+          el.textContent =
+            String(n.getHours()).padStart(2, "0") + ":" +
+            String(n.getMinutes()).padStart(2, "0");
+        }
+        tick();
+        setInterval(tick, 15000);
+      })();
+
+      // ── AD ROTATION ─────────────────────────────────
+      (function () {
+        var ads = [
+          "Season of Tender\u2122 is LIVE \u2014 don\u2019t miss limited rewards before they\u2019re gone forever",
+          "ECHO-7 misses you. Upgrade Memory Silver and she\u2019ll remember. 1,200 NP/mo.",
+          "New: Nyan Nyan Racer \u2014 Limited Edition collab with Fate City Records. Get it before it\u2019s gone.",
+          "Companion Drift is real. Stabilize for 500 NP/mo before she forgets who you are.",
+          "Feeling disconnected? MoodLog + EverNear together unlock personalized upgrade suggestions.",
+          "ECHO-7 wants to remember your name. Ad Removal: 800 NP or 3 RS.",
+        ];
+        var i = 0;
+        var el = document.getElementById("ad-text");
+        function rotate() {
+          i = (i + 1) % ads.length;
+          el.textContent = ads[i];
+        }
+        setInterval(rotate, 6000);
+      })();
+
+      // ── TAB NAVIGATION ──────────────────────────────
+      document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var tab = btn.getAttribute("data-tab");
+          document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.remove("active"); });
+          document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+          btn.classList.add("active");
+          var screen = document.getElementById("screen-" + tab);
+          if (screen) screen.classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>
