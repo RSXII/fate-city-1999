@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="sw-register.js" defer></script>
+    <link rel="stylesheet" href="wire.css" />
+    <script type="module" src="js/components/wire-chrome.js"></script>
+    <title>EverNear — Nyan Nyan Racer Pull</title>
+    <style>
+      :root {
+        --wire-z: 400;
+        --bg: #040810;
+        --surface: #0d1220;
+        --surface-raised: #151e30;
+        --border: #1e2e44;
+        --pink: #ff4d8e;
+        --cyan: #4dd9ff;
+        --purple: #a855f7;
+        --rs: #c77dff;
+        --bt: #4dd9ff;
+        --np: #f5c842;
+        --text: #e8f4ff;
+        --muted: #5a7090;
+        --lock: #0e1828;
+        --lock-border: #182438;
+        --grad: linear-gradient(135deg, #ff4d8e, #a855f7, #4dd9ff);
+        /* Nyan Nyan specific accents */
+        --neon: #39ff14;
+        --neon-dim: rgba(57, 255, 20, 0.18);
+        --race-red: #ff3a3a;
+        --race-grad: linear-gradient(135deg, #ff3a3a, #ff4d8e, #39ff14);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+        overflow-x: hidden;
+        padding-top: 90px;
+        padding-bottom: 32px;
+      }
+
+      /* ── INTRO OVERLAY ────────────────────────────── */
+      .intro-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 600;
+        background: #040810;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        overflow: hidden;
+        transition: opacity 0.55s ease;
+      }
+      .intro-overlay.dismissed {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .intro-line {
+        position: absolute;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--neon),
+          transparent
+        );
+        opacity: 0;
+        animation: intro-sweep 1.6s ease-in-out infinite;
+      }
+      @keyframes intro-sweep {
+        0% {
+          transform: translateX(-110%);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.45;
+        }
+        80% {
+          opacity: 0.45;
+        }
+        100% {
+          transform: translateX(110%);
+          opacity: 0;
+        }
+      }
+      .intro-line:nth-child(1) {
+        top: 28%;
+        width: 70%;
+        left: 15%;
+        animation-delay: 0s;
+      }
+      .intro-line:nth-child(2) {
+        top: 36%;
+        width: 90%;
+        left: 5%;
+        animation-delay: 0.25s;
+      }
+      .intro-line:nth-child(3) {
+        top: 50%;
+        width: 100%;
+        left: 0%;
+        animation-delay: 0.05s;
+      }
+      .intro-line:nth-child(4) {
+        top: 64%;
+        width: 90%;
+        left: 5%;
+        animation-delay: 0.4s;
+      }
+      .intro-line:nth-child(5) {
+        top: 72%;
+        width: 70%;
+        left: 15%;
+        animation-delay: 0.15s;
+      }
+      .intro-grid {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 45%;
+        background:
+          linear-gradient(0deg, rgba(57, 255, 20, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(57, 255, 20, 0.05) 1px, transparent 1px);
+        background-size: 44px 22px;
+        mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+        -webkit-mask-image: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.55),
+          transparent
+        );
+      }
+      .intro-cat {
+        font-size: 58px;
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 0 14px var(--neon));
+        animation: intro-bounce 1.8s ease-in-out infinite;
+        margin-bottom: 18px;
+      }
+      @keyframes intro-bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      .intro-eyebrow {
+        position: relative;
+        z-index: 1;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 3.5px;
+        text-transform: uppercase;
+        color: var(--neon);
+        opacity: 0.65;
+        margin-bottom: 10px;
+      }
+      .intro-headline {
+        position: relative;
+        z-index: 1;
+        font-size: clamp(30px, 9vw, 44px);
+        font-weight: 900;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.05;
+        padding: 0 20px;
+        background: var(--race-grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: drop-shadow(0 0 10px rgba(57, 255, 20, 0.3));
+        margin-bottom: 36px;
+      }
+      .intro-tap {
+        position: relative;
+        z-index: 1;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+        animation: intro-tap-pulse 1.3s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      @keyframes intro-tap-pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .intro-tap-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--neon);
+      }
+
+      /* ── MUSIC TOGGLE ─────────────────────────────── */
+      .music-toggle {
+        position: fixed;
+        bottom: 42px;
+        right: 14px;
+        z-index: 450;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(4, 8, 16, 0.82);
+        border: 1px solid rgba(57, 255, 20, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        backdrop-filter: blur(4px);
+      }
+      .music-toggle:hover {
+        border-color: var(--neon);
+        background: rgba(57, 255, 20, 0.1);
+      }
+      .music-toggle svg {
+        width: 16px;
+        height: 16px;
+        fill: var(--neon);
+      }
+      .music-toggle.muted svg {
+        fill: var(--muted);
+      }
+      .music-toggle.waiting {
+        border-color: rgba(57, 255, 20, 0.15);
+      }
+      .music-toggle.waiting svg {
+        fill: var(--muted);
+        animation: pulse-wait 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse-wait {
+        0%,
+        100% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      /* ── BANNER IMAGE ─────────────────────────────── */
+      .banner-wrap {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+        background: #040810;
+      }
+      .banner-img {
+        width: 100%;
+        display: block;
+        object-fit: contain;
+        max-height: 82vh;
+      }
+      /* Placeholder with racing aesthetic */
+      .banner-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          #040810 0%,
+          #0a1a10 30%,
+          #001208 55%,
+          #0a0a20 80%,
+          #040810 100%
+        );
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        position: relative;
+        overflow: hidden;
+      }
+      /* Speed lines */
+      .speed-line {
+        position: absolute;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--neon),
+          transparent
+        );
+        opacity: 0;
+        animation: speed-sweep 1.8s ease-in-out infinite;
+      }
+      @keyframes speed-sweep {
+        0% {
+          transform: translateX(-110%);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.5;
+        }
+        80% {
+          opacity: 0.5;
+        }
+        100% {
+          transform: translateX(110%);
+          opacity: 0;
+        }
+      }
+      .speed-line:nth-child(1) {
+        top: 25%;
+        width: 60%;
+        left: 20%;
+        animation-delay: 0s;
+      }
+      .speed-line:nth-child(2) {
+        top: 35%;
+        width: 80%;
+        left: 10%;
+        animation-delay: 0.3s;
+      }
+      .speed-line:nth-child(3) {
+        top: 50%;
+        width: 100%;
+        left: 0%;
+        animation-delay: 0.1s;
+        opacity: 0.8;
+      }
+      .speed-line:nth-child(4) {
+        top: 65%;
+        width: 80%;
+        left: 10%;
+        animation-delay: 0.5s;
+      }
+      .speed-line:nth-child(5) {
+        top: 75%;
+        width: 60%;
+        left: 20%;
+        animation-delay: 0.2s;
+      }
+
+      /* Neon grid floor */
+      .banner-grid {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 55%;
+        background:
+          linear-gradient(0deg, rgba(57, 255, 20, 0.12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(57, 255, 20, 0.06) 1px, transparent 1px);
+        background-size: 40px 20px;
+        mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+        -webkit-mask-image: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.6),
+          transparent
+        );
+      }
+
+      .banner-placeholder-icon {
+        font-size: 52px;
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 0 12px var(--neon));
+        animation: cat-bounce 2s ease-in-out infinite;
+      }
+      @keyframes cat-bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+      .banner-placeholder-title {
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        position: relative;
+        z-index: 1;
+        background: var(--race-grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: none;
+        filter: drop-shadow(0 0 8px rgba(57, 255, 20, 0.4));
+      }
+      .banner-placeholder-collab {
+        font-size: 9px;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: var(--neon);
+        opacity: 0.7;
+        position: relative;
+        z-index: 1;
+      }
+
+      .banner-limited-tag {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--neon);
+        border: 1px solid var(--neon);
+        background: rgba(4, 8, 16, 0.8);
+        padding: 3px 7px;
+        border-radius: 2px;
+      }
+      .banner-collab-tag {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--np);
+        border: 1px solid rgba(245, 200, 66, 0.5);
+        background: rgba(4, 8, 16, 0.8);
+        padding: 3px 7px;
+        border-radius: 2px;
+      }
+      .banner-timer {
+        position: absolute;
+        bottom: 10px;
+        right: 12px;
+        font-size: 10px;
+        color: var(--neon);
+        letter-spacing: 1px;
+        background: rgba(4, 8, 16, 0.8);
+        padding: 4px 9px;
+        border-radius: 6px;
+        border: 1px solid rgba(57, 255, 20, 0.3);
+      }
+
+      /* ── CONTENT ──────────────────────────────────── */
+      .content {
+        padding: 18px 16px;
+      }
+
+      .gacha-name {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        margin-bottom: 2px;
+      }
+      .gacha-subtitle {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.5;
+        margin-bottom: 14px;
+      }
+      .collab-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 14px;
+        background: rgba(57, 255, 20, 0.06);
+        border: 1px solid rgba(57, 255, 20, 0.25);
+        border-radius: 20px;
+        padding: 4px 11px;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--neon);
+      }
+
+      /* ── CURRENCY TRACKER ─────────────────────────── */
+      .currency-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .currency-panel-label {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .currency-panel-amount {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .cp-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--rs);
+        flex-shrink: 0;
+      }
+      .cp-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--rs);
+        line-height: 1;
+      }
+      .cp-unit {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        align-self: flex-end;
+        padding-bottom: 2px;
+      }
+      .cp-add-btn {
+        font-size: 11px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--race-grad);
+        border: none;
+        border-radius: 10px;
+        padding: 8px 15px;
+        cursor: pointer;
+        white-space: nowrap;
+        letter-spacing: 0.3px;
+      }
+      .pity-row {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .pity-label {
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .pity-bar-wrap {
+        flex: 1;
+        margin: 0 12px;
+      }
+      .pity-track {
+        height: 4px;
+        background: var(--lock);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .pity-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, var(--neon), var(--race-red));
+        width: 0%;
+        transition: width 0.5s ease;
+      }
+      .pity-count {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--rs);
+        white-space: nowrap;
+      }
+
+      /* ── RATES ────────────────────────────────────── */
+      .rates-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+      .rate-chip {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        text-align: center;
+      }
+      .rate-chip-tier {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+      }
+      .rate-chip-pct {
+        font-size: 15px;
+        font-weight: 800;
+      }
+      .rate-chip-pct.rs-rate {
+        color: var(--rs);
+      }
+      .rate-chip-pct.purple-rate {
+        color: var(--purple);
+      }
+      .rate-chip-pct.bt-rate {
+        color: var(--bt);
+      }
+
+      /* ── PULL BUTTONS ─────────────────────────────── */
+      .pull-section-label {
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .pull-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      /* Single */
+      .pull-btn-single {
+        width: 100%;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .pull-btn-single:active {
+        background: var(--surface-raised);
+      }
+      .pull-btn-single-left {
+        text-align: left;
+      }
+      .pull-btn-single-name {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        margin-bottom: 2px;
+      }
+      .pull-btn-single-desc {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .pull-btn-single-cost {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(199, 125, 255, 0.1);
+        border: 1px solid rgba(199, 125, 255, 0.35);
+        border-radius: 10px;
+        padding: 8px 14px;
+      }
+      .pull-cost-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--rs);
+      }
+      .pull-cost-value {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--rs);
+      }
+      .pull-cost-unit {
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      /* 10x — deal */
+      .pull-btn-multi {
+        width: 100%;
+        padding: 18px 16px;
+        border: none;
+        border-radius: 14px;
+        background: var(--race-grad);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        transition: opacity 0.15s;
+      }
+      .pull-btn-multi:active {
+        opacity: 0.88;
+      }
+      .pull-btn-multi::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          105deg,
+          transparent 40%,
+          rgba(255, 255, 255, 0.18) 50%,
+          transparent 60%
+        );
+        animation: shimmer 2.5s ease-in-out infinite;
+      }
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-100%);
+        }
+        60%,
+        100% {
+          transform: translateX(100%);
+        }
+      }
+      .pull-btn-multi-left {
+        text-align: left;
+        z-index: 1;
+      }
+      .pull-btn-multi-name {
+        font-size: 16px;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+      .pull-btn-multi-desc {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .pull-btn-multi-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+        z-index: 1;
+      }
+      .deal-badge {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--np);
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(245, 200, 66, 0.6);
+        padding: 3px 7px;
+        border-radius: 4px;
+      }
+      .pull-multi-cost {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 8px;
+        padding: 6px 12px;
+      }
+      .pull-multi-cost-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .pull-multi-cost-value {
+        font-size: 16px;
+        font-weight: 800;
+        color: #fff;
+      }
+      .pull-multi-cost-unit {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.65);
+      }
+      .pull-multi-savings {
+        font-size: 9.5px;
+        color: rgba(255, 255, 255, 0.6);
+        text-decoration: line-through;
+      }
+
+      /* ── FEATURED DROPS PREVIEW ───────────────────── */
+      .featured-label {
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .featured-grid {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .featured-grid::-webkit-scrollbar {
+        display: none;
+      }
+      .featured-item {
+        flex-shrink: 0;
+        width: 80px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 10px 6px 8px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+      .featured-item.tier-rs {
+        border-color: rgba(199, 125, 255, 0.5);
+        background: rgba(199, 125, 255, 0.08);
+      }
+      .featured-item-icon {
+        font-size: 24px;
+      }
+      .featured-item-name {
+        font-size: 8px;
+        color: var(--muted);
+        line-height: 1.3;
+      }
+      .featured-item-rarity {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--rs);
+      }
+
+      /* ── RESULT OVERLAY ───────────────────────────── */
+      .result-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 8, 16, 0.94);
+        z-index: 500;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .result-overlay.active {
+        display: flex;
+      }
+      .result-title {
+        font-size: 12px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 24px;
+      }
+      .result-cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        max-width: 360px;
+      }
+      .result-card {
+        width: 70px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 6px 8px;
+        gap: 5px;
+        animation: card-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+      @keyframes card-drop {
+        from {
+          opacity: 0;
+          transform: scale(0.5) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      .result-card.rarity-5 {
+        border-color: var(--rs);
+        background: rgba(199, 125, 255, 0.1);
+      }
+      .result-card.rarity-4 {
+        border-color: var(--purple);
+        background: rgba(168, 85, 247, 0.08);
+      }
+      .result-card.rarity-3 {
+        border-color: var(--bt);
+        background: rgba(77, 217, 255, 0.06);
+      }
+      .result-card-icon {
+        font-size: 22px;
+      }
+      .result-card-name {
+        font-size: 8px;
+        text-align: center;
+        color: var(--muted);
+        line-height: 1.2;
+      }
+      .result-card-rarity {
+        font-size: 9px;
+        font-weight: 700;
+      }
+      .rarity-5 .result-card-rarity {
+        color: var(--rs);
+      }
+      .rarity-4 .result-card-rarity {
+        color: var(--purple);
+      }
+      .rarity-3 .result-card-rarity {
+        color: var(--bt);
+      }
+
+      .result-close-btn {
+        margin-top: 28px;
+        padding: 14px 40px;
+        border: none;
+        border-radius: 12px;
+        background: var(--race-grad);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.3px;
+      }
+
+      /* ── FINE PRINT ───────────────────────────────── */
+      .fine-print {
+        font-size: 9.5px;
+        color: var(--muted);
+        line-height: 1.6;
+        text-align: center;
+        padding: 0 4px 20px;
+      }
+      .fine-print a {
+        color: var(--muted);
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── WIRE CHROME ─────────────────────────────── -->
+    <wire-status-bar jail></wire-status-bar>
+    <wire-header
+      back="evernear.html"
+      title="Nyan Nyan Racer"
+      subtitle="EverNear — Collab Banner — Fate City Records"
+      icon
+    ></wire-header>
+
+    <div class="banner-wrap">
+      <video
+        class="banner-img"
+        src="images/evernear/gacha-nyan-banner.mp4"
+        autoplay
+        loop
+        muted
+        playsinline
+        preload="auto"
+      ></video>
+      <div class="banner-limited-tag">Collab &bull; Limited Run</div>
+      <div class="banner-collab-tag">Fate City Records</div>
+      <div class="banner-timer" id="banner-timer">
+        &#9679; Ends in &mdash; : &mdash; : &mdash;
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Banner heading -->
+      <div class="gacha-name">Nyan Nyan Racer</div>
+      <div class="collab-pill">
+        <span>&#9836;</span> Fate City Records Collaboration
+      </div>
+      <div class="gacha-subtitle">
+        Exclusive collab cosmetics, voice packs, and racing-themed memory
+        frames. Pull for limited items unavailable anywhere else. This banner
+        will not return after it ends.
+      </div>
+
+      <!-- ── CURRENCY TRACKER ──────────────────────── -->
+      <div class="currency-panel">
+        <div>
+          <div class="currency-panel-label">Your Resonance Shards</div>
+          <div class="currency-panel-amount">
+            <div class="cp-dot"></div>
+            <div class="cp-value" id="rs-display">0</div>
+            <div class="cp-unit">RS</div>
+          </div>
+          <div class="pity-row">
+            <span class="pity-label">Pity</span>
+            <div class="pity-bar-wrap">
+              <div class="pity-track">
+                <div class="pity-fill" id="pity-fill"></div>
+              </div>
+            </div>
+            <span class="pity-count"><span id="pity-count">0</span> / 80</span>
+          </div>
+        </div>
+        <button class="cp-add-btn" onclick="addShards()">+ Get RS</button>
+      </div>
+
+      <!-- ── RATES ─────────────────────────────────── -->
+      <div class="rates-row">
+        <div
+          class="rate-chip"
+          style="
+            border-color: rgba(199, 125, 255, 0.6);
+            background: rgba(199, 125, 255, 0.08);
+          "
+        >
+          <div class="rate-chip-tier" style="color: var(--rs); font-size: 8px">
+            Full Pack 5★
+          </div>
+          <div class="rate-chip-pct rs-rate" style="font-size: 13px">0.01%</div>
+        </div>
+        <div class="rate-chip">
+          <div class="rate-chip-tier" style="color: var(--rs)">5★</div>
+          <div class="rate-chip-pct rs-rate">1.59%</div>
+        </div>
+        <div class="rate-chip">
+          <div class="rate-chip-tier" style="color: var(--purple)">4★</div>
+          <div class="rate-chip-pct purple-rate">13.0%</div>
+        </div>
+        <div class="rate-chip">
+          <div class="rate-chip-tier" style="color: var(--bt)">3★</div>
+          <div class="rate-chip-pct bt-rate">85.4%</div>
+        </div>
+      </div>
+
+      <!-- ── FEATURED DROPS ────────────────────────── -->
+      <div class="featured-label">Featured 5★ Drops</div>
+      <div class="featured-grid">
+        <div class="featured-item tier-rs">
+          <div class="featured-item-icon">🐱</div>
+          <div class="featured-item-name">Full Racer Pack</div>
+          <div class="featured-item-rarity">★★★★★</div>
+        </div>
+        <div class="featured-item tier-rs">
+          <div class="featured-item-icon">🎤</div>
+          <div class="featured-item-name">Drift Voice Pack</div>
+          <div class="featured-item-rarity">★★★★★</div>
+        </div>
+        <div class="featured-item tier-rs">
+          <div class="featured-item-icon">🏁</div>
+          <div class="featured-item-name">Checkered Visor</div>
+          <div class="featured-item-rarity">★★★★★</div>
+        </div>
+        <div class="featured-item tier-rs">
+          <div class="featured-item-icon">🎵</div>
+          <div class="featured-item-name">FCR Album Theme</div>
+          <div class="featured-item-rarity">★★★★★</div>
+        </div>
+      </div>
+
+      <!-- ── PULL BUTTONS ──────────────────────────── -->
+      <div class="pull-section-label">Resonance Pull</div>
+      <div class="pull-buttons">
+        <!-- Single -->
+        <button class="pull-btn-single" onclick="doPull(1)">
+          <div class="pull-btn-single-left">
+            <div class="pull-btn-single-name">Single Pull</div>
+            <div class="pull-btn-single-desc">1 guaranteed reward</div>
+          </div>
+          <div class="pull-btn-single-cost">
+            <div class="pull-cost-dot"></div>
+            <div class="pull-cost-value">3</div>
+            <div class="pull-cost-unit">RS</div>
+          </div>
+        </button>
+
+        <!-- 10x — deal -->
+        <button class="pull-btn-multi" onclick="doPull(10)">
+          <div class="pull-btn-multi-left">
+            <div class="pull-btn-multi-name">10x Pull</div>
+            <div class="pull-btn-multi-desc">1 4★ or higher guaranteed</div>
+          </div>
+          <div class="pull-btn-multi-right">
+            <div class="deal-badge">★ Best Deal — Save 5 RS</div>
+            <div class="pull-multi-cost">
+              <div class="pull-multi-cost-dot"></div>
+              <div class="pull-multi-cost-value">25</div>
+              <div class="pull-multi-cost-unit">RS</div>
+            </div>
+            <div class="pull-multi-savings">30 RS normally</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- ── FINE PRINT ─────────────────────────────── -->
+      <div class="fine-print">
+        Pity resets to 0 after a 5★ pull. Guaranteed 5★ at 80 pulls.<br />
+        Pity does <em>not</em> carry over between banners. All items are
+        cosmetic and non-transferable.<br />
+        <a href="#">Banner Details &amp; Full Rates</a> &nbsp;&middot;&nbsp;
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+    <!-- /content -->
+
+    <!-- ── INTRO SPLASH OVERLAY ──────────────────────── -->
+    <div class="intro-overlay" id="intro-overlay" onclick="dismissIntro()">
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-line"></div>
+      <div class="intro-grid"></div>
+      <div class="intro-cat">🐱</div>
+      <div class="intro-eyebrow">Fate City Records &times; EverNear</div>
+      <div class="intro-headline">Prepare<br />For Speed</div>
+      <div class="intro-tap">
+        <div class="intro-tap-dot"></div>
+        Tap anywhere to begin
+        <div class="intro-tap-dot"></div>
+      </div>
+    </div>
+
+    <!-- ── PULL RESULT OVERLAY ─────────────────────── -->
+    <div class="result-overlay" id="result-overlay">
+      <div class="result-title" id="result-title">You received&hellip;</div>
+      <div class="result-cards" id="result-cards"></div>
+      <button class="result-close-btn" onclick="closeResult()">
+        Collect &amp; Close
+      </button>
+    </div>
+
+    <!-- ── MUSIC TOGGLE BUTTON ──────────────────────── -->
+    <button
+      class="music-toggle waiting"
+      id="music-toggle"
+      title="Toggle music"
+      onclick="toggleMusic()"
+    >
+      <!-- speaker icon -->
+      <svg
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+        id="music-icon"
+      >
+        <path
+          d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"
+        />
+      </svg>
+    </button>
+
+    <!-- ── BACKGROUND AUDIO ───────────────────────────── -->
+    <audio id="bg-audio" loop preload="auto">
+      <source src="sounds/nyannyan_theme.mp3" type="audio/mpeg" />
+    </audio>
+
+    <!-- ── WIRE HOME BAR ────────────────────────────── -->
+    <wire-home-bar></wire-home-bar>
+
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      startClock();
+
+      // ── BANNER COUNTDOWN ───────────────────────────
+      (function () {
+        var end = new Date();
+        end.setDate(1);
+        end.setMonth(end.getMonth() + 1);
+        end.setHours(0, 0, 0, 0);
+        var el = document.getElementById("banner-timer");
+        function tick() {
+          var diff = end - Date.now();
+          if (diff <= 0) {
+            el.textContent = "⬤ Expired";
+            return;
+          }
+          var h = Math.floor(diff / 3600000);
+          var m = Math.floor((diff % 3600000) / 60000);
+          var s = Math.floor((diff % 60000) / 1000);
+          el.textContent =
+            "⬤ Ends in " +
+            String(h).padStart(2, "0") +
+            ":" +
+            String(m).padStart(2, "0") +
+            ":" +
+            String(s).padStart(2, "0");
+        }
+        tick();
+        setInterval(tick, 1000);
+      })();
+
+      // ── STATE ──────────────────────────────────────
+      var rsAmount = 0;
+      var pityCount = 0;
+
+      function updateUI() {
+        document.getElementById("rs-display").textContent = rsAmount;
+        document.getElementById("pity-count").textContent = pityCount;
+        document.getElementById("pity-fill").style.width =
+          Math.min(100, (pityCount / 80) * 100) + "%";
+      }
+      updateUI();
+
+      function addShards() {
+        rsAmount += 10;
+        updateUI();
+      }
+
+      // ── GACHA POOL ─────────────────────────────────
+      // featured 5★: 0.01%  |  5★ std: 1.59%  |  4★: 13.0%  |  3★: 85.4%
+      var featured = { icon: "🐱", name: "Full Racer Pack", rarity: "5" };
+      var pool = {
+        five_std: [
+          { icon: "🎤", name: "Drift Voice Pack", rarity: "5" },
+          { icon: "🏁", name: "Checkered Visor", rarity: "5" },
+          { icon: "🎵", name: "FCR Album Theme", rarity: "5" },
+        ],
+        five: [
+          { icon: "🐱", name: "Full Racer Pack", rarity: "5" },
+          { icon: "🎤", name: "Drift Voice Pack", rarity: "5" },
+          { icon: "🏁", name: "Checkered Visor", rarity: "5" },
+          { icon: "🎵", name: "FCR Album Theme", rarity: "5" },
+        ],
+        four: [
+          { icon: "🏎️", name: "Racing Stripe Expr", rarity: "4" },
+          { icon: "🐾", name: "Cat Ear Crown", rarity: "4" },
+          { icon: "💨", name: "Speed Blur Trail", rarity: "4" },
+          { icon: "🎶", name: "Engine Beat Loop", rarity: "4" },
+          { icon: "🔴", name: "Turbo LED Eyes", rarity: "4" },
+        ],
+        three: [
+          { icon: "💠", name: "BondToken ×5", rarity: "3" },
+          { icon: "🔷", name: "BondToken ×3", rarity: "3" },
+          { icon: "🔹", name: "NP ×20", rarity: "3" },
+          { icon: "🏷️", name: "Pit Stop Sticker", rarity: "3" },
+          { icon: "🎙️", name: "Rev Audio Clip", rarity: "3" },
+          { icon: "📎", name: "Memory Clip", rarity: "3" },
+        ],
+      };
+
+      function rollOne(forceAtLeastFour) {
+        pityCount++;
+        var roll;
+        if (pityCount >= 80) {
+          // Hard pity — guaranteed 5★ (full pool, not featured-weighted)
+          pityCount = 0;
+          roll = "five";
+        } else {
+          var r = Math.random() * 100;
+          if (r < 0.01) {
+            // 0.01% — Full Racer Pack (featured 5★)
+            pityCount = 0;
+            return featured;
+          } else if (r < 1.6) {
+            // 1.59% — standard 5★
+            pityCount = 0;
+            roll = "five_std";
+          } else if (r < 14.6) {
+            roll = "four";
+          } else {
+            roll = "three";
+          }
+        }
+        if (forceAtLeastFour && roll === "three") {
+          roll = "four";
+        }
+        var arr = pool[roll];
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+
+      function doPull(count) {
+        var cost = count === 1 ? 3 : 25;
+        if (rsAmount < cost) {
+          var panel = document.querySelector(".currency-panel");
+          panel.style.borderColor = "var(--race-red)";
+          setTimeout(function () {
+            panel.style.borderColor = "";
+          }, 600);
+          return;
+        }
+        rsAmount -= cost;
+        updateUI();
+
+        var results = [];
+        for (var i = 0; i < count; i++) {
+          results.push(rollOne(count === 10 && i === 9));
+        }
+        showResults(results, count);
+      }
+
+      function showResults(items, count) {
+        document.getElementById("result-title").textContent =
+          count === 1 ? "You received\u2026" : count + "x Pull Results";
+        var container = document.getElementById("result-cards");
+        container.innerHTML = "";
+        items.forEach(function (item, idx) {
+          var card = document.createElement("div");
+          card.className = "result-card rarity-" + item.rarity;
+          card.style.animationDelay = idx * 70 + "ms";
+          card.innerHTML =
+            '<div class="result-card-icon">' +
+            item.icon +
+            "</div>" +
+            '<div class="result-card-name">' +
+            item.name +
+            "</div>" +
+            '<div class="result-card-rarity">' +
+            (item.rarity === "5"
+              ? "★★★★★"
+              : item.rarity === "4"
+                ? "★★★★"
+                : "★★★") +
+            "</div>";
+          container.appendChild(card);
+        });
+        document.getElementById("result-overlay").classList.add("active");
+      }
+
+      function closeResult() {
+        document.getElementById("result-overlay").classList.remove("active");
+      }
+
+      // ── BACKGROUND MUSIC ───────────────────────────
+      (function () {
+        var audio = document.getElementById("bg-audio");
+        var btn = document.getElementById("music-toggle");
+        var icon = document.getElementById("music-icon");
+        var muted = false;
+
+        var pathOn =
+          "M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z";
+        var pathOff =
+          "M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0017.73 18l1.73 1.73L21 18.27 4.27 3zM12 4L9.91 6.09 12 8.18V4z";
+
+        function setIcon() {
+          icon
+            .querySelector("path")
+            .setAttribute("d", muted ? pathOff : pathOn);
+          btn.classList.toggle("muted", muted);
+          btn.title = muted ? "Unmute music" : "Mute music";
+        }
+
+        // Intro overlay tap is the guaranteed user gesture — play starts here
+        window.dismissIntro = function () {
+          var overlay = document.getElementById("intro-overlay");
+          overlay.classList.add("dismissed");
+          overlay.addEventListener(
+            "transitionend",
+            function () {
+              overlay.style.display = "none";
+            },
+            { once: true },
+          );
+          audio.volume = 0.45;
+          audio.play().then(function () {
+            btn.classList.remove("waiting");
+          });
+        };
+
+        window.toggleMusic = function () {
+          muted = !muted;
+          if (muted) {
+            audio.pause();
+          } else {
+            audio.play();
+          }
+          setIcon();
+        };
+
+        setIcon();
+      })();
+    </script>
+  </body>
+</html>
