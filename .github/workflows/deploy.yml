@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [feature/svelte-migration]
+    branches: [main]
 
 # Allow the workflow to deploy to Pages
 permissions:
