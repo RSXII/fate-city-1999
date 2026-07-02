@@ -50,6 +50,20 @@ export async function dbPost(path, data) {
 }
 
 /**
+ * PUT  /path.json  with JSON body — replaces the value at that path.
+ * Returns parsed response JSON.  Throws on non-2xx.
+ */
+export async function dbPut(path, data) {
+  const res = await fetch(`${FIREBASE_URL}/${path}.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
  * DELETE  /path.json
  * Throws on non-2xx.
  */
