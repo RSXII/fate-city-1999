@@ -35,6 +35,7 @@
   :global(html, body) {
     margin: 0;
     height: 100%;
+    overflow: hidden; /* prevent window-level scroll; all scrolling in designated containers */
   }
   :global(body) {
     display: flex;
@@ -42,6 +43,5 @@
     height: 100vh;
     background: #0d1118;
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    overflow-x: hidden;
   }
 </style>

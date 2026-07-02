@@ -203,7 +203,7 @@
     border: none;
     outline: none;
     color: #e8dfc8;
-    font-size: 15px;
+    font-size: 16px;
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
     caret-color: #c9a227;
   }
