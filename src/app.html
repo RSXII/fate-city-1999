@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
+    <link
+      rel="apple-touch-icon"
+      href="%sveltekit.assets%/images/apple-touch-icon.png"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="theme-color" content="#0c0f16" />
+    <script src="%sveltekit.assets%/sw-register.js" defer></script>
+
+    <!-- Global styles -->
+    <link rel="stylesheet" href="%sveltekit.assets%/wire.css" />
+
+    <!-- Wire chrome web components (custom elements, framework-agnostic) -->
+    <script
+      type="module"
+      src="%sveltekit.assets%/js/components/wire-chrome.js"
+    ></script>
+
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

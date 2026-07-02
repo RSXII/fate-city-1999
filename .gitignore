@@ -1,1 +1,6 @@
 gm-console.html
+
+# SvelteKit build outputs
+.svelte-kit/
+build/
+node_modules/
