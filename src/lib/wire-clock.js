@@ -16,4 +16,10 @@ export function startClock() {
   tick();
   if (_clockInterval) clearInterval(_clockInterval);
   _clockInterval = setInterval(tick, 15000);
+  return function stopClock() {
+    if (_clockInterval) {
+      clearInterval(_clockInterval);
+      _clockInterval = null;
+    }
+  };
 }

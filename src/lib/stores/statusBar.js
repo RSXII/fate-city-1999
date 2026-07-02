@@ -7,7 +7,7 @@
 //   setStatusBar({ jail: true });              // explicit (also the default)
 //   setStatusBar({});                          // plain — no badge
 
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 
 export const statusBarConfig = writable({ jail: true });
 
