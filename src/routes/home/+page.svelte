@@ -3,8 +3,28 @@
   import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { dbGet } from '$lib/firebase-db.js';
+  import { getCodename, setCodename } from '$lib/utils.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
+
+  // ── Codename modal ─────────────────────────────────────────────────────────
+  let showCodenameModal = false;
+  let codenameInput = '';
+  let codenameError = '';
+  let codenameInputEl;
+
+  function submitCodename() {
+    const val = codenameInput.trim();
+    if (!val) { codenameError = 'CODENAME REQUIRED'; return; }
+    if (val.length > 24) { codenameError = 'MAX 24 CHARACTERS'; return; }
+    setCodename(val);
+    showCodenameModal = false;
+  }
+
+  function onCodenameKey(e) {
+    if (e.key === 'Enter') submitCodename();
+    else codenameError = '';
+  }
   const TOTAL_PAGES = 2;
 
   let currentPage = 0;
@@ -73,6 +93,11 @@
 
   onMount(() => {
     if (!browser) return;
+    if (!getCodename()) {
+      showCodenameModal = true;
+      // focus input after DOM settles
+      setTimeout(() => codenameInputEl?.focus(), 80);
+    }
     pollUnread();
     pollInterval = setInterval(pollUnread, 5000);
   });
@@ -329,6 +354,45 @@
   </div>
 </div>
 
+<!-- ── Codename registration modal ────────────────────────────────────────── -->
+{#if showCodenameModal}
+<div class="cn-overlay" role="dialog" aria-modal="true" aria-label="Codename registration">
+  <div class="cn-panel">
+    <div class="cn-scanline" aria-hidden="true"></div>
+
+    <p class="cn-sys">// SIGNAL ORIGIN: UNKNOWN — CHANNEL ENCRYPTED</p>
+    <div class="cn-divider" aria-hidden="true"></div>
+
+    <h2 class="cn-title">ASSIGN OPERATIVE CODENAME</h2>
+    <p class="cn-sub">This device has been hardened and is routing outside monitored infrastructure. Assign a codename. It will be used to identify you across encrypted channels.<br><br>Choose carefully.</p>
+
+    <div class="cn-field-wrap">
+      <span class="cn-prompt" aria-hidden="true">&gt;_</span>
+      <input
+        class="cn-input"
+        type="text"
+        maxlength="24"
+        placeholder="ENTER CODENAME"
+        bind:value={codenameInput}
+        bind:this={codenameInputEl}
+        on:keydown={onCodenameKey}
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+    </div>
+
+    {#if codenameError}
+      <p class="cn-error" role="alert">{codenameError}</p>
+    {/if}
+
+    <button class="cn-confirm" on:click={submitCodename}>CONFIRM IDENTITY</button>
+
+    <p class="cn-legal">This device is not registered. Traffic is obfuscated. No logs. No carrier. You are not here.</p>
+  </div>
+</div>
+{/if}
+
 <style>
   .sr-only {
     position: absolute;
@@ -526,5 +590,140 @@
     transition: background 0.2s;
   }
   .hs-dot.active { background: #c9a227; }
+
+  /* ── Codename modal ──────────────────────────────────────────────────────── */
+  .cn-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(5, 3, 12, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .cn-panel {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    background: #0a0710;
+    border: 1px solid rgba(255, 77, 142, 0.5);
+    border-radius: 4px;
+    padding: 28px 24px 22px;
+    box-shadow: 0 0 40px rgba(255, 77, 142, 0.18), 0 0 80px rgba(77, 217, 255, 0.08);
+    overflow: hidden;
+  }
+  /* CRT scanline shimmer */
+  .cn-scanline {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.18) 3px,
+      rgba(0, 0, 0, 0.18) 4px
+    );
+  }
+  .cn-sys {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(77, 217, 255, 0.6);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  .cn-divider {
+    height: 1px;
+    background: linear-gradient(to right, rgba(255, 77, 142, 0.6), rgba(77, 217, 255, 0.3), transparent);
+    margin-bottom: 20px;
+  }
+  .cn-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #ff4d8e;
+    margin: 0 0 10px;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  }
+  .cn-sub {
+    font-size: 11px;
+    line-height: 1.6;
+    color: rgba(232, 223, 200, 0.55);
+    margin: 0 0 22px;
+    letter-spacing: 0.4px;
+  }
+  .cn-field-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 77, 142, 0.4);
+    border-radius: 3px;
+    padding: 10px 12px;
+    background: rgba(255, 77, 142, 0.04);
+    margin-bottom: 12px;
+  }
+  .cn-prompt {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: #ff4d8e;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+  .cn-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e8dfc8;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    caret-color: #ff4d8e;
+  }
+  .cn-input::placeholder {
+    color: rgba(232, 223, 200, 0.2);
+    letter-spacing: 2px;
+  }
+  .cn-error {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #ff4d8e;
+    margin: 0 0 12px;
+    text-transform: uppercase;
+  }
+  .cn-confirm {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, rgba(255, 77, 142, 0.15), rgba(77, 217, 255, 0.08));
+    border: 1px solid rgba(255, 77, 142, 0.6);
+    border-radius: 3px;
+    color: #ff4d8e;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    margin-bottom: 16px;
+  }
+  .cn-confirm:active {
+    background: rgba(255, 77, 142, 0.25);
+    box-shadow: 0 0 16px rgba(255, 77, 142, 0.3);
+  }
+  .cn-legal {
+    font-size: 8px;
+    color: rgba(232, 223, 200, 0.25);
+    line-height: 1.5;
+    margin: 0;
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
 </style>
 

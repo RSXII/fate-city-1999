@@ -1,6 +1,20 @@
 // ── Shared utilities ─────────────────────────────────────────────────────────
 // Centralised helpers previously copy-pasted into every HTML page.
 
+const CODENAME_KEY = 'wire-codename';
+
+/** Returns the stored operative codename, or null if not yet set. */
+export function getCodename() {
+  try { return localStorage.getItem(CODENAME_KEY) || null; }
+  catch { return null; }
+}
+
+/** Persists the operative codename to localStorage. */
+export function setCodename(name) {
+  try { localStorage.setItem(CODENAME_KEY, name.trim()); }
+  catch { /* storage unavailable */ }
+}
+
 /**
  * Safely HTML-escape a value for use inside element text content.
  */
