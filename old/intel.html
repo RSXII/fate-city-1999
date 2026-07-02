@@ -449,7 +449,11 @@
   <body>
     <!-- ===== WIRE CHROME ===== -->
     <wire-status-bar jail></wire-status-bar>
-    <span class="wire-unread-dot" id="wire-unread-dot" aria-hidden="true"></span>
+    <span
+      class="wire-unread-dot"
+      id="wire-unread-dot"
+      aria-hidden="true"
+    ></span>
     <a class="wire-toast" id="wire-toast" href="messages.html">
       <svg
         viewBox="0 0 24 24"
@@ -468,7 +472,12 @@
       <span id="wire-toast-text">New message</span>
     </a>
 
-    <wire-header back="once.html" title="Field Intel" subtitle="Fate City: 1999 — World Briefing" more></wire-header>
+    <wire-header
+      back="once.html"
+      title="Field Intel"
+      subtitle="Fate City: 1999 — World Briefing"
+      more
+    ></wire-header>
 
     <div id="cards-root"></div>
 
@@ -622,6 +631,84 @@
         },
 
         // ── SERVICES ─────────────────────────────────────────────
+
+        {
+          id: "bloomwork-culture",
+          category: "culture",
+          fileNo: "CLT-001",
+          stamp: "CULTURE — BODY MODIFICATION / IDENTITY",
+          colors: {
+            rule: "#4a2060",
+            accent: "#9b59b6",
+            stripe: "#4a2060",
+            stampColor: "#9b59b6",
+          },
+          name: "BLOOMWORK CULTURE",
+          epithet:
+            "The look you wear tells people what you&rsquo;re selling before you open your mouth.",
+          images: [],
+          stats: [
+            {
+              label: "Category",
+              value: "Cosmetic Weave-tech / Body Modification",
+            },
+            { label: "Provider", value: "Bloomwork clinics (tiered access)" },
+            {
+              label: "Technology",
+              value:
+                "Fray-based nanotechnology; S.K.AM magitech infrastructure",
+            },
+            {
+              label: "Access",
+              value: "Widespread at low tiers; exclusive at the ceiling",
+            },
+            {
+              label: "Defining Trait",
+              value: "Aesthetic is identity &mdash; and identity is leverage",
+            },
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              paragraphs: [
+                "Bloomwork is the dominant form of cosmetic self-modification in Fate City &mdash; Fray-based nanotechnology fused with S.K.AM magitech that lets a person reshape their surface: ears, pigmentation, eye structure, skin texture, luminescence, and more. Clinics range from walk-in kiosks in transit hubs to invitation-only suites in corporate towers, and the gap between those two experiences is exactly as wide as you&rsquo;d expect.",
+                "What started as a medical adjacent service has become one of the city&rsquo;s most legible social languages. The modifications people choose &mdash; or can afford &mdash; communicate allegiance, aspiration, threat, and class faster than anything they could say out loud. Four dominant aesthetics have emerged from that pressure, each with its own culture, price range, and subtext.",
+              ],
+            },
+            {
+              heading: "Elven Luxury",
+              paragraphs: [
+                "The preferred aesthetic of the city&rsquo;s corporate elite and established wealthy. Clean, elongated features, refined ear shaping, subtle luminescent undertones, and a composure that looks biological because, at the high end, it almost is. The most exclusive modifications in this category &mdash; structural bone-adjacent reshaping, bioluminescent vein tracing, voice timbre calibration &mdash; are priced beyond what most people will earn in a decade, and that exclusivity is the point.",
+                "The look has a secondary tier of imitators: people who want the signal without the price tag, approximating it with surface-level modifications that read correctly at a distance and fall apart up close. There&rsquo;s a dismissive term for this in the circles that can tell the difference. The people using it are usually the ones who can afford not to be mistaken for someone who can&rsquo;t.",
+              ],
+            },
+            {
+              heading: "Dangerous Devil",
+              paragraphs: [
+                "Tiefling aesthetics adopted as street credibility &mdash; horns, tail modifications, deep pigmentation shifts, scleral darkening, sharpened features that read as predatory before they read as anything else. The look says don&rsquo;t touch me, I mean business, and I am not the one. It has become its own strain of punk culture: the deliberate choice to present as something the city&rsquo;s power structures were historically afraid of.",
+                "The signal works because some of the people wearing it can fully back it up. Enough can&rsquo;t that the bluff has become part of the culture too &mdash; which the ones who can back it up find, depending on who you ask, either flattering or quietly insulting.",
+              ],
+            },
+            {
+              heading: "Soft Angel",
+              paragraphs: [
+                "Pale, cold, and deliberately otherworldly. Soft Angel aesthetics favor whitened or silver-toned pigmentation, almost translucent skin texture, sharp but still features, and a kind of stillness that reads as inhuman. The look is built around a single projection: I am above all of this. The criminal underworld, the hustle, the mess of ordinary desperation &mdash; none of it touches me.",
+                "&ldquo;Project&rdquo; is the operative word. The Soft Angel look is aspirational detachment performed for an audience, and the people wearing it are, without exception, still embedded in exactly the world they&rsquo;re pretending to float above. That gap between image and reality is either the most honest thing about the aesthetic or its defining hypocrisy, depending on your generosity.",
+              ],
+            },
+            {
+              heading: "Psycho Fairy",
+              paragraphs: [
+                "The newest of the four dominant aesthetics and the one still actively forming its own vocabulary. Fey etherealness layered over something slightly wrong &mdash; the delicacy of Elven Luxury crossed with the cold distance of Soft Angel, broken by something unpredictable underneath. Iridescent pigmentation, asymmetrical modifications, features that are beautiful in a way that doesn&rsquo;t quite resolve.",
+                "The look was popularized by Sim-Belle and carries her imprint: the sense that the person wearing it is entirely somewhere else, and whatever that place is, you probably don&rsquo;t want to follow them there.",
+              ],
+            },
+          ],
+          quote: {
+            text: "You want to know what someone&rsquo;s trying to be? Don&rsquo;t listen to them. Look at what they paid to put on their face.",
+            cite: "Overheard, Briarwood transit stop",
+          },
+        },
 
         {
           id: "evernear",

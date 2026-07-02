@@ -1,4 +1,29 @@
 {
+  "hosting": {
+    "public": "build",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [
+      { "source": "/index.html", "destination": "/", "type": 301 },
+      { "source": "/home.html", "destination": "/home", "type": 301 },
+      { "source": "/messages.html", "destination": "/messages", "type": 301 },
+      { "source": "/once.html", "destination": "/once", "type": 301 },
+      { "source": "/intel.html", "destination": "/intel", "type": 301 },
+      { "source": "/evernear.html", "destination": "/evernear", "type": 301 },
+      { "source": "/locations.html", "destination": "/locations", "type": 301 },
+      { "source": "/persons.html", "destination": "/persons", "type": 301 },
+      { "source": "/settings.html", "destination": "/settings", "type": 301 },
+      { "source": "/emails.html", "destination": "/emails", "type": 301 },
+      { "source": "/gacha.html", "destination": "/gacha", "type": 301 },
+      {
+        "source": "/gacha-nyan.html",
+        "destination": "/gacha?banner=nyan",
+        "type": 301
+      }
+    ],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  },
   "functions": [
     {
       "source": "functions",

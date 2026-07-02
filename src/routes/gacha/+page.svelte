@@ -104,6 +104,8 @@
   <title>EverNear — Resonance Pull</title>
 </svelte:head>
 
+<wire-status-bar jail layout="flex"></wire-status-bar>
+
 <!-- Apply banner CSS vars to entire page via wrapper -->
 <div class="gacha-root" style={cssVarStr}>
 
@@ -282,6 +284,7 @@
     background: #0a0710;
     color: #f0e8ff;
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    padding-top: 50px; /* clear fixed wire-header (top:40px + height:50px) */
     padding-bottom: 32px;
     /* CSS var fallbacks */
     --bg: #0a0710;
@@ -359,8 +362,8 @@
   /* ── Page content ───────────────────────────────────────────────────────── */
   .gacha-page { padding: 0; }
 
-  .banner-wrap { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden; background:var(--surface); }
-  .banner-img { width:100%; height:100%; object-fit:cover; display:block; }
+  .banner-wrap { position:relative; width:100%; overflow:hidden; background:var(--surface); }
+  .banner-img { width:100%; height:auto; display:block; }
   .banner-placeholder { width:100%; height:100%; background:linear-gradient(135deg,#1a0825,#2d1045,#0a1a35,#0a0710); display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .banner-placeholder-title { font-size:26px; font-weight:900; letter-spacing:3px; text-transform:uppercase; background:var(--banner-grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
   .banner-limited-tag {

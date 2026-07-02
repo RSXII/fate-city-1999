@@ -29,8 +29,8 @@ class WireStatusBar extends HTMLElement {
             <span style="height:12px;opacity:.28"></span>
           </div>
           <span class="wire-skam">S.K.AM</span>
-          ${badge}
         </div>
+        <div class="wire-status-badge">${badge}</div>
         <span class="wire-clock" id="wire-clock"></span>
         <div class="wire-status-right">
           <div class="wire-batt" aria-label="Battery">

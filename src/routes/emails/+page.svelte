@@ -6,6 +6,9 @@
   import { dbGet } from '$lib/firebase-db.js';
   import { relTime, normMessages } from '$lib/utils.js';
   import Attachment from '$lib/components/Attachment.svelte';
+  import PaginatedList from '$lib/components/PaginatedList.svelte';
+  import SearchModal from '$lib/components/SearchModal.svelte';
+  import { emailsCache } from '$lib/stores/search.js';
 
   const SEEN_KEY = 'wire-email-seen-chains';
 
@@ -17,6 +20,7 @@
   let feedEl;
   let pollTimer;
   let needsScroll = false;
+  let searchOpen = false;
 
   // ── seen tracking ──────────────────────────────────────────────────────────
 
@@ -61,6 +65,7 @@
             unread: !seen[c._id],
           };
         });
+      emailsCache.set(chains);
     }
   }
 
@@ -93,6 +98,8 @@
   <title>Fate City: 1999 — Email</title>
 </svelte:head>
 
+<wire-status-bar jail layout="flex"></wire-status-bar>
+
 <h1 class="sr-only">Fate City: 1999 Wire Email</h1>
 
 <header class="mail-header">
@@ -114,6 +121,9 @@
       <div class="mail-header-sub">Intercepted data &middot; Fate City</div>
     </div>
     <span class="intercept-chip" style="margin-left:auto">Secure</span>
+    <button class="search-btn" on:click={() => searchOpen = true} aria-label="Search email">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5l4 4"/></svg>
+    </button>
   {/if}
 </header>
 
@@ -147,7 +157,8 @@
     {#if !chains.length}
       <p class="mail-empty">No data packets received.<br>Insert when acquired.</p>
     {:else}
-      {#each chains as c (c._id)}
+      <PaginatedList items={chains} pageSize={20} let:item>
+        {@const c = item}
         <a class="chain-row" href="{base}/emails?id={encodeURIComponent(c._id)}"
           in:fly={{ y: 8, duration: 350 }}>
           <div class="chain-icon">
@@ -164,12 +175,14 @@
             <span class="chain-unread-dot" aria-hidden="true"></span>
           {/if}
         </a>
-      {/each}
+      </PaginatedList>
     {/if}
   {/if}
 </div>
 
 <div class="mail-footer-note">Encrypted &middot; Read only &middot; Data packet</div>
+
+<SearchModal open={searchOpen} on:close={() => searchOpen = false} />
 
 <style>
   .sr-only {
@@ -413,7 +426,31 @@
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  /* ── empty / footer ────────────────────────────────────────────────────────*/
+  /* ── search button ──────────────────────────────────────────────────────── */
+  .search-btn {
+    background: none;
+    border: none;
+    color: #6a7d90;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+    flex-shrink: 0;
+  }
+  .search-btn:hover { color: #c9a227; background: rgba(201, 162, 39, 0.08); }
+  .search-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  /* ── empty / footer ──────────────────────────────────────────────────────── */
   .mail-empty {
     max-width: 300px;
     margin: 60px auto;

@@ -7,6 +7,9 @@
   import { relTime } from '$lib/utils.js';
   import SENDERS from '$lib/data/senders.js';
   import Attachment from '$lib/components/Attachment.svelte';
+  import PaginatedList from '$lib/components/PaginatedList.svelte';
+  import SearchModal from '$lib/components/SearchModal.svelte';
+  import { messagesCache } from '$lib/stores/search.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
 
@@ -18,6 +21,7 @@
   let feedEl;
   let pollTimer;
   let needsScroll = false;
+  let searchOpen = false;
 
   // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +66,7 @@
       .sort((a, b) => a.ts - b.ts);
     const hadNew = fetched.length > messages.length;
     messages = fetched;
+    messagesCache.set(fetched);
     if (activeSender && hadNew) needsScroll = true;
   }
 
@@ -114,6 +119,8 @@
 <svelte:head>
   <title>Fate City: 1999 — Messages</title>
 </svelte:head>
+
+<wire-status-bar jail layout="flex"></wire-status-bar>
 
 <h1 class="sr-only">Fate City: 1999 Wire Messages</h1>
 
@@ -188,7 +195,8 @@
     {#if !conversations.length}
       <p class="msg-empty">Nothing yet. The city is usually loud — enjoy the quiet while it lasts.</p>
     {:else}
-      {#each conversations as g (g.name)}
+      <PaginatedList items={conversations} pageSize={20} let:item>
+        {@const g = item}
         <a class="conv-row" href="{base}/messages?sender={encodeURIComponent(g.name)}"
           in:fly={{ y: 8, duration: 350 }}>
           <div class="conv-avatar"
@@ -211,12 +219,14 @@
             <span class="conv-unread-dot" aria-hidden="true"></span>
           {/if}
         </a>
-      {/each}
+      </PaginatedList>
     {/if}
   {/if}
 </div>
 
 <div class="msg-footer-note">Read only &middot; updates live</div>
+
+<SearchModal open={searchOpen} on:close={() => searchOpen = false} />
 
 <style>
   .sr-only {
@@ -443,6 +453,31 @@
     line-height: 1.6;
     color: #3a4a5a;
   }
+  /* ── search button ──────────────────────────────────────────────────────── */
+  .search-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #6a7d90;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+    flex-shrink: 0;
+  }
+  .search-btn:hover { color: #c9a227; background: rgba(201, 162, 39, 0.08); }
+  .search-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
   .msg-footer-note {
     flex-shrink: 0;
     text-align: center;

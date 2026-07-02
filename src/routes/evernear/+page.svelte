@@ -17,8 +17,8 @@
     introPhase = 2;
     const audio = document.getElementById('ev-intro-audio');
     if (audio) audio.play().catch(() => {});
-    // After 7 s dismiss
-    setTimeout(dismissIntro, 7000);
+    // After 9 s (7s anim + 2s hold) dismiss
+    setTimeout(dismissIntro, 9000);
   }
 
   function dismissIntro() {
@@ -87,7 +87,7 @@
           </defs>
           <circle class="ring-trace" cx="120" cy="120" r="108" fill="none"
             stroke="url(#ring-grad)" stroke-width="3"
-            stroke-dasharray="679" stroke-dashoffset="0" stroke-linecap="round"/>
+            stroke-dasharray="679" stroke-dashoffset="679" stroke-linecap="round"/>
         </svg>
         <svg viewBox="0 0 200 200" fill="none" class="intro-logo-anim"
           style="filter:drop-shadow(0 0 14px rgba(255,255,255,0.5))">
@@ -96,7 +96,7 @@
           <path d="M 68 114 Q 100 130 132 114" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
         </svg>
       </div>
-      <div class="intro-brand-text">EverNear</div>
+      <div class="intro-brand-text intro-brand-p2">EverNear</div>
       <svg viewBox="0 0 480 155" class="intro-nexkin">
         <text x="240" y="90" text-anchor="middle"
           font-family="-apple-system,'Helvetica Neue',Arial,sans-serif"
@@ -112,6 +112,8 @@
     {/if}
   </div>
 {/if}
+
+<wire-status-bar jail layout="flex"></wire-status-bar>
 
 <!-- ── Wire header (page-specific) ───────────────────────────────────────── -->
 <wire-header back="{base}/home" title="EverNear" subtitle="Nexkin Inc. — EchoLink OS 2.7+" icon more></wire-header>
@@ -244,8 +246,23 @@
     transform: rotate(-90deg);
     filter: drop-shadow(0 0 10px rgba(168,85,247,0.65)) drop-shadow(0 0 20px rgba(255,77,142,0.35));
   }
-  .intro-logo-anim { width:200px; height:200px; object-fit:contain; position:relative; z-index:1; }
-  .intro-nexkin { width:200px; margin-top:8px; }
+  @keyframes ring-draw {
+    from { stroke-dashoffset: 679; }
+    to   { stroke-dashoffset: 0; }
+  }
+  .ring-trace {
+    animation: ring-draw 5.5s cubic-bezier(0.35, 0, 0.15, 1) forwards;
+  }
+  @keyframes intro-p2-in {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .intro-logo-anim {
+    width:200px; height:200px; object-fit:contain; position:relative; z-index:1;
+    animation: intro-p2-in 1.2s ease-out 2.0s both;
+  }
+  .intro-brand-p2 { animation: intro-p2-in 1.0s ease-out 4.0s both; }
+  .intro-nexkin { width:200px; margin-top:8px; animation: intro-p2-in 0.8s ease-out 6.0s both; }
 
   /* ── Ad banner ───────────────────────────────────────────────────────────── */
   .ev-ad-banner {
@@ -291,7 +308,7 @@
   .ev-scroll {
     flex: 1;
     overflow-y: auto;
-    padding-top: 88px; /* ad-banner (44) + currency-hud (44) */
+    padding-top: 178px; /* status-bar (40) + header (50) + ad-banner (44) + currency-hud (44) */
     padding-bottom: 60px; /* tab-bar */
     background: #0a0710;
     color: #f0e8ff;
