@@ -823,12 +823,289 @@
         text-decoration: underline;
         text-underline-offset: 2px;
       }
+
+      /* ── INTRO SPLASH ─────────────────────────────── */
+      #intro-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #0a0710;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        transition: opacity 0.5s ease;
+      }
+      #intro-splash.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #intro-p1,
+      #intro-p2 {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        width: 100%;
+        transition: opacity 0.3s ease;
+      }
+      .intro-logo-idle {
+        width: 180px;
+        height: 180px;
+        object-fit: contain;
+        animation: intro-idle-pulse 2.5s ease-in-out infinite;
+      }
+      @keyframes intro-idle-pulse {
+        0%,
+        100% {
+          opacity: 0.8;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.04);
+        }
+      }
+      .intro-brand-text {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        background: linear-gradient(135deg, #ff4d8e, #a855f7, #4dd9ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .intro-tap-hint {
+        font-size: 11px;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 6px;
+        animation: intro-tap-blink 1.5s ease-in-out infinite;
+      }
+      @keyframes intro-tap-blink {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .intro-logo-wrap {
+        position: relative;
+        width: 240px;
+        height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .intro-ring-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 240px;
+        height: 240px;
+        /* rotate so trace begins from top */
+        transform: rotate(-90deg);
+        filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.65))
+          drop-shadow(0 0 20px rgba(255, 77, 142, 0.35));
+      }
+      .ring-trace {
+        transition: stroke-dashoffset 5s ease-out;
+      }
+      .ring-trace.animating {
+        stroke-dashoffset: 0 !important;
+      }
+      .intro-logo-anim {
+        width: 200px;
+        height: 200px;
+        object-fit: contain;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+        position: relative;
+        z-index: 1;
+      }
+      .intro-logo-anim.visible {
+        opacity: 1;
+      }
+      .intro-anim-text {
+        opacity: 0;
+        transition: opacity 0.8s ease 0.5s;
+      }
+      .intro-anim-text.visible {
+        opacity: 1;
+      }
+      .intro-nexkin {
+        width: 200px;
+        opacity: 0;
+        transition: opacity 0.8s ease;
+        margin-top: 8px;
+      }
+      .intro-nexkin.visible {
+        opacity: 1;
+      }
     </style>
   </head>
   <body>
+    <!-- ── INTRO SPLASH ─────────────────────────────── -->
+    <div id="intro-splash">
+      <audio
+        id="intro-audio"
+        src="sounds/evernear_theme.mp3"
+        preload="auto"
+      ></audio>
+
+      <!-- Phase 1: tap to begin -->
+      <div id="intro-p1">
+        <svg
+          viewBox="0 0 200 200"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          class="intro-logo-idle"
+          style="filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.5))"
+        >
+          <rect x="65" y="68" width="13" height="24" rx="6.5" fill="white" />
+          <rect x="122" y="68" width="13" height="24" rx="6.5" fill="white" />
+          <path
+            d="M 68 114 Q 100 130 132 114"
+            stroke="white"
+            stroke-width="4.5"
+            stroke-linecap="round"
+          />
+        </svg>
+        <div class="intro-brand-text">EverNear</div>
+        <div class="intro-tap-hint">tap anywhere to begin</div>
+      </div>
+
+      <!-- Phase 2: animated intro -->
+      <div
+        id="intro-p2"
+        style="
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+        "
+      >
+        <div class="intro-logo-wrap">
+          <svg
+            class="intro-ring-svg"
+            viewBox="0 0 240 240"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient
+                id="ring-grad"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stop-color="#ff4d8e" />
+                <stop offset="50%" stop-color="#a855f7" />
+                <stop offset="100%" stop-color="#4dd9ff" />
+              </linearGradient>
+            </defs>
+            <circle
+              class="ring-trace"
+              cx="120"
+              cy="120"
+              r="108"
+              fill="none"
+              stroke="url(#ring-grad)"
+              stroke-width="3"
+              stroke-dasharray="679"
+              stroke-dashoffset="679"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg
+            viewBox="0 0 200 200"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            class="intro-logo-anim"
+            id="intro-logo-anim"
+            style="filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.5))"
+          >
+            <rect x="65" y="68" width="13" height="24" rx="6.5" fill="white" />
+            <rect x="122" y="68" width="13" height="24" rx="6.5" fill="white" />
+            <path
+              d="M 68 114 Q 100 130 132 114"
+              stroke="white"
+              stroke-width="4.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </div>
+        <div class="intro-brand-text intro-anim-text" id="intro-anim-text">
+          EverNear
+        </div>
+        <svg
+          viewBox="0 0 480 155"
+          xmlns="http://www.w3.org/2000/svg"
+          id="intro-nexkin"
+          class="intro-nexkin"
+        >
+          <!-- NEXKIN wordmark -->
+          <text
+            x="240"
+            y="90"
+            text-anchor="middle"
+            font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+            font-size="76"
+            font-weight="900"
+            letter-spacing="4"
+          >
+            <tspan fill="white">NE</tspan>
+            <tspan fill="#4dd9ff">&gt;</tspan>
+            <tspan fill="white">&lt;</tspan>
+            <tspan fill="white">KIN</tspan>
+          </text>
+          <!-- INC. row -->
+          <line
+            x1="90"
+            y1="114"
+            x2="183"
+            y2="114"
+            stroke="#4dd9ff"
+            stroke-width="1.5"
+          />
+          <text
+            x="240"
+            y="140"
+            text-anchor="middle"
+            font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+            font-size="21"
+            font-weight="700"
+            letter-spacing="10"
+            fill="#4dd9ff"
+          >
+            INC.
+          </text>
+          <line
+            x1="297"
+            y1="114"
+            x2="390"
+            y2="114"
+            stroke="#4dd9ff"
+            stroke-width="1.5"
+          />
+        </svg>
+      </div>
+    </div>
+
     <!-- ── WIRE CHROME ─────────────────────────────── -->
     <wire-status-bar jail></wire-status-bar>
-    <wire-header back="home.html" title="EverNear" subtitle="Nexkin Inc. — EchoLink OS 2.7+" icon more></wire-header>
+    <wire-header
+      back="home.html"
+      title="EverNear"
+      subtitle="Nexkin Inc. — EchoLink OS 2.7+"
+      icon
+      more
+    ></wire-header>
 
     <!-- ── AD BANNER (free tier) ───────────────────── -->
     <div class="ad-banner">
@@ -1609,6 +1886,66 @@
           if (screen) screen.classList.add("active");
         });
       });
+    </script>
+
+    <!-- ── INTRO SPLASH SCRIPT ────────────────────── -->
+    <script>
+      (function () {
+        var splash = document.getElementById("intro-splash");
+        if (!splash) return;
+
+        // Skip if already seen this browser session
+        if (sessionStorage.getItem("evernear_intro_seen")) {
+          splash.style.display = "none";
+          return;
+        }
+
+        var p1 = document.getElementById("intro-p1");
+        var p2 = document.getElementById("intro-p2");
+        var audio = document.getElementById("intro-audio");
+        var nexkin = document.getElementById("intro-nexkin");
+        var logoAnim = document.getElementById("intro-logo-anim");
+        var animText = document.getElementById("intro-anim-text");
+        var ringTrace = document.querySelector(".ring-trace");
+
+        function endIntro() {
+          sessionStorage.setItem("evernear_intro_seen", "1");
+          splash.classList.add("fade-out");
+          setTimeout(function () {
+            splash.style.display = "none";
+          }, 500);
+        }
+
+        function startIntro() {
+          // Fade out phase-1
+          p1.style.opacity = "0";
+
+          setTimeout(function () {
+            p1.style.display = "none";
+            p2.style.display = "flex";
+
+            // Double rAF ensures browser has painted before we start transitions
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                logoAnim.classList.add("visible");
+                animText.classList.add("visible");
+                ringTrace.classList.add("animating");
+                audio.play().catch(function () {});
+
+                // Nexkin logo at t = 6 s
+                setTimeout(function () {
+                  nexkin.classList.add("visible");
+                }, 6000);
+
+                // Dismiss at t = 7 s
+                setTimeout(endIntro, 7000);
+              });
+            });
+          }, 300);
+        }
+
+        splash.addEventListener("click", startIntro, { once: true });
+      })();
     </script>
   </body>
 </html>
