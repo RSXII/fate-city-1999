@@ -1,7 +1,8 @@
 {
   "name": "Fate City: 1999 — Wire",
   "short_name": "Wire",
-  "start_url": "/",
+  "scope": "/fate-city-1999/",
+  "start_url": "/fate-city-1999/",
   "display": "standalone",
   "background_color": "#0c0f16",
   "theme_color": "#0c0f16",
