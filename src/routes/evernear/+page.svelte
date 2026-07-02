@@ -308,6 +308,8 @@
   .ev-scroll {
     flex: 1;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none; /* prevent rubber-band from propagating to window */
     padding-top: 178px; /* status-bar (40) + header (50) + ad-banner (44) + currency-hud (44) */
     padding-bottom: 60px; /* tab-bar */
     background: #0a0710;
