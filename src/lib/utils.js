@@ -1,18 +1,42 @@
 // ── Shared utilities ─────────────────────────────────────────────────────────
 // Centralised helpers previously copy-pasted into every HTML page.
 
-const CODENAME_KEY = 'wire-codename';
+const CODENAME_KEY = "wire-codename";
+const DEVICE_ID_KEY = "wire-device-id";
+
+/**
+ * Returns this device's persistent UUID, generating one on first call.
+ * Stored in localStorage — stable for the lifetime of the browser profile.
+ */
+export function getDeviceId() {
+  try {
+    let id = localStorage.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(DEVICE_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return "unknown";
+  }
+}
 
 /** Returns the stored operative codename, or null if not yet set. */
 export function getCodename() {
-  try { return localStorage.getItem(CODENAME_KEY) || null; }
-  catch { return null; }
+  try {
+    return localStorage.getItem(CODENAME_KEY) || null;
+  } catch {
+    return null;
+  }
 }
 
 /** Persists the operative codename to localStorage. */
 export function setCodename(name) {
-  try { localStorage.setItem(CODENAME_KEY, name.trim()); }
-  catch { /* storage unavailable */ }
+  try {
+    localStorage.setItem(CODENAME_KEY, name.trim());
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 /**

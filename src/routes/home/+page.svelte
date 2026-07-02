@@ -2,8 +2,8 @@
   import { base } from '$app/paths';
   import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
-  import { dbGet } from '$lib/firebase-db.js';
-  import { getCodename, setCodename } from '$lib/utils.js';
+  import { dbGet, dbPut } from '$lib/firebase-db.js';
+  import { getCodename, setCodename, getDeviceId } from '$lib/utils.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
 
@@ -13,11 +13,16 @@
   let codenameError = '';
   let codenameInputEl;
 
-  function submitCodename() {
+  async function submitCodename() {
     const val = codenameInput.trim();
     if (!val) { codenameError = 'CODENAME REQUIRED'; return; }
     if (val.length > 24) { codenameError = 'MAX 24 CHARACTERS'; return; }
     setCodename(val);
+    try {
+      await dbPut(`devices/${getDeviceId()}`, { codename: val, ts: Date.now() });
+    } catch {
+      // Firebase write failed — codename still saved locally
+    }
     showCodenameModal = false;
   }
 
