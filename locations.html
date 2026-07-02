@@ -9,6 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="theme-color" content="#0c0f16" />
     <script src="sw-register.js" defer></script>
+    <link rel="stylesheet" href="wire.css" />
+    <script type="module" src="js/components/wire-chrome.js"></script>
     <title>Fate City: 1999 — Locations</title>
     <style>
       :root {
@@ -30,183 +32,6 @@
         padding-top: 94px;
         padding-bottom: 48px;
         overflow-x: hidden;
-      }
-      /* ===== WIRE CHROME ===== */
-      .wire-once {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: #7c3aed;
-        z-index: 200;
-      }
-      .wire-status {
-        position: fixed;
-        top: 4px;
-        left: 0;
-        right: 0;
-        height: 36px;
-        background: #0c0f16;
-        border-bottom: 1px solid #1a2030;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 20px;
-        z-index: 200;
-        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-      }
-      .wire-status-left {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .wire-sig {
-        display: flex;
-        align-items: flex-end;
-        gap: 2px;
-        height: 12px;
-      }
-      .wire-sig span {
-        width: 3px;
-        border-radius: 1px;
-        background: #c9a227;
-        display: inline-block;
-      }
-      .wire-skam {
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.8px;
-        color: #c9a227;
-      }
-      .wire-jail {
-        font-size: 8.5px;
-        font-weight: 700;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: #e05a3a;
-        border: 1px solid rgba(224, 90, 58, 0.4);
-        background: rgba(224, 90, 58, 0.08);
-        padding: 2px 5px;
-        border-radius: 2px;
-      }
-      .wire-clock {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 11.5px;
-        color: #6a7d90;
-        letter-spacing: 0.3px;
-        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-      }
-      .wire-status-right {
-        display: flex;
-        align-items: center;
-      }
-      .wire-batt {
-        width: 20px;
-        height: 11px;
-        border: 1.5px solid #4a5a6a;
-        border-radius: 2px;
-        padding: 1.5px;
-        position: relative;
-      }
-      .wire-batt::after {
-        content: "";
-        position: absolute;
-        right: -4px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 2px;
-        height: 5px;
-        background: #4a5a6a;
-        border-radius: 0 1px 1px 0;
-      }
-      .wire-batt-fill {
-        height: 100%;
-        width: 72%;
-        background: #c9a227;
-        border-radius: 1px;
-      }
-      .wire-header {
-        position: fixed;
-        top: 40px;
-        left: 0;
-        right: 0;
-        height: 50px;
-        background: #0c0f16;
-        border-bottom: 1px solid #1a2030;
-        display: flex;
-        align-items: center;
-        padding: 0 20px;
-        gap: 12px;
-        z-index: 200;
-        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-      }
-      .wire-hdr-back {
-        font-size: 22px;
-        color: #c9a227;
-        opacity: 0.9;
-        user-select: none;
-        text-decoration: none;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        position: relative;
-        padding: 8px;
-        margin: -8px;
-      }
-      .wire-hdr-back::before {
-        content: "";
-        position: absolute;
-        top: -8px;
-        bottom: -8px;
-        left: -8px;
-        right: -8px;
-      }
-      .wire-hdr-back:hover {
-        opacity: 1;
-      }
-      .wire-hdr-text {
-        flex: 1;
-      }
-      .wire-hdr-title {
-        font-size: 13.5px;
-        font-weight: 600;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        color: #e8dfc8;
-        line-height: 1.1;
-      }
-      .wire-hdr-sub {
-        font-size: 9.5px;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        color: #3a4a5a;
-        margin-top: 2px;
-      }
-      .wire-hdr-more {
-        font-size: 18px;
-        color: #3a4a5a;
-      }
-      .wire-home {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 32px;
-        background: #0c0f16;
-        border-top: 1px solid #1a2030;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 200;
-      }
-      .wire-home-ind {
-        width: 90px;
-        height: 4px;
-        background: #1e2840;
-        border-radius: 2px;
       }
 
       .section-divider {
@@ -624,31 +449,8 @@
   </head>
   <body>
     <!-- ===== WIRE CHROME ===== -->
-    <div class="wire-once" aria-hidden="true"></div>
-    <div class="wire-status">
-      <div class="wire-status-left">
-        <div class="wire-sig" aria-label="Signal: 4 of 5 bars">
-          <span style="height: 4px"></span>
-          <span style="height: 6px"></span>
-          <span style="height: 9px"></span>
-          <span style="height: 11px"></span>
-          <span style="height: 12px; opacity: 0.28"></span>
-        </div>
-        <span class="wire-skam">S.K.AM</span>
-        <span class="wire-jail">JAILBROKEN</span>
-        <span
-          class="wire-unread-dot"
-          id="wire-unread-dot"
-          aria-hidden="true"
-        ></span>
-      </div>
-      <span class="wire-clock" id="wire-clock"></span>
-      <div class="wire-status-right">
-        <div class="wire-batt" aria-label="Battery 72%">
-          <div class="wire-batt-fill"></div>
-        </div>
-      </div>
-    </div>
+    <wire-status-bar jail></wire-status-bar>
+    <span class="wire-unread-dot" id="wire-unread-dot" aria-hidden="true"></span>
     <a class="wire-toast" id="wire-toast" href="messages.html">
       <svg
         viewBox="0 0 24 24"
@@ -667,18 +469,7 @@
       <span id="wire-toast-text">New message</span>
     </a>
 
-    <div class="wire-header">
-      <a class="wire-hdr-back" href="once.html" aria-label="Back to home screen"
-        >&lsaquo;</a
-      >
-      <div class="wire-hdr-text">
-        <div class="wire-hdr-title">Locations</div>
-        <div class="wire-hdr-sub">
-          Fate City: 1999 &mdash; District &amp; Site Files
-        </div>
-      </div>
-      <span class="wire-hdr-more" aria-hidden="true">&vellip;</span>
-    </div>
+    <wire-header back="once.html" title="Locations" subtitle="Fate City: 1999 — District &amp; Site Files" more></wire-header>
 
     <div id="cards-root"></div>
 
@@ -697,7 +488,9 @@
     <!--  card. Cards auto-group into sections by their "district"  -->
     <!--  field, in the order each district first appears.          -->
     <!-- ======================================================= -->
-    <script>
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      import { startNotifications } from "./js/wire-notifications.js";
       const LOCATIONS = [
         {
           id: "patchs",
@@ -1241,89 +1034,10 @@
 
       renderAll();
 
-      // ===== WIRE CLOCK =====
-      (function () {
-        function tick() {
-          var el = document.getElementById("wire-clock");
-          if (!el) return;
-          var n = new Date();
-          var h = String(n.getHours()).padStart(2, "0");
-          var m = String(n.getMinutes()).padStart(2, "0");
-          el.textContent = h + ":" + m;
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
-
-      // ===== WIRE NOTIFICATIONS (unread badge + toast, polls Firebase) =====
-      (function () {
-        var FIREBASE_URL =
-          "https://cpr-wire-device-default-rtdb.firebaseio.com";
-        var LAST_SEEN_MAP_KEY = "wire-last-seen-map";
-        var dot = document.getElementById("wire-unread-dot");
-        var toast = document.getElementById("wire-toast");
-        var toastText = document.getElementById("wire-toast-text");
-        if (!dot || !toast) return;
-
-        var toastTimer = null;
-        var lastUnreadCount = 0;
-        var isFirstPoll = true;
-
-        function getLastSeenMap() {
-          try {
-            var raw = localStorage.getItem(LAST_SEEN_MAP_KEY);
-            return raw ? JSON.parse(raw) : {};
-          } catch (e) {
-            return {};
-          }
-        }
-
-        function showToast(n) {
-          toastText.textContent = n === 1 ? "New message" : n + " new messages";
-          toast.classList.add("show");
-          clearTimeout(toastTimer);
-          toastTimer = setTimeout(function () {
-            toast.classList.remove("show");
-          }, 4000);
-        }
-
-        async function pollUnread() {
-          try {
-            var res = await fetch(FIREBASE_URL + "/messages.json");
-            if (!res.ok) return;
-            var data = await res.json();
-            var lastSeenMap = getLastSeenMap();
-            var unread = 0;
-            if (data) {
-              Object.keys(data).forEach(function (k) {
-                var m = data[k];
-                if (!m) return;
-                var seen = lastSeenMap[m.sender] || 0;
-                if (m.ts > seen) unread++;
-              });
-            }
-            if (unread > 0) {
-              dot.classList.add("show");
-              if (!isFirstPoll && unread > lastUnreadCount) {
-                showToast(unread - lastUnreadCount);
-              }
-            } else {
-              dot.classList.remove("show");
-            }
-            lastUnreadCount = unread;
-            isFirstPoll = false;
-          } catch (e) {
-            // network hiccup -- just retry next interval
-          }
-        }
-
-        pollUnread();
-        setInterval(pollUnread, 5000);
-      })();
+      startClock();
+      startNotifications();
     </script>
     <!-- ===== WIRE HOME BAR ===== -->
-    <div class="wire-home">
-      <div class="wire-home-ind" aria-hidden="true"></div>
-    </div>
+    <wire-home-bar></wire-home-bar>
   </body>
 </html>

@@ -220,6 +220,13 @@
             inset 0 0 14px rgba(124, 58, 237, 0.2);
         }
       }
+      /* EverNear tile — pink/cyan glow */
+      .evernear-tile {
+        border-color: rgba(217, 70, 239, 0.45);
+        box-shadow:
+          0 0 14px rgba(56, 189, 248, 0.2),
+          inset 0 0 8px rgba(217, 70, 239, 0.1);
+      }
       .once-badge {
         position: absolute;
         top: 6px;
@@ -259,7 +266,8 @@
       .hs-stage {
         position: relative;
         min-height: 218px;
-        margin-top: 14px;
+        overflow: hidden;
+        touch-action: pan-y;
       }
       .hs-stage-static {
         min-height: 0;
@@ -270,6 +278,16 @@
         right: 0;
         bottom: 0;
         left: 0;
+      }
+      .hs-carousel {
+        display: flex;
+        flex-wrap: nowrap;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        touch-action: pan-y;
+      }
+      .hs-page {
+        flex: 0 0 100%;
+        min-width: 100%;
       }
 
       /* ===== BOOT SPLASH (index.html only) ===== */
@@ -452,6 +470,8 @@
         height: 6px;
         border-radius: 50%;
         background: rgba(201, 162, 39, 0.3);
+        cursor: pointer;
+        transition: background 0.2s;
       }
       .hs-dot.active {
         background: #c9a227;
@@ -589,226 +609,329 @@
     </h1>
 
     <div class="hs-wrap">
-      <div class="hs-row hs-row-top">
-        <a class="hs-icon" href="messages.html">
-          <div class="hs-icon-tile">
-            <svg
-              viewBox="0 0 24 24"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"
-              />
-            </svg>
-          </div>
-          <span class="hs-icon-label">Messages</span>
-        </a>
-        <div class="hs-icon">
-          <div class="hs-icon-tile">
-            <svg
-              viewBox="0 0 24 24"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z"
-              />
-            </svg>
-          </div>
-          <span class="hs-icon-label">Phone</span>
-        </div>
-        <div class="hs-icon">
-          <div class="hs-icon-tile">
-            <svg
-              viewBox="0 0 24 24"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="4" y="5" width="16" height="15" rx="1.5" />
-              <line x1="4" y1="9.5" x2="20" y2="9.5" />
-              <line x1="8" y1="3" x2="8" y2="6.2" />
-              <line x1="16" y1="3" x2="16" y2="6.2" />
-              <text
-                x="12"
-                y="16.3"
-                font-size="6.5"
-                text-anchor="middle"
-                fill="currentColor"
-                stroke="none"
-                font-family="Arial, sans-serif"
-                font-weight="700"
-              >
-                31
-              </text>
-            </svg>
-          </div>
-          <span class="hs-icon-label">Calendar</span>
-        </div>
-      </div>
-
       <div class="hs-stage hs-stage-static" id="hs-stage">
-        <div class="hs-row hs-row-mid">
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <svg
-                viewBox="0 0 24 24"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
-                <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
-                <circle
-                  cx="8.4"
-                  cy="13"
-                  r="0.85"
-                  fill="currentColor"
-                  stroke="none"
-                />
-                <circle
-                  cx="12"
-                  cy="13"
-                  r="0.85"
-                  fill="currentColor"
-                  stroke="none"
-                />
-                <circle
-                  cx="15.6"
-                  cy="13"
-                  r="0.85"
-                  fill="currentColor"
-                  stroke="none"
-                />
-                <circle
-                  cx="8.4"
-                  cy="16.2"
-                  r="0.85"
-                  fill="currentColor"
-                  stroke="none"
-                />
-                <circle
-                  cx="12"
-                  cy="16.2"
-                  r="0.85"
-                  fill="currentColor"
-                  stroke="none"
-                />
-                <circle
-                  cx="15.6"
-                  cy="16.2"
-                  r="0.85"
-                  fill="currentColor"
-                  stroke="none"
-                />
-              </svg>
+        <div class="hs-carousel" id="hs-carousel">
+          <div class="hs-page">
+            <div class="hs-row hs-row-top">
+              <a class="hs-icon" href="messages.html">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"
+                    />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Messages</span>
+              </a>
+              <div class="hs-icon">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z"
+                    />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Phone</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="4" y="5" width="16" height="15" rx="1.5" />
+                    <line x1="4" y1="9.5" x2="20" y2="9.5" />
+                    <line x1="8" y1="3" x2="8" y2="6.2" />
+                    <line x1="16" y1="3" x2="16" y2="6.2" />
+                    <text
+                      x="12"
+                      y="16.3"
+                      font-size="6.5"
+                      text-anchor="middle"
+                      fill="currentColor"
+                      stroke="none"
+                      font-family="Arial, sans-serif"
+                      font-weight="700"
+                    >
+                      31
+                    </text>
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Calendar</span>
+              </div>
             </div>
-            <span class="hs-icon-label">Calculator</span>
+            <div class="hs-row hs-row-mid">
+              <div class="hs-icon">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
+                    <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
+                    <circle
+                      cx="8.4"
+                      cy="13"
+                      r="0.85"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <circle
+                      cx="12"
+                      cy="13"
+                      r="0.85"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <circle
+                      cx="15.6"
+                      cy="13"
+                      r="0.85"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <circle
+                      cx="8.4"
+                      cy="16.2"
+                      r="0.85"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <circle
+                      cx="12"
+                      cy="16.2"
+                      r="0.85"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <circle
+                      cx="15.6"
+                      cy="16.2"
+                      r="0.85"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Calculator</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile">
+                  <div class="hs-plat-glyph">P</div>
+                </div>
+                <span class="hs-icon-label">Plat</span>
+              </div>
+              <a class="hs-icon" href="once.html">
+                <div class="hs-icon-tile once-tile">
+                  <span class="once-badge" aria-hidden="true"></span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="8.2" />
+                    <circle cx="12" cy="12" r="4.6" />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="1"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">O.N.C.E.</span>
+              </a>
+            </div>
+            <div class="hs-row hs-row-bottom">
+              <div class="hs-icon">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+                    <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
+                    <circle cx="12" cy="13.7" r="3.3" />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Camera</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
+                    <path d="M3.6 6.8l8.4 6.3 8.4-6.3" />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Email</span>
+              </div>
+              <a class="hs-icon" href="settings.html">
+                <div class="hs-icon-tile">
+                  <svg
+                    viewBox="0 0 24 24"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="3.8" />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="1"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <line x1="12" y1="2.3" x2="12" y2="5.3" />
+                    <line x1="12" y1="18.7" x2="12" y2="21.7" />
+                    <line x1="2.3" y1="12" x2="5.3" y2="12" />
+                    <line x1="18.7" y1="12" x2="21.7" y2="12" />
+                    <line x1="5.1" y1="5.1" x2="7.2" y2="7.2" />
+                    <line x1="16.8" y1="16.8" x2="18.9" y2="18.9" />
+                    <line x1="5.1" y1="18.9" x2="7.2" y2="16.8" />
+                    <line x1="16.8" y1="7.2" x2="18.9" y2="5.1" />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">Settings</span>
+              </a>
+            </div>
           </div>
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <div class="hs-plat-glyph">P</div>
+          <!-- /hs-page -->
+          <div class="hs-page">
+            <div class="hs-row" aria-hidden="true" style="visibility: hidden">
+              <div class="hs-icon">
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
             </div>
-            <span class="hs-icon-label">Plat</span>
-          </div>
-          <a class="hs-icon" href="once.html">
-            <div class="hs-icon-tile once-tile">
-              <span class="once-badge" aria-hidden="true"></span>
-              <svg
-                viewBox="0 0 24 24"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+            <div class="hs-row">
+              <a class="hs-icon" href="evernear.html">
+                <div class="hs-icon-tile evernear-tile">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <defs>
+                      <linearGradient
+                        id="en-ring"
+                        x1="4"
+                        y1="12"
+                        x2="20"
+                        y2="12"
+                        gradientUnits="userSpaceOnUse"
+                      >
+                        <stop offset="0%" stop-color="#d946ef" />
+                        <stop offset="100%" stop-color="#38bdf8" />
+                      </linearGradient>
+                    </defs>
+                    <circle
+                      cx="12"
+                      cy="11.5"
+                      r="7.8"
+                      style="stroke: url(#en-ring); fill: none"
+                      stroke-width="1.6"
+                    />
+                    <rect
+                      x="9.2"
+                      y="8.8"
+                      width="2"
+                      height="3.2"
+                      rx="1"
+                      style="fill: white; stroke: none"
+                    />
+                    <rect
+                      x="12.8"
+                      y="8.8"
+                      width="2"
+                      height="3.2"
+                      rx="1"
+                      style="fill: white; stroke: none"
+                    />
+                    <path
+                      d="M9.8 14.2 Q12 15.9 14.2 14.2"
+                      style="stroke: white; fill: none"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
+                <span class="hs-icon-label">EverNear</span>
+              </a>
+              <div
+                class="hs-icon"
                 aria-hidden="true"
+                style="visibility: hidden"
               >
-                <circle cx="12" cy="12" r="8.2" />
-                <circle cx="12" cy="12" r="4.6" />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="1"
-                  fill="currentColor"
-                  stroke="none"
-                />
-              </svg>
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
+              <div
+                class="hs-icon"
+                aria-hidden="true"
+                style="visibility: hidden"
+              >
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
             </div>
-            <span class="hs-icon-label">O.N.C.E.</span>
-          </a>
+            <div class="hs-row" aria-hidden="true" style="visibility: hidden">
+              <div class="hs-icon">
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
+              <div class="hs-icon">
+                <div class="hs-icon-tile"></div>
+                <span class="hs-icon-label">&nbsp;</span>
+              </div>
+            </div>
+          </div>
+          <!-- /hs-page 2 -->
         </div>
-        <div class="hs-row hs-row-bottom">
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <svg
-                viewBox="0 0 24 24"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
-                <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
-                <circle cx="12" cy="13.7" r="3.3" />
-              </svg>
-            </div>
-            <span class="hs-icon-label">Camera</span>
-          </div>
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <svg
-                viewBox="0 0 24 24"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
-                <path d="M3.6 6.8l8.4 6.3 8.4-6.3" />
-              </svg>
-            </div>
-            <span class="hs-icon-label">Email</span>
-          </div>
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <svg
-                viewBox="0 0 24 24"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="3.8" />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="1"
-                  fill="currentColor"
-                  stroke="none"
-                />
-                <line x1="12" y1="2.3" x2="12" y2="5.3" />
-                <line x1="12" y1="18.7" x2="12" y2="21.7" />
-                <line x1="2.3" y1="12" x2="5.3" y2="12" />
-                <line x1="18.7" y1="12" x2="21.7" y2="12" />
-                <line x1="5.1" y1="5.1" x2="7.2" y2="7.2" />
-                <line x1="16.8" y1="16.8" x2="18.9" y2="18.9" />
-                <line x1="5.1" y1="18.9" x2="7.2" y2="16.8" />
-                <line x1="16.8" y1="7.2" x2="18.9" y2="5.1" />
-              </svg>
-            </div>
-            <span class="hs-icon-label">Settings</span>
-          </div>
-        </div>
+        <!-- /hs-carousel -->
       </div>
 
       <div class="hs-dots">
-        <span class="hs-dot active"></span>
-        <span class="hs-dot"></span>
+        <span class="hs-dot active" data-page="0"></span>
+        <span class="hs-dot" data-page="1"></span>
       </div>
     </div>
 
@@ -817,85 +940,58 @@
       <div class="wire-home-ind" aria-hidden="true"></div>
     </div>
 
-    <script>
-      // ===== WIRE CLOCK =====
+    <script type="module">
+      import { startClock } from "./js/wire-clock.js";
+      import { startNotifications } from "./js/wire-notifications.js";
+      startClock();
+      startNotifications();
+
+      // ===== HOME SCREEN CAROUSEL =====
       (function () {
-        function tick() {
-          var el = document.getElementById("wire-clock");
-          if (!el) return;
-          var n = new Date();
-          var h = String(n.getHours()).padStart(2, "0");
-          var m = String(n.getMinutes()).padStart(2, "0");
-          el.textContent = h + ":" + m;
-        }
-        tick();
-        setInterval(tick, 15000);
-      })();
+        var carousel = document.getElementById("hs-carousel");
+        var stage = document.getElementById("hs-stage");
+        var dots = document.querySelectorAll(".hs-dot[data-page]");
+        var totalPages = dots.length;
+        var currentPage = 0;
+        var touchStartX = 0;
+        var touchStartY = 0;
 
-      // ===== WIRE NOTIFICATIONS (unread badge + toast, polls Firebase) =====
-      (function () {
-        var FIREBASE_URL =
-          "https://cpr-wire-device-default-rtdb.firebaseio.com";
-        var LAST_SEEN_MAP_KEY = "wire-last-seen-map";
-        var dot = document.getElementById("wire-unread-dot");
-        var toast = document.getElementById("wire-toast");
-        var toastText = document.getElementById("wire-toast-text");
-        if (!dot || !toast) return;
-
-        var toastTimer = null;
-        var lastUnreadCount = 0;
-        var isFirstPoll = true;
-
-        function getLastSeenMap() {
-          try {
-            var raw = localStorage.getItem(LAST_SEEN_MAP_KEY);
-            return raw ? JSON.parse(raw) : {};
-          } catch (e) {
-            return {};
-          }
+        function goToPage(n) {
+          if (n < 0) n = 0;
+          if (n >= totalPages) n = totalPages - 1;
+          currentPage = n;
+          carousel.style.transform = "translateX(" + -100 * n + "%)";
+          dots.forEach(function (dot, i) {
+            dot.classList.toggle("active", i === n);
+          });
         }
 
-        function showToast(n) {
-          toastText.textContent = n === 1 ? "New message" : n + " new messages";
-          toast.classList.add("show");
-          clearTimeout(toastTimer);
-          toastTimer = setTimeout(function () {
-            toast.classList.remove("show");
-          }, 4000);
-        }
+        dots.forEach(function (dot, i) {
+          dot.addEventListener("click", function () {
+            goToPage(i);
+          });
+        });
 
-        async function pollUnread() {
-          try {
-            var res = await fetch(FIREBASE_URL + "/messages.json");
-            if (!res.ok) return;
-            var data = await res.json();
-            var lastSeenMap = getLastSeenMap();
-            var unread = 0;
-            if (data) {
-              Object.keys(data).forEach(function (k) {
-                var m = data[k];
-                if (!m) return;
-                var seen = lastSeenMap[m.sender] || 0;
-                if (m.ts > seen) unread++;
-              });
+        stage.addEventListener(
+          "touchstart",
+          function (e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+          },
+          { passive: true },
+        );
+
+        stage.addEventListener(
+          "touchend",
+          function (e) {
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            var dy = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+              goToPage(currentPage + (dx < 0 ? 1 : -1));
             }
-            if (unread > 0) {
-              dot.classList.add("show");
-              if (!isFirstPoll && unread > lastUnreadCount) {
-                showToast(unread - lastUnreadCount);
-              }
-            } else {
-              dot.classList.remove("show");
-            }
-            lastUnreadCount = unread;
-            isFirstPoll = false;
-          } catch (e) {
-            // network hiccup -- just retry next interval
-          }
-        }
-
-        pollUnread();
-        setInterval(pollUnread, 5000);
+          },
+          { passive: true },
+        );
       })();
     </script>
   </body>
