@@ -836,7 +836,12 @@
   <body>
     <!-- ── WIRE CHROME ─────────────────────────────── -->
     <wire-status-bar jail></wire-status-bar>
-    <wire-header back="evernear.html" title="Resonance Pull" subtitle="EverNear — Limited Banner" icon></wire-header>
+    <wire-header
+      back="evernear.html"
+      title="Resonance Pull"
+      subtitle="EverNear — Limited Banner"
+      icon
+    ></wire-header>
 
     <!-- ── PAGE CONTENT ────────────────────────────── -->
     <div class="page">
@@ -846,11 +851,15 @@
            once a real asset is available.
       ───────────────────────────────────────────────── -->
       <div class="banner-wrap">
-        <img
+        <video
           class="banner-img"
-          src="images/evernear/gacha-agent-banner.jpg"
-          alt="Agent ECHO-7 &mdash; ECHO-7 Limited Edition Banner"
-        />
+          src="images/evernear/gacha-agent-banner.mp4"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="auto"
+        ></video>
         <div class="banner-limited-tag">Limited Run</div>
         <div class="banner-timer" id="banner-timer">
           &#9679; Ends in &mdash; : &mdash; : &mdash;
