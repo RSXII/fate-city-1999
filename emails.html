@@ -423,15 +423,15 @@
       function renderHeader(subject) {
         if (activeChainId) {
           headerEl.innerHTML =
-            '<a class="mail-back" href="emails.html" aria-label="Back to all emails">&lsaquo;</a>' +
+            '<a class="mail-back" href="emails" aria-label="Back to all emails">&lsaquo;</a>' +
             '<div class="mail-header-icon">' +
-              '<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.6 6.8l8.4 6.3 8.4-6.3"/></svg>' +
+            '<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.6 6.8l8.4 6.3 8.4-6.3"/></svg>' +
             "</div>" +
             '<div class="mail-header-info">' +
-              '<div class="mail-header-title" id="mail-thread-title">' +
-                escapeHtml(subject || "Loading\u2026") +
-              "</div>" +
-              '<div class="mail-header-sub">Intercepted &middot; Fate City</div>' +
+            '<div class="mail-header-title" id="mail-thread-title">' +
+            escapeHtml(subject || "Loading\u2026") +
+            "</div>" +
+            '<div class="mail-header-sub">Intercepted &middot; Fate City</div>' +
             "</div>" +
             '<span class="intercept-chip">Decrypted</span>';
         } else {
@@ -439,8 +439,8 @@
             '<a class="mail-back" href="home.html" aria-label="Back to home screen">&lsaquo;</a>' +
             '<span class="mail-live-dot" aria-hidden="true"></span>' +
             '<div class="mail-header-info">' +
-              '<div class="mail-header-title">Email</div>' +
-              '<div class="mail-header-sub">Intercepted data &middot; Fate City</div>' +
+            '<div class="mail-header-title">Email</div>' +
+            '<div class="mail-header-sub">Intercepted data &middot; Fate City</div>' +
             "</div>" +
             '<span class="intercept-chip" style="margin-left:auto;">Secure</span>';
         }
@@ -474,9 +474,7 @@
           });
 
         if (!chains.length) {
-          showEmptyState(
-            "No data packets received.<br>Insert when acquired.",
-          );
+          showEmptyState("No data packets received.<br>Insert when acquired.");
           return;
         }
         clearEmptyState();
@@ -495,26 +493,28 @@
             var ts = chain.createdAt || (last && last.ts) || 0;
 
             return (
-              '<a class="chain-row" href="emails.html?id=' +
+              '<a class="chain-row" href="emails?id=' +
               encodeURIComponent(chain._id) +
               '">' +
               '<div class="chain-icon">' +
-                '<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.6 6.8l8.4 6.3 8.4-6.3"/></svg>' +
+              '<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.6 6.8l8.4 6.3 8.4-6.3"/></svg>' +
               "</div>" +
               '<div class="chain-content">' +
-                '<div class="chain-top">' +
-                  '<span class="chain-subject' +
-                    (isUnread ? " unread" : "") +
-                  '">' +
-                  escapeHtml(chain.subject || "(no subject)") +
-                  "</span>" +
-                  '<span class="chain-time">' + relTime(ts) + "</span>" +
-                "</div>" +
-                '<div class="chain-preview' +
-                  (isUnread ? " unread" : "") +
-                '">' +
-                escapeHtml(preview) +
-                "</div>" +
+              '<div class="chain-top">' +
+              '<span class="chain-subject' +
+              (isUnread ? " unread" : "") +
+              '">' +
+              escapeHtml(chain.subject || "(no subject)") +
+              "</span>" +
+              '<span class="chain-time">' +
+              relTime(ts) +
+              "</span>" +
+              "</div>" +
+              '<div class="chain-preview' +
+              (isUnread ? " unread" : "") +
+              '">' +
+              escapeHtml(preview) +
+              "</div>" +
               "</div>" +
               (isUnread
                 ? '<span class="chain-unread-dot" aria-hidden="true"></span>'
@@ -569,15 +569,15 @@
           block.className = "mail-block";
           block.innerHTML =
             '<div class="mail-block-header">' +
-              '<span class="mail-from">FROM: ' +
-                escapeHtml(m.from || "Unknown") +
-              "</span>" +
-              '<span class="mail-ts">' +
-                (m.ts ? relTime(m.ts) : "") +
-              "</span>" +
+            '<span class="mail-from">FROM: ' +
+            escapeHtml(m.from || "Unknown") +
+            "</span>" +
+            '<span class="mail-ts">' +
+            (m.ts ? relTime(m.ts) : "") +
+            "</span>" +
             "</div>" +
             '<div class="mail-body">' +
-              escapeHtml(m.body || "") +
+            escapeHtml(m.body || "") +
             "</div>";
           feed.appendChild(block);
 
@@ -600,9 +600,7 @@
         if (activeChainId) {
           var chain = await dbGet("emails/" + activeChainId);
           if (!chain || chain.staged !== true) {
-            showEmptyState(
-              "Data packet not found<br>or not yet accessible.",
-            );
+            showEmptyState("Data packet not found<br>or not yet accessible.");
             return;
           }
           renderThread(chain);
