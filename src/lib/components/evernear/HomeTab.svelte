@@ -1,3 +1,10 @@
+<script>
+  import { browser } from '$app/environment';
+  import { getCodename } from '$lib/utils.js';
+
+  const codename = browser ? (getCodename() ?? 'OPERATIVE') : 'OPERATIVE';
+</script>
+
 <!-- Home tab — hologram stage, daily check-in, memory bar, bond level -->
 <div class="screen-home">
   <div class="hologram-stage">
@@ -25,6 +32,7 @@
     </div>
     <div class="companion-name">ECHO-7</div>
     <div class="companion-tier-tag">Free Tier &mdash; Standard</div>
+    <div class="companion-greeting">Hello, {codename}</div>
     <a class="see-echo-link" href="#">Upgrade to see ECHO-7 &rsaquo;</a>
   </div>
 
@@ -130,6 +138,14 @@
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--muted);
+  }
+  .companion-greeting {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255, 77, 142, 0.75);
   }
   .see-echo-link {
     margin-top: 7px;
