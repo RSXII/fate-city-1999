@@ -237,22 +237,117 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 3: Phone Contacts ─────────────────────────────────────────────
+  let contactList = [];
+  let newCName = '';
+  let newCNumber = '';
+  let newCSubtitle = '';
+  let contactStatus = { text: '', type: '' };
+  let addingContact = false;
+
+  async function refreshContacts() {
+    try {
+      const data = await dbGet('contacts');
+      if (!data) { contactList = []; return; }
+      contactList = Object.keys(data)
+        .map(k => { const c = data[k]; c._id = k; return c; })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch { contactList = []; }
+  }
+
+  async function addContact() {
+    const name = newCName.trim();
+    const number = newCNumber.trim();
+    if (!name || !number) { contactStatus = { text: 'Name and number are required.', type: 'err' }; return; }
+    addingContact = true;
+    contactStatus = { text: 'Adding…', type: '' };
+    try {
+      await dbPost('contacts', { name, number, subtitle: newCSubtitle.trim(), enabled: true });
+      newCName = ''; newCNumber = ''; newCSubtitle = '';
+      contactStatus = { text: 'Contact added.', type: 'ok' };
+      await refreshContacts();
+    } catch (e) {
+      contactStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    addingContact = false;
+  }
+
+  async function toggleContact(id, currentEnabled) {
+    try {
+      await dbPut(`contacts/${id}/enabled`, !currentEnabled);
+      await refreshContacts();
+    } catch (e) { console.error('Toggle failed', e); }
+  }
+
+  async function deleteContact(id) {
+    if (!confirm('Remove this contact from player phones?')) return;
+    try {
+      await dbDelete(`contacts/${id}`);
+      await refreshContacts();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
+  // ── Section 4: Current Date ────────────────────────────────────────────────
+  const CAL_MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  let calYear  = 1999;
+  let calMonth = 2;
+  let calDay   = 2;
+  let currentCalDate = null;
+  let dateStatus = { text: '', type: '' };
+  let settingDate = false;
+
+  async function loadCurrentCalDate() {
+    try {
+      const data = await dbGet('calendar/currentDate');
+      currentCalDate = (data && data.year && data.month && data.day) ? data : null;
+    } catch { /* ignore */ }
+  }
+
+  async function setCalDate() {
+    if (!calYear || !calMonth || !calDay) {
+      dateStatus = { text: 'All fields required.', type: 'err' };
+      return;
+    }
+    settingDate = true;
+    dateStatus = { text: 'Setting…', type: '' };
+    try {
+      await dbPut('calendar/currentDate', { year: Number(calYear), month: Number(calMonth), day: Number(calDay) });
+      await loadCurrentCalDate();
+      dateStatus = { text: 'Date set.', type: 'ok' };
+    } catch (e) {
+      dateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    settingDate = false;
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
+  let contactPoll;
+  let datePoll;
 
   onMount(() => {
     addReply(); addReply();
     refreshLog();
     refreshStaged();
     refreshLive();
-    msgPoll   = setInterval(refreshLog,  4000);
-    emailPoll = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
+    refreshContacts();
+    loadCurrentCalDate();
+    msgPoll     = setInterval(refreshLog,  4000);
+    emailPoll   = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
+    contactPoll = setInterval(refreshContacts, 10000);
+    datePoll    = setInterval(loadCurrentCalDate, 10000);
   });
 
   onDestroy(() => {
     clearInterval(msgPoll);
     clearInterval(emailPoll);
+    clearInterval(contactPoll);
+    clearInterval(datePoll);
   });
 </script>
 
@@ -515,6 +610,108 @@
       {/if}
     </div>
   </div>
+
+  <hr class="section-divider" />
+
+  <!-- ── PHONE CONTACTS ──────────────────────────────────────────────── -->
+  <h2 class="email-heading">Phone Contacts</h2>
+  <p class="subtitle">Manage contacts that appear on player devices. Toggle visibility without deleting.</p>
+
+  <!-- Add form -->
+  <div class="section">
+    <div class="section-label">Add Contact</div>
+    <div class="contact-form">
+      <input type="text" class="contact-input" placeholder="Name…" bind:value={newCName} />
+      <input type="text" class="contact-input" placeholder="Phone number…" bind:value={newCNumber} />
+      <input type="text" class="contact-input" placeholder="Role / subtitle (optional)…" bind:value={newCSubtitle} />
+    </div>
+    <div style="height:10px"></div>
+    <button class="primary" disabled={addingContact} on:click={addContact}>
+      {addingContact ? 'Adding…' : 'Add to Phone Contacts'}
+    </button>
+    <div class="status-line" class:ok={contactStatus.type === 'ok'} class:err={contactStatus.type === 'err'}>
+      {contactStatus.text}
+    </div>
+  </div>
+
+  <!-- Contact list -->
+  <div class="section">
+    <div class="section-label-row">
+      <div class="section-label" style="margin-bottom:0">Contacts ({contactList.length})</div>
+      <button class="ghost-btn" on:click={refreshContacts}>Refresh</button>
+    </div>
+    <div class="log">
+      {#if !contactList.length}
+        <div class="log-empty">No contacts yet. Add one above.</div>
+      {:else}
+        {#each contactList as c (c._id)}
+          <div class="contact-log-row">
+            <div class="contact-log-info">
+              <span class="contact-log-name" class:dimmed={!c.enabled}>{c.name}</span>
+              <span class="contact-log-meta">{c.number}{c.subtitle ? ' · ' + c.subtitle : ''}</span>
+            </div>
+            <div class="contact-log-actions">
+              <button
+                class="toggle-btn"
+                class:on={c.enabled}
+                on:click={() => toggleContact(c._id, c.enabled)}
+              >{c.enabled ? 'Visible' : 'Hidden'}</button>
+              <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
+            </div>
+          </div>
+        {/each}
+      {/if}
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <!-- ── CURRENT DATE ──────────────────────────────────────────────────── -->
+  <h2 class="email-heading">Current Date</h2>
+  <p class="subtitle">Set the in-game date shown on player devices. Changes propagate within 10 seconds.</p>
+
+  <div class="section">
+    <div class="section-label">Set Date</div>
+
+    <div class="cal-current-row">
+      <span class="cal-current-label">Currently:</span>
+      {#if currentCalDate}
+        <span class="cal-current-val">
+          {CAL_MONTH_NAMES[currentCalDate.month - 1]} {currentCalDate.day}, {currentCalDate.year}
+        </span>
+      {:else}
+        <span class="cal-current-none">Not set — using default (Feb 2, 1999)</span>
+      {/if}
+    </div>
+
+    <div class="cal-picker-row">
+      <select class="cal-select" bind:value={calMonth}>
+        {#each CAL_MONTH_NAMES as name, i}
+          <option value={i + 1}>{name}</option>
+        {/each}
+      </select>
+      <select class="cal-select cal-select--day" bind:value={calDay}>
+        {#each { length: 31 } as _, i}
+          <option value={i + 1}>{i + 1}</option>
+        {/each}
+      </select>
+      <input
+        class="cal-select cal-select--year"
+        type="number"
+        min="1990"
+        max="2099"
+        bind:value={calYear}
+      />
+    </div>
+
+    <button class="primary" disabled={settingDate} on:click={setCalDate}>
+      {settingDate ? 'Setting…' : 'Set Date'}
+    </button>
+    <div class="status-line" class:ok={dateStatus.type === 'ok'} class:err={dateStatus.type === 'err'}>
+      {dateStatus.text}
+    </div>
+  </div>
+
 </div>
 
 <style>
@@ -654,4 +851,76 @@
 
   .live-label { color: #4ade80; font-size: 10px; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
   .section-divider { border: none; border-top: 1px solid #1a2030; margin: 28px 0; }
+
+  /* ── Current Date section ── */
+  .cal-current-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+  .cal-current-label {
+    color: rgba(232, 223, 200, 0.45);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .cal-current-val {
+    color: #c9a227;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+  .cal-current-none {
+    color: rgba(232, 223, 200, 0.3);
+    font-style: italic;
+  }
+  .cal-picker-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .cal-select {
+    flex: 2;
+    background: #0f1520;
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    border-radius: 4px;
+    color: #e8dfc8;
+    font-size: 13px;
+    padding: 8px 10px;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    appearance: auto;
+  }
+  .cal-select--day  { flex: 1; }
+  .cal-select--year { flex: 1.2; }
+  .cal-select:focus {
+    outline: none;
+    border-color: rgba(201, 162, 39, 0.7);
+  }
+
+  /* ── Phone Contacts section ── */
+  .contact-form { display: flex; flex-direction: column; gap: 8px; }
+  .contact-input {
+    width: 100%; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px;
+    color: #e8dfc8; font-family: inherit; font-size: 13.5px; padding: 10px 12px; outline: none;
+  }
+  .contact-input:focus { border-color: #c9a227; }
+  .contact-input::placeholder { color: #3a4a5a; }
+
+  .contact-log-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .contact-log-row:last-child { border-bottom: none; }
+  .contact-log-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .contact-log-name { font-size: 13px; font-weight: 600; color: #e8dfc8; }
+  .contact-log-name.dimmed { color: #3a4a5a; }
+  .contact-log-meta { font-size: 11px; color: #6a7d90; }
+  .contact-log-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .toggle-btn {
+    background: none; border: 1px solid #3a4a5a; color: #6a7d90;
+    border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .toggle-btn.on { border-color: #34c759; color: #34c759; }
+  .toggle-btn:hover { border-color: #c9a227; color: #c9a227; }
 </style>

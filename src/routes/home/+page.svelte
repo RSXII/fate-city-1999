@@ -152,15 +152,15 @@
             </div>
             <span class="hs-icon-label">Messages</span>
           </a>
-          <div class="hs-icon">
+          <a class="hs-icon" href="{base}/phone">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z" />
               </svg>
             </div>
             <span class="hs-icon-label">Phone</span>
-          </div>
-          <div class="hs-icon">
+          </a>
+          <a class="hs-icon" href="{base}/calendar">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="4" y="5" width="16" height="15" rx="1.5" />
@@ -171,7 +171,7 @@
               </svg>
             </div>
             <span class="hs-icon-label">Calendar</span>
-          </div>
+          </a>
         </div>
 
         <div class="hs-row">
