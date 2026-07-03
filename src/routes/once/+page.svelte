@@ -24,7 +24,7 @@
 
   async function fetchMessages() {
     try {
-      const data = await dbGet('once-messages', { orderBy: 'ts', limitToLast: 30 });
+      const data = await dbGet('once-messages', { orderBy: '$key', limitToLast: 30 });
       if (!data) { liveMessages = []; }
       else {
         liveMessages = Object.keys(data)

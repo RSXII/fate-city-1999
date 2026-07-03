@@ -59,7 +59,7 @@
   // ── data ─────────────────────────────────────────────────────────────────────
 
   async function poll() {
-    const data = await dbGet('messages', { orderBy: 'ts', limitToLast: 100 });
+    const data = await dbGet('messages', { orderBy: '$key', limitToLast: 100 });
     if (!data) return;
     const fetched = Object.entries(data)
       .map(([id, m]) => ({ ...m, id }))

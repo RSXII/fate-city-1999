@@ -48,7 +48,7 @@
 
   async function refreshLog() {
     try {
-      const data = await dbGet('messages', { orderBy: 'ts', limitToLast: 100 });
+      const data = await dbGet('messages', { orderBy: '$key', limitToLast: 100 });
       if (!data) { msgLog = []; return; }
       msgLog = Object.keys(data).map(k => { const m = data[k]; m._id = k; return m; })
         .sort((a, b) => a.ts - b.ts);
