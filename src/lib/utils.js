@@ -111,9 +111,9 @@ export function visibilityAwareInterval(fn, ms) {
       id = setInterval(fn, ms);
     }
   }
-  document.addEventListener('visibilitychange', onVisibility);
+  document.addEventListener("visibilitychange", onVisibility);
   return function stop() {
     clearInterval(id);
-    document.removeEventListener('visibilitychange', onVisibility);
+    document.removeEventListener("visibilitychange", onVisibility);
   };
 }

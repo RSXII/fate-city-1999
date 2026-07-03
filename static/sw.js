@@ -56,7 +56,9 @@ self.addEventListener("activate", (e) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -105,8 +107,6 @@ self.addEventListener("fetch", (e) => {
   // Navigation requests (HTML shells): network-first, fall back to cache so the
   // app opens offline after the first visit.
   if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request)),
-    );
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
   }
 });

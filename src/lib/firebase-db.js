@@ -35,9 +35,9 @@ export async function dbGet(path, opts = {}) {
     let url = `${FIREBASE_URL}/${path}.json`;
     if (opts.orderBy || opts.limitToLast) {
       const params = new URLSearchParams();
-      if (opts.orderBy) params.set('orderBy', `"${opts.orderBy}"`);
-      if (opts.limitToLast) params.set('limitToLast', String(opts.limitToLast));
-      url += '?' + params.toString();
+      if (opts.orderBy) params.set("orderBy", `"${opts.orderBy}"`);
+      if (opts.limitToLast) params.set("limitToLast", String(opts.limitToLast));
+      url += "?" + params.toString();
     }
     const res = await fetch(url);
     if (!res.ok) return null;
