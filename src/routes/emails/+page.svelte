@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { dbGet } from '$lib/firebase-db.js';
-  import { relTime, normMessages } from '$lib/utils.js';
+  import { relTime, normMessages, visibilityAwareInterval } from '$lib/utils.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
   import SearchModal from '$lib/components/SearchModal.svelte';
@@ -86,10 +86,10 @@
   });
 
   onMount(() => {
-    pollTimer = setInterval(poll, 3000);
+    pollTimer = visibilityAwareInterval(poll, 5000);
   });
 
-  onDestroy(() => clearInterval(pollTimer));
+  onDestroy(() => { if (pollTimer) pollTimer(); });
 
   $: threadMessages = thread ? normMessages(thread.messages) : [];
 </script>

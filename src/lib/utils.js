@@ -89,3 +89,31 @@ export function normMessages(raw) {
       return raw[k];
     });
 }
+
+/**
+ * Drop-in replacement for setInterval that automatically pauses when the
+ * browser tab is hidden and resumes (with an immediate catch-up call) when it
+ * becomes visible again.  Saves Firebase quota and battery on backgrounded
+ * devices.
+ *
+ * @param {Function} fn - The function to call on each tick.
+ * @param {number} ms   - Interval in milliseconds.
+ * @returns {Function}  - A stop() function; call it in onDestroy.
+ */
+export function visibilityAwareInterval(fn, ms) {
+  var id = setInterval(fn, ms);
+  function onVisibility() {
+    if (document.hidden) {
+      clearInterval(id);
+      id = null;
+    } else {
+      fn(); // immediate catch-up fetch on resume
+      id = setInterval(fn, ms);
+    }
+  }
+  document.addEventListener("visibilitychange", onVisibility);
+  return function stop() {
+    clearInterval(id);
+    document.removeEventListener("visibilitychange", onVisibility);
+  };
+}

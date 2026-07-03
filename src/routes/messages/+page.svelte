@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { dbGet } from '$lib/firebase-db.js';
-  import { relTime } from '$lib/utils.js';
+  import { relTime, visibilityAwareInterval } from '$lib/utils.js';
   import SENDERS from '$lib/data/senders.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
@@ -59,7 +59,7 @@
   // ── data ─────────────────────────────────────────────────────────────────────
 
   async function poll() {
-    const data = await dbGet('messages');
+    const data = await dbGet('messages', { orderBy: 'ts', limitToLast: 100 });
     if (!data) return;
     const fetched = Object.entries(data)
       .map(([id, m]) => ({ ...m, id }))
@@ -80,10 +80,10 @@
   onMount(() => {
     lastSeenMap = loadLastSeen();
     poll();
-    pollTimer = setInterval(poll, 3000);
+    pollTimer = visibilityAwareInterval(poll, 5000);
   });
 
-  onDestroy(() => clearInterval(pollTimer));
+  onDestroy(() => { if (pollTimer) pollTimer(); });
 
   // ── derived views ─────────────────────────────────────────────────────────────
 

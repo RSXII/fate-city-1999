@@ -35,8 +35,78 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
+// ── Caching strategy ──────────────────────────────────────────────────────────
+// Bump CACHE_NAME on significant deploys to purge stale assets from all clients.
+const CACHE_NAME = "wire-v1";
+
+// Vite outputs content-hashed filenames here — safe to cache indefinitely.
+const IMMUTABLE_RE = /\/_app\/immutable\//;
+
+// Other static asset extensions worth caching (images, sounds, fonts, etc.)
+const STATIC_EXTS = /\.(png|jpe?g|gif|webp|svg|css|js|mp3|woff2?)(\?.*)?$/i;
+
+// Firebase REST, FCM, and CDN imports must never be served from cache.
+const PASSTHROUGH = /firebaseio\.com|googleapis\.com|gstatic\.com/;
+
 self.addEventListener("install", (e) => self.skipWaiting());
-self.addEventListener("activate", (e) => self.clients.claim());
+
+self.addEventListener("activate", (e) => {
+  // Delete any old cache versions left over from previous SW installs.
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
+});
+
 self.addEventListener("fetch", (e) => {
-  // Pass-through: no caching — Firebase message data must always be fresh.
+  const url = new URL(e.request.url);
+
+  // Never cache Firebase REST calls or external CDN scripts — data must be fresh.
+  if (PASSTHROUGH.test(url.hostname)) return;
+
+  // Immutable assets: content-hash in filename means they're safe to cache forever.
+  // Cache-first: respond instantly from cache if present, otherwise fetch & store.
+  if (IMMUTABLE_RE.test(url.pathname)) {
+    e.respondWith(
+      caches.match(e.request).then(
+        (hit) =>
+          hit ||
+          fetch(e.request).then((res) => {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
+  // Other static assets (images, sounds, wire-chrome JS, CSS):
+  // Stale-while-revalidate — serve cached copy immediately, refresh in background.
+  if (STATIC_EXTS.test(url.pathname)) {
+    e.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(e.request).then((hit) => {
+          const networkFetch = fetch(e.request).then((res) => {
+            cache.put(e.request, res.clone());
+            return res;
+          });
+          return hit || networkFetch;
+        }),
+      ),
+    );
+    return;
+  }
+
+  // Navigation requests (HTML shells): network-first, fall back to cache so the
+  // app opens offline after the first visit.
+  if (e.request.mode === "navigate") {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  }
 });
