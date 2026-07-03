@@ -3,6 +3,7 @@
   import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { dbGet } from '$lib/firebase-db.js';
+  import { visibilityAwareInterval } from '$lib/utils.js';
 
   const DEFAULT_DATE = { year: 1999, month: 2, day: 2 };
 
@@ -62,11 +63,11 @@
   onMount(() => {
     if (!browser) return;
     loadCurrentDate();
-    pollTimer = setInterval(loadCurrentDate, 10000);
+    pollTimer = visibilityAwareInterval(loadCurrentDate, 10000);
   });
 
   onDestroy(() => {
-    clearInterval(pollTimer);
+    if (pollTimer) pollTimer();
   });
 </script>
 

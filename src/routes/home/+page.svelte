@@ -3,7 +3,7 @@
   import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { dbGet, dbPut } from '$lib/firebase-db.js';
-  import { getCodename, setCodename, getDeviceId } from '$lib/utils.js';
+  import { getCodename, setCodename, getDeviceId, visibilityAwareInterval } from '$lib/utils.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
   const ONCE_LAST_SEEN_KEY = 'wire-once-last-seen';
@@ -58,7 +58,7 @@
 
   async function pollUnread() {
     try {
-      const data = await dbGet('messages');
+      const data = await dbGet('messages', { orderBy: 'ts', limitToLast: 50 });
       const map = getLastSeenMap();
       let unread = 0;
       if (data) {
@@ -88,7 +88,7 @@
 
   async function pollOnce() {
     try {
-      const data = await dbGet('once-messages');
+      const data = await dbGet('once-messages', { orderBy: 'ts', limitToLast: 20 });
       if (!data) { onceUnread = false; return; }
       const msgs = Object.values(data).filter(Boolean);
       if (!msgs.length) { onceUnread = false; return; }
@@ -141,14 +141,14 @@
       setTimeout(() => codenameInputEl?.focus(), 80);
     }
     pollUnread();
-    pollInterval = setInterval(pollUnread, 5000);
+    pollInterval = visibilityAwareInterval(pollUnread, 5000);
     pollOnce();
-    oncePollInterval = setInterval(pollOnce, 7000);
+    oncePollInterval = visibilityAwareInterval(pollOnce, 7000);
   });
 
   onDestroy(() => {
-    clearInterval(pollInterval);
-    clearInterval(oncePollInterval);
+    if (pollInterval) pollInterval();
+    if (oncePollInterval) oncePollInterval();
     clearTimeout(toastTimer);
   });
 </script>

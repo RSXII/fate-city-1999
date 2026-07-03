@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { dbGet } from '$lib/firebase-db.js';
+  import { visibilityAwareInterval } from '$lib/utils.js';
 
   const ONCE_LAST_SEEN_KEY = 'wire-once-last-seen';
 
@@ -23,7 +24,7 @@
 
   async function fetchMessages() {
     try {
-      const data = await dbGet('once-messages');
+      const data = await dbGet('once-messages', { orderBy: 'ts', limitToLast: 30 });
       if (!data) { liveMessages = []; }
       else {
         liveMessages = Object.keys(data)
@@ -42,10 +43,10 @@
 
   onMount(() => {
     fetchMessages();
-    poll = setInterval(fetchMessages, 8000);
+    poll = visibilityAwareInterval(fetchMessages, 8000);
   });
 
-  onDestroy(() => clearInterval(poll));
+  onDestroy(() => { if (poll) poll(); });
 </script>
 
 <svelte:head>

@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import SENDERS from '$lib/data/senders.js';
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
+  import { visibilityAwareInterval } from '$lib/utils.js';
 
   let activeTab = 'wire';
 
@@ -47,7 +48,7 @@
 
   async function refreshLog() {
     try {
-      const data = await dbGet('messages');
+      const data = await dbGet('messages', { orderBy: 'ts', limitToLast: 100 });
       if (!data) { msgLog = []; return; }
       msgLog = Object.keys(data).map(k => { const m = data[k]; m._id = k; return m; })
         .sort((a, b) => a.ts - b.ts);
@@ -381,19 +382,19 @@
     refreshContacts();
     loadCurrentCalDate();
     refreshOnceLog();
-    msgPoll     = setInterval(refreshLog,  4000);
-    emailPoll   = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
-    contactPoll = setInterval(refreshContacts, 10000);
-    datePoll    = setInterval(loadCurrentCalDate, 10000);
-    oncePoll    = setInterval(refreshOnceLog, 6000);
+    msgPoll     = visibilityAwareInterval(refreshLog,  5000);
+    emailPoll   = visibilityAwareInterval(() => { refreshStaged(); refreshLive(); }, 8000);
+    contactPoll = visibilityAwareInterval(refreshContacts, 10000);
+    datePoll    = visibilityAwareInterval(loadCurrentCalDate, 10000);
+    oncePoll    = visibilityAwareInterval(refreshOnceLog, 6000);
   });
 
   onDestroy(() => {
-    clearInterval(msgPoll);
-    clearInterval(emailPoll);
-    clearInterval(contactPoll);
-    clearInterval(datePoll);
-    clearInterval(oncePoll);
+    if (msgPoll) msgPoll();
+    if (emailPoll) emailPoll();
+    if (contactPoll) contactPoll();
+    if (datePoll) datePoll();
+    if (oncePoll) oncePoll();
   });
 </script>
 

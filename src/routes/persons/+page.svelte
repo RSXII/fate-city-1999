@@ -66,7 +66,7 @@
             {#each entry.images as src, i}
               <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
               <div class="thumb" on:click={() => openLightbox(entry.images, i, entry.name)}>
-                <img src="{base}/{src}" alt={entry.name} />
+                <img src="{base}/{src}" alt={entry.name} loading="lazy" />
               </div>
             {/each}
           </div>

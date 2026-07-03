@@ -24,10 +24,22 @@ export const VAPID_KEY =
  * GET  /path.json
  * Returns parsed JSON or null on any error (network or non-2xx).
  * Callers don't need a try-catch for the happy path.
+ *
+ * @param {string} path - Firebase database path (no leading slash).
+ * @param {{ orderBy?: string, limitToLast?: number }} [opts] - Optional query
+ *   params for the Firebase REST API.  `orderBy` should be a field name (e.g.
+ *   'ts'); `limitToLast` caps the number of results returned.
  */
-export async function dbGet(path) {
+export async function dbGet(path, opts = {}) {
   try {
-    const res = await fetch(`${FIREBASE_URL}/${path}.json`);
+    let url = `${FIREBASE_URL}/${path}.json`;
+    if (opts.orderBy || opts.limitToLast) {
+      const params = new URLSearchParams();
+      if (opts.orderBy) params.set('orderBy', `"${opts.orderBy}"`);
+      if (opts.limitToLast) params.set('limitToLast', String(opts.limitToLast));
+      url += '?' + params.toString();
+    }
+    const res = await fetch(url);
     if (!res.ok) return null;
     return res.json();
   } catch {
