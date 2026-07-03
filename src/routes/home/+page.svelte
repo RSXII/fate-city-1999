@@ -160,7 +160,7 @@
             </div>
             <span class="hs-icon-label">Phone</span>
           </a>
-          <div class="hs-icon">
+          <a class="hs-icon" href="{base}/calendar">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="4" y="5" width="16" height="15" rx="1.5" />
@@ -171,7 +171,7 @@
               </svg>
             </div>
             <span class="hs-icon-label">Calendar</span>
-          </div>
+          </a>
         </div>
 
         <div class="hs-row">

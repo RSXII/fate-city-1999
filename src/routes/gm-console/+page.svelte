@@ -287,10 +287,48 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 4: Current Date ────────────────────────────────────────────────
+  const CAL_MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  let calYear  = 1999;
+  let calMonth = 2;
+  let calDay   = 2;
+  let currentCalDate = null;
+  let dateStatus = { text: '', type: '' };
+  let settingDate = false;
+
+  async function loadCurrentCalDate() {
+    try {
+      const data = await dbGet('calendar/currentDate');
+      currentCalDate = (data && data.year && data.month && data.day) ? data : null;
+    } catch { /* ignore */ }
+  }
+
+  async function setCalDate() {
+    if (!calYear || !calMonth || !calDay) {
+      dateStatus = { text: 'All fields required.', type: 'err' };
+      return;
+    }
+    settingDate = true;
+    dateStatus = { text: 'Setting…', type: '' };
+    try {
+      await dbPut('calendar/currentDate', { year: Number(calYear), month: Number(calMonth), day: Number(calDay) });
+      await loadCurrentCalDate();
+      dateStatus = { text: 'Date set.', type: 'ok' };
+    } catch (e) {
+      dateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    settingDate = false;
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
   let contactPoll;
+  let datePoll;
 
   onMount(() => {
     addReply(); addReply();
@@ -298,15 +336,18 @@
     refreshStaged();
     refreshLive();
     refreshContacts();
+    loadCurrentCalDate();
     msgPoll     = setInterval(refreshLog,  4000);
     emailPoll   = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
     contactPoll = setInterval(refreshContacts, 10000);
+    datePoll    = setInterval(loadCurrentCalDate, 10000);
   });
 
   onDestroy(() => {
     clearInterval(msgPoll);
     clearInterval(emailPoll);
     clearInterval(contactPoll);
+    clearInterval(datePoll);
   });
 </script>
 
@@ -623,6 +664,54 @@
     </div>
   </div>
 
+  <hr class="section-divider" />
+
+  <!-- ── CURRENT DATE ──────────────────────────────────────────────────── -->
+  <h2 class="email-heading">Current Date</h2>
+  <p class="subtitle">Set the in-game date shown on player devices. Changes propagate within 10 seconds.</p>
+
+  <div class="section">
+    <div class="section-label">Set Date</div>
+
+    <div class="cal-current-row">
+      <span class="cal-current-label">Currently:</span>
+      {#if currentCalDate}
+        <span class="cal-current-val">
+          {CAL_MONTH_NAMES[currentCalDate.month - 1]} {currentCalDate.day}, {currentCalDate.year}
+        </span>
+      {:else}
+        <span class="cal-current-none">Not set — using default (Feb 2, 1999)</span>
+      {/if}
+    </div>
+
+    <div class="cal-picker-row">
+      <select class="cal-select" bind:value={calMonth}>
+        {#each CAL_MONTH_NAMES as name, i}
+          <option value={i + 1}>{name}</option>
+        {/each}
+      </select>
+      <select class="cal-select cal-select--day" bind:value={calDay}>
+        {#each { length: 31 } as _, i}
+          <option value={i + 1}>{i + 1}</option>
+        {/each}
+      </select>
+      <input
+        class="cal-select cal-select--year"
+        type="number"
+        min="1990"
+        max="2099"
+        bind:value={calYear}
+      />
+    </div>
+
+    <button class="primary" disabled={settingDate} on:click={setCalDate}>
+      {settingDate ? 'Setting…' : 'Set Date'}
+    </button>
+    <div class="status-line" class:ok={dateStatus.type === 'ok'} class:err={dateStatus.type === 'err'}>
+      {dateStatus.text}
+    </div>
+  </div>
+
 </div>
 
 <style>
@@ -762,6 +851,51 @@
 
   .live-label { color: #4ade80; font-size: 10px; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
   .section-divider { border: none; border-top: 1px solid #1a2030; margin: 28px 0; }
+
+  /* ── Current Date section ── */
+  .cal-current-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+  .cal-current-label {
+    color: rgba(232, 223, 200, 0.45);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .cal-current-val {
+    color: #c9a227;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+  .cal-current-none {
+    color: rgba(232, 223, 200, 0.3);
+    font-style: italic;
+  }
+  .cal-picker-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .cal-select {
+    flex: 2;
+    background: #0f1520;
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    border-radius: 4px;
+    color: #e8dfc8;
+    font-size: 13px;
+    padding: 8px 10px;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    appearance: auto;
+  }
+  .cal-select--day  { flex: 1; }
+  .cal-select--year { flex: 1.2; }
+  .cal-select:focus {
+    outline: none;
+    border-color: rgba(201, 162, 39, 0.7);
+  }
 
   /* ── Phone Contacts section ── */
   .contact-form { display: flex; flex-direction: column; gap: 8px; }
