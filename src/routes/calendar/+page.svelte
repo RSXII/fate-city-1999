@@ -119,8 +119,11 @@
   .cal-wrap {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     background: #0d1118;
     padding: 20px 10px 48px;
+    box-sizing: border-box;
+    width: 100%;
     display: flex;
     flex-direction: column;
   }
@@ -167,6 +170,8 @@
     grid-template-columns: repeat(7, 1fr);
     gap: 4px 0;
     flex: 1;
+    min-width: 0;
+    width: 100%;
   }
 
   .cal-dow {
@@ -229,6 +234,8 @@
     border-radius: 6px;
     background: rgba(201, 162, 39, 0.04);
     flex-shrink: 0;
+    box-sizing: border-box;
+    max-width: 100%;
   }
 
   .cal-footer-label {
