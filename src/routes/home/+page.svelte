@@ -6,6 +6,7 @@
   import { getCodename, setCodename, getDeviceId } from '$lib/utils.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
+  const ONCE_LAST_SEEN_KEY = 'wire-once-last-seen';
 
   // ── Codename modal ─────────────────────────────────────────────────────────
   let showCodenameModal = false;
@@ -45,6 +46,11 @@
   let lastUnreadCount = 0;
   let pollInterval;
 
+  let onceUnread = false;
+  let showOnceAlert = false;
+  let oncePollInterval;
+  let onceAlertShownFor = 0; // ts of the message we last showed the alert for
+
   function getLastSeenMap() {
     try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? '{}'); }
     catch { return {}; }
@@ -78,6 +84,37 @@
     }
   }
 
+  let isFirstOncePoll = true;
+
+  async function pollOnce() {
+    try {
+      const data = await dbGet('once-messages');
+      if (!data) { onceUnread = false; return; }
+      const msgs = Object.values(data).filter(Boolean);
+      if (!msgs.length) { onceUnread = false; return; }
+      const latestTs = Math.max(...msgs.map(m => m.ts || 0));
+      const lastSeen = Number(localStorage.getItem(ONCE_LAST_SEEN_KEY) ?? 0);
+      const hasNew = latestTs > lastSeen;
+      onceUnread = hasNew;
+      // Show the full overlay only when a genuinely new message arrives
+      // and we haven’t already shown the alert for this exact timestamp
+      if (hasNew && !isFirstOncePoll && latestTs !== onceAlertShownFor) {
+        showOnceAlert = true;
+        onceAlertShownFor = latestTs;
+      }
+      isFirstOncePoll = false;
+    } catch { /* network hiccup */ }
+  }
+
+  function dismissOnceAlert() {
+    showOnceAlert = false;
+    // Mark current messages as seen so the alert doesn’t re-appear
+    if (browser) {
+      localStorage.setItem(ONCE_LAST_SEEN_KEY, String(onceAlertShownFor));
+    }
+    onceUnread = false;
+  }
+
   function goToPage(n) {
     currentPage = Math.max(0, Math.min(TOTAL_PAGES - 1, n));
     if (carouselEl) carouselEl.style.transform = `translateX(${-100 * currentPage}%)`;
@@ -105,10 +142,13 @@
     }
     pollUnread();
     pollInterval = setInterval(pollUnread, 5000);
+    pollOnce();
+    oncePollInterval = setInterval(pollOnce, 7000);
   });
 
   onDestroy(() => {
     clearInterval(pollInterval);
+    clearInterval(oncePollInterval);
     clearTimeout(toastTimer);
   });
 </script>
@@ -197,8 +237,8 @@
             <span class="hs-icon-label">Plat</span>
           </div>
           <a class="hs-icon" href="{base}/once">
-            <div class="hs-icon-tile once-tile">
-              <span class="once-badge" aria-hidden="true"></span>
+            <div class="hs-icon-tile once-tile" class:once-tile--unread={onceUnread}>
+              {#if onceUnread}<span class="once-badge" aria-hidden="true"></span>{/if}
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="8.2" />
                 <circle cx="12" cy="12" r="4.6" />
@@ -352,7 +392,27 @@
     {/each}
   </div>
 </div>
-
+<!-- ── O.N.C.E. encrypted signal alert ────────────────────────────────────────── -->
+{#if showOnceAlert}
+<div class="once-overlay" role="alertdialog" aria-modal="true" aria-label="O.N.C.E. encrypted transmission received">
+  <div class="once-alert-panel">
+    <div class="once-alert-scanline" aria-hidden="true"></div>
+    <div class="once-alert-rings" aria-hidden="true">
+      <div class="once-ring once-ring-1"></div>
+      <div class="once-ring once-ring-2"></div>
+      <div class="once-ring once-ring-3"></div>
+      <span class="once-ring-glyph">M</span>
+    </div>
+    <p class="once-alert-sys">// CHANNEL: O.N.C.E. &mdash; ORIGIN MASKED</p>
+    <div class="once-alert-divider" aria-hidden="true"></div>
+    <h2 class="once-alert-title">ENCRYPTED TRANSMISSION</h2>
+    <p class="once-alert-sub">An encrypted signal has been received on the O.N.C.E. channel. Sender unverified. Open the app to decrypt.</p>
+    <a class="once-alert-open" href="{base}/once" on:click={dismissOnceAlert}>Open O.N.C.E.</a>
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+    <span class="once-alert-dismiss" on:click={dismissOnceAlert}>Dismiss</span>
+  </div>
+</div>
+{/if}
 <!-- ── Codename registration modal ────────────────────────────────────────── -->
 {#if showCodenameModal}
 <div class="cn-overlay" role="dialog" aria-modal="true" aria-label="Codename registration">
@@ -524,6 +584,11 @@
     box-shadow: 0 0 14px rgba(124, 58, 237, 0.3), inset 0 0 8px rgba(124, 58, 237, 0.1);
     animation: once-pulse 2.8s ease-in-out infinite;
   }
+  .once-tile--unread {
+    border-color: rgba(168, 85, 247, 0.9);
+    box-shadow: 0 0 28px rgba(124, 58, 237, 0.7), 0 0 8px rgba(168, 85, 247, 0.5), inset 0 0 14px rgba(124, 58, 237, 0.25);
+    animation: once-pulse-urgent 1.4s ease-in-out infinite;
+  }
   .once-tile :global(svg) { stroke: #7c3aed; }
   .once-badge {
     position: absolute;
@@ -536,6 +601,10 @@
   @keyframes once-pulse {
     0%, 100% { box-shadow: 0 0 14px rgba(124, 58, 237, 0.3), inset 0 0 8px rgba(124, 58, 237, 0.1); }
     50%       { box-shadow: 0 0 24px rgba(124, 58, 237, 0.55), inset 0 0 14px rgba(124, 58, 237, 0.2); }
+  }
+  @keyframes once-pulse-urgent {
+    0%, 100% { box-shadow: 0 0 28px rgba(124, 58, 237, 0.7), 0 0 8px rgba(168, 85, 247, 0.5), inset 0 0 14px rgba(124, 58, 237, 0.25); }
+    50%       { box-shadow: 0 0 48px rgba(124, 58, 237, 0.95), 0 0 18px rgba(168, 85, 247, 0.7), inset 0 0 24px rgba(124, 58, 237, 0.35); }
   }
 
   /* EverNear tile */
@@ -724,5 +793,148 @@
     text-align: center;
     letter-spacing: 0.3px;
   }
+
+  /* ── O.N.C.E. alert overlay ────────────────────────────────────────── */
+  .once-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 850;
+    background: rgba(5, 2, 14, 0.93);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(6px);
+    animation: once-overlay-in 0.35s ease;
+  }
+  @keyframes once-overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .once-alert-panel {
+    position: relative;
+    width: 100%;
+    max-width: 340px;
+    background: #07031a;
+    border: 1px solid rgba(124, 58, 237, 0.6);
+    border-radius: 4px;
+    padding: 32px 22px 24px;
+    box-shadow:
+      0 0 60px rgba(124, 58, 237, 0.35),
+      0 0 120px rgba(124, 58, 237, 0.15),
+      inset 0 0 30px rgba(124, 58, 237, 0.05);
+    overflow: hidden;
+    text-align: center;
+    animation: once-panel-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes once-panel-in {
+    from { transform: scale(0.92) translateY(10px); opacity: 0; }
+    to   { transform: scale(1)    translateY(0);    opacity: 1; }
+  }
+  .once-alert-scanline {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(124, 58, 237, 0.04) 3px,
+      rgba(124, 58, 237, 0.04) 4px
+    );
+  }
+  /* Concentric ring animation */
+  .once-alert-rings {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .once-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(124, 58, 237, 0.5);
+    animation: once-ring-pulse 2s ease-in-out infinite;
+  }
+  .once-ring-1 { width: 80px; height: 80px; animation-delay: 0s; }
+  .once-ring-2 { width: 56px; height: 56px; animation-delay: 0.25s; }
+  .once-ring-3 { width: 32px; height: 32px; animation-delay: 0.5s; border-color: rgba(168, 85, 247, 0.8); }
+  @keyframes once-ring-pulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50%       { opacity: 1;   transform: scale(1.06); }
+  }
+  .once-ring-glyph {
+    font-size: 18px;
+    font-weight: 800;
+    color: #c4a8ff;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: 1px;
+    z-index: 1;
+  }
+  .once-alert-sys {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(124, 58, 237, 0.6);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  .once-alert-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(124, 58, 237, 0.55), rgba(168, 85, 247, 0.35), transparent);
+    margin-bottom: 18px;
+  }
+  .once-alert-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #c4a8ff;
+    margin: 0 0 10px;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  }
+  .once-alert-sub {
+    font-size: 11px;
+    line-height: 1.65;
+    color: rgba(232, 224, 248, 0.55);
+    margin: 0 0 22px;
+    letter-spacing: 0.4px;
+  }
+  .once-alert-open {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(124, 58, 237, 0.15));
+    border: 1px solid rgba(124, 58, 237, 0.7);
+    border-radius: 3px;
+    color: #c4a8ff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s, box-shadow 0.2s;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    margin-bottom: 12px;
+  }
+  .once-alert-open:active {
+    background: rgba(124, 58, 237, 0.4);
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+  }
+  .once-alert-dismiss {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(124, 58, 237, 0.4);
+    cursor: pointer;
+    margin-top: 2px;
+    padding: 4px 0;
+  }
+  .once-alert-dismiss:hover { color: rgba(124, 58, 237, 0.7); }
 </style>
 

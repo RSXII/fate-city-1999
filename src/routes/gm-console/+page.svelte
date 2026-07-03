@@ -4,6 +4,8 @@
   import SENDERS from '$lib/data/senders.js';
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
 
+  let activeTab = 'wire';
+
   const GITHUB_IMAGES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images/messages';
 
@@ -324,11 +326,52 @@
     settingDate = false;
   }
 
+  // ── Section 5: O.N.C.E. Transmissions ──────────────────────────────────────
+  let onceText = '';
+  let onceSending = false;
+  let onceStatus = { text: '', type: '' };
+  let onceLog = [];
+
+  async function refreshOnceLog() {
+    try {
+      const data = await dbGet('once-messages');
+      if (!data) { onceLog = []; return; }
+      onceLog = Object.keys(data)
+        .map(k => { const m = data[k]; m._id = k; return m; })
+        .sort((a, b) => b.ts - a.ts);
+    } catch { onceLog = []; }
+  }
+
+  async function sendOnceMessage() {
+    const text = onceText.trim();
+    if (!text) return;
+    onceSending = true;
+    onceStatus = { text: 'Transmitting…', type: '' };
+    try {
+      await dbPost('once-messages', { text, ts: Date.now() });
+      onceText = '';
+      onceStatus = { text: 'Transmitted.', type: 'ok' };
+      await refreshOnceLog();
+    } catch (e) {
+      onceStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    onceSending = false;
+  }
+
+  async function deleteOnceMessage(id) {
+    if (!confirm('Delete this transmission? It will vanish from player devices.')) return;
+    try {
+      await dbDelete(`once-messages/${id}`);
+      await refreshOnceLog();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
   let contactPoll;
   let datePoll;
+  let oncePoll;
 
   onMount(() => {
     addReply(); addReply();
@@ -337,10 +380,12 @@
     refreshLive();
     refreshContacts();
     loadCurrentCalDate();
+    refreshOnceLog();
     msgPoll     = setInterval(refreshLog,  4000);
     emailPoll   = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
     contactPoll = setInterval(refreshContacts, 10000);
     datePoll    = setInterval(loadCurrentCalDate, 10000);
+    oncePoll    = setInterval(refreshOnceLog, 6000);
   });
 
   onDestroy(() => {
@@ -348,6 +393,7 @@
     clearInterval(emailPoll);
     clearInterval(contactPoll);
     clearInterval(datePoll);
+    clearInterval(oncePoll);
   });
 </script>
 
@@ -356,389 +402,472 @@
 </svelte:head>
 
 <div class="console">
-  <h1>Fate City — Wire Console</h1>
-  <p class="subtitle">Pick a sender, write the line, send it to the players' group thread.</p>
 
-  <!-- ── SENDER ─────────────────────────────────────────────────────────── -->
-  <div class="section">
-    <div class="section-label">Sender</div>
-    <div class="chip-grid">
-      {#each SENDERS as s (s.id)}
-        <button
-          type="button"
-          class="chip"
-          class:selected={selectedSender?.id === s.id}
-          style="color:{s.color};border-color:{s.color}"
-          on:click={() => { selectedSender = s; }}
-        >
-          <img
-            class="chip-avatar"
-            src="{base}/{s.avatar}"
-            alt=""
-            loading="lazy"
-            on:error={e => e.target.style.display = 'none'}
-          />
-          <span>{s.name}</span>
-        </button>
-      {/each}
-    </div>
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="console-header">
+    <span class="console-title">GM Console</span>
+    <span class="console-sub">Fate City: 1999</span>
   </div>
 
-  <!-- ── MESSAGE ───────────────────────────────────────────────────────── -->
-  <div class="section">
-    <div class="section-label">Message</div>
-    <div class="selected-line">
-      {#if selectedSender}
-        Sending as <strong style="color:{selectedSender.color}">{selectedSender.name}</strong>
-      {:else}
-        No sender selected yet.
-      {/if}
-    </div>
-
-    <textarea
-      bind:value={msgText}
-      placeholder="Type what they'd actually text…"
-    ></textarea>
-
-    <div class="attach-row">
-      <button class="ghost-btn" type="button" on:click={togglePicker}>
-        {pickerOpen ? 'Close picker' : '+ Attach image'}
-      </button>
-      {#if selectedImage}
-        <div class="attached-preview">
-          <img src={selectedImage.url} alt="" />
-          <span>{selectedImage.name}</span>
-          <button type="button" on:click={() => { selectedImage = null; }}>&times;</button>
-        </div>
-      {/if}
-    </div>
-
-    {#if pickerOpen}
-      <div class="image-picker">
-        {#if pickerLoading}
-          <div class="img-picker-status">Loading…</div>
-        {:else if pickerError}
-          <div class="img-picker-status err">{pickerError}</div>
-        {:else}
-          {#each pickerImages as img (img.name)}
-            <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-            <div class="img-thumb" on:click={() => selectImage(img)}>
-              <img src={img.download_url} alt={img.name} loading="lazy" />
-            </div>
-          {/each}
-        {/if}
-      </div>
-    {/if}
-
-    <div style="height:10px"></div>
-    <button class="primary" disabled={!sendEnabled} on:click={sendMessage}>
-      Send to group thread
-    </button>
-    <div class="status-line" class:ok={sendStatus.type === 'ok'} class:err={sendStatus.type === 'err'}>
-      {sendStatus.text}
-    </div>
+  <!-- ── Tab bar ─────────────────────────────────────────────────────────── -->
+  <div class="tab-bar" role="tablist">
+    <button class="tab" class:active={activeTab === 'wire'}     role="tab" on:click={() => activeTab = 'wire'}>Wire</button>
+    <button class="tab" class:active={activeTab === 'email'}    role="tab" on:click={() => activeTab = 'email'}>Email</button>
+    <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
+    <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
+    <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
   </div>
 
-  <!-- ── LIVE THREAD LOG ───────────────────────────────────────────────── -->
-  <div class="section">
-    <div class="section-label-row">
-      <div class="section-label" style="margin-bottom:0">Thread (live)</div>
-      <button class="ghost-btn" on:click={clearMessages}>Clear thread</button>
-    </div>
-    <div class="log" bind:this={msgLogEl}>
-      {#if !msgLog.length}
-        <div class="log-empty">No messages sent yet.</div>
-      {:else}
-        {#each msgLog as m (m._id ?? m.ts)}
-          <div class="log-row">
-            <span class="log-name" style="color:{m.color}">{m.sender}:</span>
-            <span class="log-text">
-              {#if m.imageUrl}📷 {/if}{m.text ?? ''}
-              <span class="log-time">{relTime(m.ts)}</span>
-            </span>
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
+  <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
+  <div class="tab-panel">
 
-  <hr class="section-divider" />
+    <!-- ══ WIRE MESSAGES ══════════════════════════════════════════════════ -->
+    {#if activeTab === 'wire'}
 
-  <!-- ── EMAIL / DATA PACKETS ──────────────────────────────────────────── -->
-  <h2 class="email-heading">Email — Data Packets</h2>
-  <p class="subtitle">Author an intercepted email chain. Stage it silently, then deploy when players are ready.</p>
-
-  <div class="section">
-    <div class="section-label">New Chain</div>
-    <input
-      type="text"
-      class="email-subject-input"
-      placeholder="Subject line…"
-      bind:value={emailSubject}
-    />
-
-    {#each replies as reply (reply.id)}
-      <div class="reply-block">
-        <div class="reply-block-header">
-          <input
-            type="text"
-            class="reply-from-input"
-            placeholder="From: display name…"
-            value={reply.from}
-            on:input={e => { reply.from = e.target.value; replies = replies; }}
-          />
-          {#if replies.length > 1}
-            <button type="button" class="remove-reply-btn" on:click={() => removeReply(reply.id)}>&times;</button>
-          {/if}
-        </div>
-        <textarea
-          class="reply-body-input"
-          rows="3"
-          placeholder="Message body…"
-          value={reply.body}
-          on:input={e => { reply.body = e.target.value; replies = replies; }}
-        ></textarea>
-
-        <div class="reply-attach-row">
-          {#if !reply.imageUrl}
-            <button type="button" class="ghost-btn reply-attach-btn" on:click={() => toggleReplyPicker(reply.id)}>
-              {replyPickers[reply.id]?.open ? 'Close picker' : '+ Attach image'}
+      <div class="section">
+        <div class="section-label">Sender</div>
+        <div class="chip-grid">
+          {#each SENDERS as s (s.id)}
+            <button
+              type="button"
+              class="chip"
+              class:selected={selectedSender?.id === s.id}
+              style="color:{s.color};border-color:{s.color}"
+              on:click={() => { selectedSender = s; }}
+            >
+              <img
+                class="chip-avatar"
+                src="{base}/{s.avatar}"
+                alt=""
+                loading="lazy"
+                on:error={e => e.target.style.display = 'none'}
+              />
+              <span>{s.name}</span>
             </button>
+          {/each}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Message</div>
+        <div class="selected-line">
+          {#if selectedSender}
+            Sending as <strong style="color:{selectedSender.color}">{selectedSender.name}</strong>
           {:else}
-            <div class="reply-attach-preview">
-              <span class="reply-attach-name">{reply.imageUrl.split('/').pop()}</span>
-              <button type="button" class="reply-attach-remove" on:click={() => clearReplyImage(reply.id)}>&times;</button>
+            No sender selected yet.
+          {/if}
+        </div>
+
+        <textarea bind:value={msgText} placeholder="Type what they'd actually text…"></textarea>
+
+        <div class="attach-row">
+          <button class="ghost-btn" type="button" on:click={togglePicker}>
+            {pickerOpen ? 'Close picker' : '+ Attach image'}
+          </button>
+          {#if selectedImage}
+            <div class="attached-preview">
+              <img src={selectedImage.url} alt="" />
+              <span>{selectedImage.name}</span>
+              <button type="button" on:click={() => { selectedImage = null; }}>&times;</button>
             </div>
           {/if}
         </div>
 
-        {#if replyPickers[reply.id]?.open}
-          <div class="reply-image-picker">
-            {#if replyPickers[reply.id].loading}
+        {#if pickerOpen}
+          <div class="image-picker">
+            {#if pickerLoading}
               <div class="img-picker-status">Loading…</div>
-            {:else if replyPickers[reply.id].error}
-              <div class="img-picker-status err">{replyPickers[reply.id].error}</div>
+            {:else if pickerError}
+              <div class="img-picker-status err">{pickerError}</div>
             {:else}
-              {#each replyPickers[reply.id].images as img (img.name)}
+              {#each pickerImages as img (img.name)}
                 <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-                <div class="img-thumb" on:click={() => selectReplyImage(reply.id, img)}>
+                <div class="img-thumb" on:click={() => selectImage(img)}>
                   <img src={img.download_url} alt={img.name} loading="lazy" />
                 </div>
               {/each}
             {/if}
           </div>
         {/if}
+
+        <div style="height:10px"></div>
+        <button class="primary" disabled={!sendEnabled} on:click={sendMessage}>
+          Send to group thread
+        </button>
+        <div class="status-line" class:ok={sendStatus.type === 'ok'} class:err={sendStatus.type === 'err'}>
+          {sendStatus.text}
+        </div>
       </div>
-    {/each}
 
-    <button class="ghost-btn" type="button" style="margin-top:4px" on:click={() => addReply()}>
-      + Add Reply
-    </button>
-    <div style="height:12px"></div>
-    <button class="primary" disabled={staging} on:click={stageChain}>
-      {staging ? 'Staging…' : 'Stage Chain (hidden from players)'}
-    </button>
-    <div class="status-line" class:ok={emailStatus.type === 'ok'} class:err={emailStatus.type === 'err'}>
-      {emailStatus.text}
-    </div>
-  </div>
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Thread (live)</div>
+          <button class="ghost-btn" on:click={clearMessages}>Clear thread</button>
+        </div>
+        <div class="log" bind:this={msgLogEl}>
+          {#if !msgLog.length}
+            <div class="log-empty">No messages sent yet.</div>
+          {:else}
+            {#each msgLog as m (m._id ?? m.ts)}
+              <div class="log-row">
+                <span class="log-name" style="color:{m.color}">{m.sender}:</span>
+                <span class="log-text">
+                  {#if m.imageUrl}📷 {/if}{m.text ?? ''}
+                  <span class="log-time">{relTime(m.ts)}</span>
+                </span>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
 
-  <!-- Staged queue -->
-  <div class="section">
-    <div class="section-label-row">
-      <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
-      <button class="ghost-btn" on:click={refreshStaged}>Refresh</button>
-    </div>
-    <div class="log">
-      {#if !stagedChains.length}
-        <div class="log-empty">No staged chains.</div>
-      {:else}
-        {#each stagedChains as chain (chain._id)}
-          {@const msgs = normMessages(chain.messages)}
-          <div class="chain-log-row">
-            <div class="chain-log-top">
-              <span class="chain-log-subject" style="color:#c9a227">{chain.subject}</span>
-              <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
+    <!-- ══ EMAIL / DATA PACKETS ═══════════════════════════════════════════ -->
+    {:else if activeTab === 'email'}
+
+      <p class="tab-sub">Author an intercepted email chain. Stage it silently, then deploy when players are ready.</p>
+
+      <div class="section">
+        <div class="section-label">New Chain</div>
+        <input
+          type="text"
+          class="email-subject-input"
+          placeholder="Subject line…"
+          bind:value={emailSubject}
+        />
+
+        {#each replies as reply (reply.id)}
+          <div class="reply-block">
+            <div class="reply-block-header">
+              <input
+                type="text"
+                class="reply-from-input"
+                placeholder="From: display name…"
+                value={reply.from}
+                on:input={e => { reply.from = e.target.value; replies = replies; }}
+              />
+              {#if replies.length > 1}
+                <button type="button" class="remove-reply-btn" on:click={() => removeReply(reply.id)}>&times;</button>
+              {/if}
             </div>
-            <div class="chain-log-actions">
-              <button
-                class="deploy-btn"
-                disabled={deployingId === chain._id}
-                on:click={() => deployChain(chain._id)}
-              >
-                {deployingId === chain._id ? 'Deploying…' : 'Deploy → Players'}
-              </button>
-              <button class="danger-btn" on:click={() => deleteChain(chain._id, false)}>Delete</button>
+            <textarea
+              class="reply-body-input"
+              rows="3"
+              placeholder="Message body…"
+              value={reply.body}
+              on:input={e => { reply.body = e.target.value; replies = replies; }}
+            ></textarea>
+
+            <div class="reply-attach-row">
+              {#if !reply.imageUrl}
+                <button type="button" class="ghost-btn reply-attach-btn" on:click={() => toggleReplyPicker(reply.id)}>
+                  {replyPickers[reply.id]?.open ? 'Close picker' : '+ Attach image'}
+                </button>
+              {:else}
+                <div class="reply-attach-preview">
+                  <span class="reply-attach-name">{reply.imageUrl.split('/').pop()}</span>
+                  <button type="button" class="reply-attach-remove" on:click={() => clearReplyImage(reply.id)}>&times;</button>
+                </div>
+              {/if}
             </div>
+
+            {#if replyPickers[reply.id]?.open}
+              <div class="reply-image-picker">
+                {#if replyPickers[reply.id].loading}
+                  <div class="img-picker-status">Loading…</div>
+                {:else if replyPickers[reply.id].error}
+                  <div class="img-picker-status err">{replyPickers[reply.id].error}</div>
+                {:else}
+                  {#each replyPickers[reply.id].images as img (img.name)}
+                    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                    <div class="img-thumb" on:click={() => selectReplyImage(reply.id, img)}>
+                      <img src={img.download_url} alt={img.name} loading="lazy" />
+                    </div>
+                  {/each}
+                {/if}
+              </div>
+            {/if}
           </div>
         {/each}
-      {/if}
-    </div>
-  </div>
 
-  <!-- Live queue -->
-  <div class="section">
-    <div class="section-label-row">
-      <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
-      <button class="ghost-btn" on:click={refreshLive}>Refresh</button>
-    </div>
-    <div class="log">
-      {#if !liveChains.length}
-        <div class="log-empty">No live chains.</div>
-      {:else}
-        {#each liveChains as chain (chain._id)}
-          {@const msgs = normMessages(chain.messages)}
-          <div class="chain-log-row">
-            <div class="chain-log-top">
-              <span class="chain-log-subject">
-                <span class="live-label">▶ LIVE &nbsp;</span>{chain.subject}
-              </span>
-              <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
-            </div>
-            <div class="chain-log-actions" style="justify-content:flex-end">
-              <button
-                class="recall-btn"
-                disabled={recallingId === chain._id}
-                on:click={() => recallChain(chain._id)}
-              >
-                {recallingId === chain._id ? 'Recalling…' : 'Recall'}
-              </button>
-              <button class="danger-btn" on:click={() => deleteChain(chain._id, true)}>Delete</button>
-            </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
+        <button class="ghost-btn" type="button" style="margin-top:4px" on:click={() => addReply()}>
+          + Add Reply
+        </button>
+        <div style="height:12px"></div>
+        <button class="primary" disabled={staging} on:click={stageChain}>
+          {staging ? 'Staging…' : 'Stage Chain (hidden from players)'}
+        </button>
+        <div class="status-line" class:ok={emailStatus.type === 'ok'} class:err={emailStatus.type === 'err'}>
+          {emailStatus.text}
+        </div>
+      </div>
 
-  <hr class="section-divider" />
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
+          <button class="ghost-btn" on:click={refreshStaged}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !stagedChains.length}
+            <div class="log-empty">No staged chains.</div>
+          {:else}
+            {#each stagedChains as chain (chain._id)}
+              {@const msgs = normMessages(chain.messages)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="chain-log-subject" style="color:#c9a227">{chain.subject}</span>
+                  <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
+                </div>
+                <div class="chain-log-actions">
+                  <button class="deploy-btn" disabled={deployingId === chain._id} on:click={() => deployChain(chain._id)}>
+                    {deployingId === chain._id ? 'Deploying…' : 'Deploy → Players'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteChain(chain._id, false)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
 
-  <!-- ── PHONE CONTACTS ──────────────────────────────────────────────── -->
-  <h2 class="email-heading">Phone Contacts</h2>
-  <p class="subtitle">Manage contacts that appear on player devices. Toggle visibility without deleting.</p>
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
+          <button class="ghost-btn" on:click={refreshLive}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !liveChains.length}
+            <div class="log-empty">No live chains.</div>
+          {:else}
+            {#each liveChains as chain (chain._id)}
+              {@const msgs = normMessages(chain.messages)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="chain-log-subject">
+                    <span class="live-label">▶ LIVE &nbsp;</span>{chain.subject}
+                  </span>
+                  <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
+                </div>
+                <div class="chain-log-actions" style="justify-content:flex-end">
+                  <button class="recall-btn" disabled={recallingId === chain._id} on:click={() => recallChain(chain._id)}>
+                    {recallingId === chain._id ? 'Recalling…' : 'Recall'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteChain(chain._id, true)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
 
-  <!-- Add form -->
-  <div class="section">
-    <div class="section-label">Add Contact</div>
-    <div class="contact-form">
-      <input type="text" class="contact-input" placeholder="Name…" bind:value={newCName} />
-      <input type="text" class="contact-input" placeholder="Phone number…" bind:value={newCNumber} />
-      <input type="text" class="contact-input" placeholder="Role / subtitle (optional)…" bind:value={newCSubtitle} />
-    </div>
-    <div style="height:10px"></div>
-    <button class="primary" disabled={addingContact} on:click={addContact}>
-      {addingContact ? 'Adding…' : 'Add to Phone Contacts'}
-    </button>
-    <div class="status-line" class:ok={contactStatus.type === 'ok'} class:err={contactStatus.type === 'err'}>
-      {contactStatus.text}
-    </div>
-  </div>
+    <!-- ══ PHONE CONTACTS ══════════════════════════════════════════════════ -->
+    {:else if activeTab === 'contacts'}
 
-  <!-- Contact list -->
-  <div class="section">
-    <div class="section-label-row">
-      <div class="section-label" style="margin-bottom:0">Contacts ({contactList.length})</div>
-      <button class="ghost-btn" on:click={refreshContacts}>Refresh</button>
-    </div>
-    <div class="log">
-      {#if !contactList.length}
-        <div class="log-empty">No contacts yet. Add one above.</div>
-      {:else}
-        {#each contactList as c (c._id)}
-          <div class="contact-log-row">
-            <div class="contact-log-info">
-              <span class="contact-log-name" class:dimmed={!c.enabled}>{c.name}</span>
-              <span class="contact-log-meta">{c.number}{c.subtitle ? ' · ' + c.subtitle : ''}</span>
-            </div>
-            <div class="contact-log-actions">
-              <button
-                class="toggle-btn"
-                class:on={c.enabled}
-                on:click={() => toggleContact(c._id, c.enabled)}
-              >{c.enabled ? 'Visible' : 'Hidden'}</button>
-              <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
-            </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
+      <p class="tab-sub">Manage contacts that appear on player devices. Toggle visibility without deleting.</p>
 
-  <hr class="section-divider" />
+      <div class="section">
+        <div class="section-label">Add Contact</div>
+        <div class="contact-form">
+          <input type="text" class="contact-input" placeholder="Name…" bind:value={newCName} />
+          <input type="text" class="contact-input" placeholder="Phone number…" bind:value={newCNumber} />
+          <input type="text" class="contact-input" placeholder="Role / subtitle (optional)…" bind:value={newCSubtitle} />
+        </div>
+        <div style="height:10px"></div>
+        <button class="primary" disabled={addingContact} on:click={addContact}>
+          {addingContact ? 'Adding…' : 'Add to Phone Contacts'}
+        </button>
+        <div class="status-line" class:ok={contactStatus.type === 'ok'} class:err={contactStatus.type === 'err'}>
+          {contactStatus.text}
+        </div>
+      </div>
 
-  <!-- ── CURRENT DATE ──────────────────────────────────────────────────── -->
-  <h2 class="email-heading">Current Date</h2>
-  <p class="subtitle">Set the in-game date shown on player devices. Changes propagate within 10 seconds.</p>
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Contacts ({contactList.length})</div>
+          <button class="ghost-btn" on:click={refreshContacts}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !contactList.length}
+            <div class="log-empty">No contacts yet. Add one above.</div>
+          {:else}
+            {#each contactList as c (c._id)}
+              <div class="contact-log-row">
+                <div class="contact-log-info">
+                  <span class="contact-log-name" class:dimmed={!c.enabled}>{c.name}</span>
+                  <span class="contact-log-meta">{c.number}{c.subtitle ? ' · ' + c.subtitle : ''}</span>
+                </div>
+                <div class="contact-log-actions">
+                  <button class="toggle-btn" class:on={c.enabled} on:click={() => toggleContact(c._id, c.enabled)}>
+                    {c.enabled ? 'Visible' : 'Hidden'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
 
-  <div class="section">
-    <div class="section-label">Set Date</div>
+    <!-- ══ CURRENT DATE ════════════════════════════════════════════════════ -->
+    {:else if activeTab === 'date'}
 
-    <div class="cal-current-row">
-      <span class="cal-current-label">Currently:</span>
-      {#if currentCalDate}
-        <span class="cal-current-val">
-          {CAL_MONTH_NAMES[currentCalDate.month - 1]} {currentCalDate.day}, {currentCalDate.year}
-        </span>
-      {:else}
-        <span class="cal-current-none">Not set — using default (Feb 2, 1999)</span>
-      {/if}
-    </div>
+      <p class="tab-sub">Set the in-game date shown on player devices. Changes propagate within 10 seconds.</p>
 
-    <div class="cal-picker-row">
-      <select class="cal-select" bind:value={calMonth}>
-        {#each CAL_MONTH_NAMES as name, i}
-          <option value={i + 1}>{name}</option>
-        {/each}
-      </select>
-      <select class="cal-select cal-select--day" bind:value={calDay}>
-        {#each { length: 31 } as _, i}
-          <option value={i + 1}>{i + 1}</option>
-        {/each}
-      </select>
-      <input
-        class="cal-select cal-select--year"
-        type="number"
-        min="1990"
-        max="2099"
-        bind:value={calYear}
-      />
-    </div>
+      <div class="section">
+        <div class="section-label">Set Date</div>
 
-    <button class="primary" disabled={settingDate} on:click={setCalDate}>
-      {settingDate ? 'Setting…' : 'Set Date'}
-    </button>
-    <div class="status-line" class:ok={dateStatus.type === 'ok'} class:err={dateStatus.type === 'err'}>
-      {dateStatus.text}
-    </div>
-  </div>
+        <div class="cal-current-row">
+          <span class="cal-current-label">Currently:</span>
+          {#if currentCalDate}
+            <span class="cal-current-val">
+              {CAL_MONTH_NAMES[currentCalDate.month - 1]} {currentCalDate.day}, {currentCalDate.year}
+            </span>
+          {:else}
+            <span class="cal-current-none">Not set — using default (Feb 2, 1999)</span>
+          {/if}
+        </div>
 
-</div>
+        <div class="cal-picker-row">
+          <select class="cal-select" bind:value={calMonth}>
+            {#each CAL_MONTH_NAMES as name, i}
+              <option value={i + 1}>{name}</option>
+            {/each}
+          </select>
+          <select class="cal-select cal-select--day" bind:value={calDay}>
+            {#each { length: 31 } as _, i}
+              <option value={i + 1}>{i + 1}</option>
+            {/each}
+          </select>
+          <input class="cal-select cal-select--year" type="number" min="1990" max="2099" bind:value={calYear} />
+        </div>
+
+        <button class="primary" disabled={settingDate} on:click={setCalDate}>
+          {settingDate ? 'Setting…' : 'Set Date'}
+        </button>
+        <div class="status-line" class:ok={dateStatus.type === 'ok'} class:err={dateStatus.type === 'err'}>
+          {dateStatus.text}
+        </div>
+      </div>
+
+    <!-- ══ O.N.C.E. TRANSMISSIONS ══════════════════════════════════════════ -->
+    {:else if activeTab === 'once'}
+
+      <p class="tab-sub">Send an encrypted message from Unknown / M to the O.N.C.E. channel on all player devices.</p>
+
+      <div class="section">
+        <div class="section-label once-section-label">New Transmission</div>
+        <textarea
+          class="once-textarea"
+          bind:value={onceText}
+          placeholder="Message from M… instructions, objectives, warnings."
+        ></textarea>
+        <div style="height:10px"></div>
+        <button class="once-send-btn" disabled={onceSending || !onceText.trim()} on:click={sendOnceMessage}>
+          {onceSending ? 'Transmitting…' : 'Transmit to O.N.C.E.'}
+        </button>
+        <div class="status-line" class:ok={onceStatus.type === 'ok'} class:err={onceStatus.type === 'err'}>
+          {onceStatus.text}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label once-section-label" style="margin-bottom:0">Transmissions (live)</div>
+          <button class="ghost-btn" on:click={refreshOnceLog}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !onceLog.length}
+            <div class="log-empty">No transmissions sent yet.</div>
+          {:else}
+            {#each onceLog as m (m._id ?? m.ts)}
+              <div class="once-log-row">
+                <span class="once-log-m">M:</span>
+                <span class="log-text">{m.text}<span class="log-time">{relTime(m.ts)}</span></span>
+                <button class="danger-btn once-delete-btn" on:click={() => deleteOnceMessage(m._id)}>&times;</button>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+    {/if}
+
+  </div><!-- /tab-panel -->
+</div><!-- /console -->
 
 <style>
   .console {
-    padding: 20px 16px 60px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
     max-width: 640px;
     margin: 0 auto;
     color: #e8dfc8;
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    width: 100%;
   }
-  h1 {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    color: #c9a227;
-    margin: 0 0 2px;
+
+  /* ── Console header ── */
+  .console-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 14px 16px 0;
   }
-  .email-heading {
+  .console-title {
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     color: #c9a227;
-    margin: 0 0 2px;
   }
-  .subtitle { font-size: 11px; color: #3a4a5a; letter-spacing: 0.5px; margin: 0 0 24px; }
+  .console-sub {
+    font-size: 10px;
+    color: #3a4a5a;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    flex-shrink: 0;
+    display: flex;
+    gap: 2px;
+    padding: 10px 16px 0;
+    border-bottom: 1px solid #1a2030;
+  }
+  .tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #3a4a5a;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 6px 10px 8px;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .tab:hover { color: #c9a227; }
+  .tab.active { color: #c9a227; border-bottom-color: #c9a227; }
+  .tab--once { color: #4a3070; }
+  .tab--once:hover { color: #9b6dff; }
+  .tab--once.active { color: #9b6dff; border-bottom-color: #7c3aed; }
+
+  /* ── Tab panel (the scrollable area) ── */
+  .tab-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 20px 16px 60px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 162, 39, 0.2) transparent;
+  }
+
+  .tab-sub { font-size: 11px; color: #3a4a5a; letter-spacing: 0.5px; margin: 0 0 20px; }
 
   .section { margin-bottom: 26px; }
   .section-label { font-size: 10.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #6a7d90; margin-bottom: 10px; }
@@ -850,7 +979,6 @@
   .danger-btn:hover { background: rgba(226,75,74,0.08); }
 
   .live-label { color: #4ade80; font-size: 10px; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
-  .section-divider { border: none; border-top: 1px solid #1a2030; margin: 28px 0; }
 
   /* ── Current Date section ── */
   .cal-current-row {
@@ -923,4 +1051,38 @@
   }
   .toggle-btn.on { border-color: #34c759; color: #34c759; }
   .toggle-btn:hover { border-color: #c9a227; color: #c9a227; }
+
+  /* ── O.N.C.E. section ── */
+  .once-section-label { color: #6b4fa0 !important; }
+  .once-textarea {
+    width: 100%; min-height: 80px; background: #0c0f16;
+    border: 1px solid rgba(124, 58, 237, 0.35); border-radius: 8px; color: #e8dfc8;
+    font-family: inherit; font-size: 13.5px; padding: 10px 12px; resize: vertical; outline: none;
+  }
+  .once-textarea:focus { border-color: #7c3aed; }
+  .once-textarea::placeholder { color: #3a4a5a; }
+  .once-send-btn {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.22), rgba(124, 58, 237, 0.1));
+    color: #c4a8ff;
+    border: 1px solid rgba(124, 58, 237, 0.55);
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.15s ease;
+  }
+  .once-send-btn:hover:not(:disabled) { background: rgba(124, 58, 237, 0.28); }
+  .once-send-btn:active:not(:disabled) { transform: scale(0.98); }
+  .once-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .once-log-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 10px; font-size: 12.5px; line-height: 1.5;
+  }
+  .once-log-row:last-child { margin-bottom: 0; }
+  .once-log-m { font-weight: 700; color: #9b6dff; flex-shrink: 0; }
+  .once-delete-btn { margin-left: auto; flex-shrink: 0; padding: 3px 8px; font-size: 14px; line-height: 1; }
 </style>
