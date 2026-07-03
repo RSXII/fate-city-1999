@@ -58,7 +58,7 @@
 
   async function pollUnread() {
     try {
-      const data = await dbGet('messages', { orderBy: 'ts', limitToLast: 50 });
+      const data = await dbGet('messages', { orderBy: '$key', limitToLast: 50 });
       const map = getLastSeenMap();
       let unread = 0;
       if (data) {
@@ -88,7 +88,7 @@
 
   async function pollOnce() {
     try {
-      const data = await dbGet('once-messages', { orderBy: 'ts', limitToLast: 20 });
+      const data = await dbGet('once-messages', { orderBy: '$key', limitToLast: 20 });
       if (!data) { onceUnread = false; return; }
       const msgs = Object.values(data).filter(Boolean);
       if (!msgs.length) { onceUnread = false; return; }

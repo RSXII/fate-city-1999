@@ -27,8 +27,10 @@ export const VAPID_KEY =
  *
  * @param {string} path - Firebase database path (no leading slash).
  * @param {{ orderBy?: string, limitToLast?: number }} [opts] - Optional query
- *   params for the Firebase REST API.  `orderBy` should be a field name (e.g.
- *   'ts'); `limitToLast` caps the number of results returned.
+ *   params for the Firebase REST API.  Use `orderBy: '$key'` (auto-indexed, no
+ *   rules change needed) to limit large collections by push order, which is
+ *   chronologically equivalent to ordering by `ts` since all records use
+ *   `ts: Date.now()` at push time.  `limitToLast` caps the number of results.
  */
 export async function dbGet(path, opts = {}) {
   try {
