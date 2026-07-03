@@ -237,22 +237,76 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 3: Phone Contacts ─────────────────────────────────────────────
+  let contactList = [];
+  let newCName = '';
+  let newCNumber = '';
+  let newCSubtitle = '';
+  let contactStatus = { text: '', type: '' };
+  let addingContact = false;
+
+  async function refreshContacts() {
+    try {
+      const data = await dbGet('contacts');
+      if (!data) { contactList = []; return; }
+      contactList = Object.keys(data)
+        .map(k => { const c = data[k]; c._id = k; return c; })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch { contactList = []; }
+  }
+
+  async function addContact() {
+    const name = newCName.trim();
+    const number = newCNumber.trim();
+    if (!name || !number) { contactStatus = { text: 'Name and number are required.', type: 'err' }; return; }
+    addingContact = true;
+    contactStatus = { text: 'Adding…', type: '' };
+    try {
+      await dbPost('contacts', { name, number, subtitle: newCSubtitle.trim(), enabled: true });
+      newCName = ''; newCNumber = ''; newCSubtitle = '';
+      contactStatus = { text: 'Contact added.', type: 'ok' };
+      await refreshContacts();
+    } catch (e) {
+      contactStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    addingContact = false;
+  }
+
+  async function toggleContact(id, currentEnabled) {
+    try {
+      await dbPut(`contacts/${id}/enabled`, !currentEnabled);
+      await refreshContacts();
+    } catch (e) { console.error('Toggle failed', e); }
+  }
+
+  async function deleteContact(id) {
+    if (!confirm('Remove this contact from player phones?')) return;
+    try {
+      await dbDelete(`contacts/${id}`);
+      await refreshContacts();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
+  let contactPoll;
 
   onMount(() => {
     addReply(); addReply();
     refreshLog();
     refreshStaged();
     refreshLive();
-    msgPoll   = setInterval(refreshLog,  4000);
-    emailPoll = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
+    refreshContacts();
+    msgPoll     = setInterval(refreshLog,  4000);
+    emailPoll   = setInterval(() => { refreshStaged(); refreshLive(); }, 8000);
+    contactPoll = setInterval(refreshContacts, 10000);
   });
 
   onDestroy(() => {
     clearInterval(msgPoll);
     clearInterval(emailPoll);
+    clearInterval(contactPoll);
   });
 </script>
 
@@ -515,6 +569,60 @@
       {/if}
     </div>
   </div>
+
+  <hr class="section-divider" />
+
+  <!-- ── PHONE CONTACTS ──────────────────────────────────────────────── -->
+  <h2 class="email-heading">Phone Contacts</h2>
+  <p class="subtitle">Manage contacts that appear on player devices. Toggle visibility without deleting.</p>
+
+  <!-- Add form -->
+  <div class="section">
+    <div class="section-label">Add Contact</div>
+    <div class="contact-form">
+      <input type="text" class="contact-input" placeholder="Name…" bind:value={newCName} />
+      <input type="text" class="contact-input" placeholder="Phone number…" bind:value={newCNumber} />
+      <input type="text" class="contact-input" placeholder="Role / subtitle (optional)…" bind:value={newCSubtitle} />
+    </div>
+    <div style="height:10px"></div>
+    <button class="primary" disabled={addingContact} on:click={addContact}>
+      {addingContact ? 'Adding…' : 'Add to Phone Contacts'}
+    </button>
+    <div class="status-line" class:ok={contactStatus.type === 'ok'} class:err={contactStatus.type === 'err'}>
+      {contactStatus.text}
+    </div>
+  </div>
+
+  <!-- Contact list -->
+  <div class="section">
+    <div class="section-label-row">
+      <div class="section-label" style="margin-bottom:0">Contacts ({contactList.length})</div>
+      <button class="ghost-btn" on:click={refreshContacts}>Refresh</button>
+    </div>
+    <div class="log">
+      {#if !contactList.length}
+        <div class="log-empty">No contacts yet. Add one above.</div>
+      {:else}
+        {#each contactList as c (c._id)}
+          <div class="contact-log-row">
+            <div class="contact-log-info">
+              <span class="contact-log-name" class:dimmed={!c.enabled}>{c.name}</span>
+              <span class="contact-log-meta">{c.number}{c.subtitle ? ' · ' + c.subtitle : ''}</span>
+            </div>
+            <div class="contact-log-actions">
+              <button
+                class="toggle-btn"
+                class:on={c.enabled}
+                on:click={() => toggleContact(c._id, c.enabled)}
+              >{c.enabled ? 'Visible' : 'Hidden'}</button>
+              <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
+            </div>
+          </div>
+        {/each}
+      {/if}
+    </div>
+  </div>
+
 </div>
 
 <style>
@@ -654,4 +762,31 @@
 
   .live-label { color: #4ade80; font-size: 10px; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
   .section-divider { border: none; border-top: 1px solid #1a2030; margin: 28px 0; }
+
+  /* ── Phone Contacts section ── */
+  .contact-form { display: flex; flex-direction: column; gap: 8px; }
+  .contact-input {
+    width: 100%; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px;
+    color: #e8dfc8; font-family: inherit; font-size: 13.5px; padding: 10px 12px; outline: none;
+  }
+  .contact-input:focus { border-color: #c9a227; }
+  .contact-input::placeholder { color: #3a4a5a; }
+
+  .contact-log-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .contact-log-row:last-child { border-bottom: none; }
+  .contact-log-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .contact-log-name { font-size: 13px; font-weight: 600; color: #e8dfc8; }
+  .contact-log-name.dimmed { color: #3a4a5a; }
+  .contact-log-meta { font-size: 11px; color: #6a7d90; }
+  .contact-log-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .toggle-btn {
+    background: none; border: 1px solid #3a4a5a; color: #6a7d90;
+    border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .toggle-btn.on { border-color: #34c759; color: #34c759; }
+  .toggle-btn:hover { border-color: #c9a227; color: #c9a227; }
 </style>
