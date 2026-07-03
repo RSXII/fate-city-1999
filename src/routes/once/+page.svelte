@@ -37,6 +37,58 @@
       }
     } catch { liveMessages = []; }
     loading = false;
+    initDecode(liveMessages);
+  }
+
+  // ── Decode animation ──────────────────────────────────────────────────────
+  // decodeProgress is fully reassigned each tick so Svelte tracks it reactively.
+  // Scramble chars are generated fresh on every render for natural flickering.
+  const DECODE_CHARS = '0123456789ABCDEFabcdef!@#$%&*<>[]{}|;:,.?/~^';
+  const DECODE_SPEED = 28;  // ms per tick
+  const CHARS_PER_TICK = 4; // characters revealed per tick
+
+  let decodeProgress = {}; // reactive: { [id]: revealedCount }
+  let decodeTimer = null;
+
+  function rndChar() {
+    return DECODE_CHARS[Math.floor(Math.random() * DECODE_CHARS.length)];
+  }
+
+  // Called in the template — returns fresh random chars each render
+  function buildScramble(text) {
+    let s = '';
+    for (const ch of text) {
+      s += (ch === ' ' || ch === '\n') ? ch : rndChar();
+    }
+    return s;
+  }
+
+  function initDecode(msgs) {
+    const np = { ...decodeProgress };
+    let anyNew = false;
+    for (const msg of msgs) {
+      const id = msg._id ?? String(msg.ts);
+      if (!(id in np)) { np[id] = 0; anyNew = true; }
+    }
+    decodeProgress = np; // reactive reassignment
+    if (anyNew && !decodeTimer) {
+      decodeTimer = setInterval(tickDecode, DECODE_SPEED);
+    }
+  }
+
+  function tickDecode() {
+    let allDone = true;
+    const np = { ...decodeProgress };
+    for (const msg of liveMessages) {
+      const id = msg._id ?? String(msg.ts);
+      const rev = np[id] ?? 0;
+      if (rev < msg.text.length) {
+        np[id] = Math.min(rev + CHARS_PER_TICK, msg.text.length);
+        allDone = false;
+      }
+    }
+    decodeProgress = np; // reactive reassignment — triggers re-render
+    if (allDone) { clearInterval(decodeTimer); decodeTimer = null; }
   }
 
   let poll;
@@ -46,7 +98,10 @@
     poll = visibilityAwareInterval(fetchMessages, 8000);
   });
 
-  onDestroy(() => { if (poll) poll(); });
+  onDestroy(() => {
+    if (poll) poll();
+    if (decodeTimer) clearInterval(decodeTimer);
+  });
 </script>
 
 <svelte:head>
@@ -65,6 +120,8 @@
     <div class="once-loading">Decrypting channel…</div>
   {:else if liveMessages.length > 0}
     {#each liveMessages as msg (msg._id ?? msg.ts)}
+      {@const id = msg._id ?? String(msg.ts)}
+      {@const rev = decodeProgress[id] ?? 0}
       <div class="once-msg once-msg--live">
         <div class="once-avatar" aria-hidden="true">M</div>
         <div class="once-body">
@@ -72,7 +129,13 @@
             <span class="once-sender">Unknown</span>
             <span class="once-time">{relTime(msg.ts)}</span>
           </div>
-          <div class="once-text">{msg.text}</div>
+          <div class="once-text">
+            {#if rev < msg.text.length}
+              <span class="decode-done">{msg.text.slice(0, rev)}</span><span class="decode-live">{buildScramble(msg.text.slice(rev))}</span>
+            {:else}
+              {msg.text}
+            {/if}
+          </div>
         </div>
       </div>
     {/each}
@@ -241,6 +304,16 @@
   }
   .once-msg--live .once-time {
     color: rgba(196, 168, 255, 0.5);
+  }
+  /* Decode effect */
+  .decode-done {
+    color: rgba(232, 224, 248, 0.9);
+  }
+  .decode-live {
+    color: rgba(124, 58, 237, 0.45);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
   }
   .once-section-sep {
     height: 1px;
