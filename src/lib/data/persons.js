@@ -142,8 +142,7 @@ export const NPCS = [
       { label: "Known For", value: "Fame" },
       {
         label: "Reputation",
-        value:
-          "Low combat / High chaos — she creates situations, not violence",
+        value: "Low combat / High chaos — she creates situations, not violence",
       },
     ],
     sections: [
@@ -311,8 +310,7 @@ export const NPCS = [
       { label: "Known For", value: "Glamour / Discretion" },
       {
         label: "Reputation",
-        value:
-          "Velvet-rope exclusivity — what happens here doesn't leave here",
+        value: "Velvet-rope exclusivity — what happens here doesn't leave here",
       },
     ],
     sections: [
@@ -366,14 +364,12 @@ export const NPCS = [
       { label: "Role", value: "Pop singer" },
       {
         label: "Affiliation",
-        value:
-          "Independent — signed to a label, loyal mostly to her own brand",
+        value: "Independent — signed to a label, loyal mostly to her own brand",
       },
       { label: "Known For", value: "Fame" },
       {
         label: "Reputation",
-        value:
-          "Low combat / High volatility — image-driven, easily provoked",
+        value: "Low combat / High volatility — image-driven, easily provoked",
       },
     ],
     sections: [
@@ -421,8 +417,7 @@ export const NPCS = [
       { label: "Known For", value: "Street Cred" },
       {
         label: "Reputation",
-        value:
-          "Immovable — settles disputes behind a wheel, not at a table",
+        value: "Immovable — settles disputes behind a wheel, not at a table",
       },
     ],
     sections: [
@@ -477,8 +472,7 @@ export const NPCS = [
       { label: "Known For", value: "Trust" },
       {
         label: "Reputation",
-        value:
-          "Quiet leverage — never collects loud, and never forgets either",
+        value: "Quiet leverage — never collects loud, and never forgets either",
       },
     ],
     sections: [
@@ -566,8 +560,7 @@ export const NPCS = [
       stampColor: "#2f7fa6",
     },
     name: "LAURENT VIREL",
-    epithet:
-      "&ldquo;Power isn&rsquo;t given. It&rsquo;s engineered.&rdquo;",
+    epithet: "&ldquo;Power isn&rsquo;t given. It&rsquo;s engineered.&rdquo;",
     images: [
       "images/laurent_profile.png",
       "images/laurent_01.png",
@@ -635,8 +628,7 @@ export const NPCS = [
       { label: "Age", value: "19" },
       {
         label: "Role",
-        value:
-          "Repair tech (part-time) / unregistered information broker",
+        value: "Repair tech (part-time) / unregistered information broker",
       },
       {
         label: "Affiliation",
@@ -904,8 +896,7 @@ export const NPCS = [
       { label: "Species", value: "N/A — organization" },
       {
         label: "Role",
-        value:
-          "Private emergency medical / paramilitary response corporation",
+        value: "Private emergency medical / paramilitary response corporation",
       },
       {
         label: "Affiliation",
@@ -1185,6 +1176,60 @@ export const NPCS = [
     quote: {
       text: "We don't manufacture artists. We just make sure the real ones never run out of reasons to be interesting.",
       cite: "Fate City Records, internal pitch deck (leaked)",
+    },
+  },
+  {
+    id: "asher",
+    category: "person",
+    fileNo: "AY-019",
+    stamp: "FCR SQUARE \u2014 NIGHTLIFE / SERVICE",
+    colors: {
+      rule: "#1e2a38",
+      accent: "#8eaac4",
+      stripe: "#1e2a38",
+      stampColor: "#8eaac4",
+    },
+    name: "ASHER \u201cMARBLE\u201d YOON",
+    epithet:
+      "He hears everything behind that bar and sells none of it. In FCR Square, that makes him either honest or expensive \u2014 nobody\u2019s figured out which.",
+    images: ["images/asher_profile.png"],
+    stats: [
+      { label: "Species", value: "Elf" },
+      {
+        label: "Role",
+        value: "Bartender / senior server, Marble (FCR Square)",
+      },
+      {
+        label: "Affiliation",
+        value: "Independent \u2014 no registered ties, no label deals",
+      },
+      { label: "Known For", value: "Discretion" },
+      {
+        label: "Reputation",
+        value:
+          "Mid-tier \u2014 sees more than he comments on, reliable if you earn it",
+      },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Asher Yoon works the bar at Marble, the black-marble lounge in FCR Square that pulls label-adjacent money and rising talent looking to be seen without the tabloid overhead that a bigger room would cost them. He\u2019s charming, composed, and exactly as helpful as the situation warrants \u2014 the kind of quality that takes years of work to look effortless. He knows the difference between a regular who tips well and a regular worth knowing, and has never once confused the two.",
+        ],
+      },
+      {
+        heading: "A Note From Your Benefactor",
+        hooks: [
+          "Marble is one of the few rooms in FCR Square where a fresh face doesn\u2019t automatically get clocked as one. Show up, act like you belong, and the bar tends to do the rest.",
+          "He\u2019s not looking to get involved in anyone\u2019s problems. Someone who handles themselves well in a bad situation \u2014 his bar, his night, someone else\u2019s mess \u2014 tends to find him noticeably warmer the next visit.",
+          "He knows the Square\u2019s nightlife calendar better than most people in the industry know their own schedules. Worth asking before you plan anything that depends on who\u2019s in which room on a given night.",
+          "He\u2019s building something for himself and being careful about it. Don\u2019t treat him like a resource. Treat him like a professional.",
+        ],
+      },
+    ],
+    quote: {
+      text: "I\u2019m not the story. I\u2019m the room the story happens in. There\u2019s a difference, and I like it that way.",
+      cite: "Asher Yoon, Marble, after last call",
     },
   },
 

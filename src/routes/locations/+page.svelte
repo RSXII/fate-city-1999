@@ -1,6 +1,6 @@
 <script>
   import { base } from '$app/paths';
-  import { LOCATIONS } from '$lib/data/locations.js';
+  import { LOCATIONS, DISTRICTS } from '$lib/data/locations.js';
 
   // Group by district, preserving first-seen order
   const districts = [...new Set(LOCATIONS.map(l => l.district))];
@@ -41,8 +41,46 @@
 <wire-header back="{base}/once" title="Locations" subtitle="Fate City: 1999 — Field Map" more layout="flex"></wire-header>
 
 <div class="loc-scroll">
-  {#each GROUPS as group, gi}
-    <div class="section-divider" class:first={gi === 0}>
+  <div class="section-divider first">
+    <span class="section-divider-label">Districts</span>
+  </div>
+
+  {#each DISTRICTS as entry}
+    {@const c = entry.colors}
+    <div class="card" style="--rule:{c.rule};--accent:{c.accent}">
+      <div class="stripe" style="background:{c.stripe}"></div>
+      <div class="dossier-head">
+        <span>FILE NO. {entry.fileNo}</span>
+        <span class="stamp" style="color:{c.stampColor}">{entry.stamp}</span>
+      </div>
+      <hr class="hr" />
+      <div class="name-block">
+        <h2>{@html entry.name}</h2>
+        <p class="epithet">{@html entry.epithet}</p>
+      </div>
+
+      <div class="stats">
+        {#each entry.stats as s}
+          <div class="stat-row">
+            <span class="label">{s.label}</span>
+            <span class="value">{@html s.value}</span>
+          </div>
+        {/each}
+      </div>
+
+      <div class="section">
+        {#each entry.sections as sec}
+          {#if sec.heading}<h3>{sec.heading}</h3>{/if}
+          {#each sec.paragraphs ?? [] as p}<p>{@html p}</p>{/each}
+        {/each}
+      </div>
+
+      <div class="footer-pad"></div>
+    </div>
+  {/each}
+
+  {#each GROUPS as group}
+    <div class="section-divider">
       <span class="section-divider-label">{group.label}</span>
     </div>
 

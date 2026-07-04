@@ -10,6 +10,34 @@
     .map(key => ({ label: CATEGORY_LABELS[key], entries: NPCS.filter(n => n.category === key) }))
     .filter(g => g.entries.length > 0);
 
+  // ── Redacted gate ─────────────────────────────────────────────────────────
+  const REDACTED_PASSWORD = '03171989';
+
+  let passwordValues = {};  // { [id]: string } — current input per entry
+  let revealed = {};        // { [id]: string } — decoded HTML after unlock
+  let shaking = {};         // { [id]: boolean } — shake animation state
+
+  function attemptUnlock(id, encoded) {
+    const val = (passwordValues[id] ?? '').trim().toLowerCase();
+    if (val !== REDACTED_PASSWORD) {
+      passwordValues = { ...passwordValues, [id]: '' };
+      shaking = { ...shaking, [id]: true };
+      setTimeout(() => { shaking = { ...shaking, [id]: false }; }, 400);
+      return;
+    }
+    try {
+      const decoded = decodeURIComponent(
+        Array.prototype.map.call(
+          atob(encoded),
+          c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join('')
+      );
+      revealed = { ...revealed, [id]: decoded };
+    } catch {
+      // decode failed silently — leave gate in place
+    }
+  }
+
   // ── Lightbox ──────────────────────────────────────────────────────────────
   let lbOpen = false;
   let lbImages = [];
@@ -84,7 +112,26 @@
         <div class="section">
           {#each entry.sections as sec}
             {#if sec.heading}<h3>{sec.heading}</h3>{/if}
-            {#each sec.paragraphs ?? [] as p}<p>{@html p}</p>{/each}
+            {#each sec.paragraphs ?? [] as p}
+              {#if p === 'PASSWORD' && entry.redactedEncoded}
+                {#if revealed[entry.id]}
+                  <div class="redacted-block revealed">{@html revealed[entry.id]}</div>
+                {:else}
+                  <div class="redacted-gate" class:shake={shaking[entry.id]}>
+                    <input
+                      type="password"
+                      autocomplete="off"
+                      spellcheck="false"
+                      bind:value={passwordValues[entry.id]}
+                      on:keydown={(e) => { if (e.key === 'Enter') attemptUnlock(entry.id, entry.redactedEncoded); }}
+                    />
+                    <button type="button" on:click={() => attemptUnlock(entry.id, entry.redactedEncoded)}>&#8594;</button>
+                  </div>
+                {/if}
+              {:else}
+                <p>{@html p}</p>
+              {/if}
+            {/each}
             {#if sec.hooks}
               <ul class="hooks">
                 {#each sec.hooks as h}<li>{@html h}</li>{/each}
@@ -285,5 +332,90 @@
     .section { padding: 6px 16px 0; }
     .section :global(p) { font-size: 16.5px; line-height: 1.7; }
     blockquote { margin: 14px 16px 6px; font-size: 16px; }
+  }
+
+  /* ── Redacted gate ───────────────────────────────────────────────────── */
+  .redacted-gate {
+    margin: 4px 0 18px;
+    padding: 14px 16px;
+    background: #0d0c0a;
+    border: 1px solid #2a2420;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .redacted-gate input {
+    background: #1a1815;
+    border: 1px solid #3a3630;
+    color: #cfc6b0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 3px;
+    padding: 8px 12px;
+    width: 160px;
+    outline: none;
+  }
+  .redacted-gate input:focus {
+    border-color: #6b6660;
+  }
+  .redacted-gate button {
+    background: #1a1815;
+    border: 1px solid #3a3630;
+    color: #cfc6b0;
+    font-size: 16px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .redacted-gate button:hover {
+    border-color: #6b6660;
+  }
+  .redacted-gate.shake {
+    animation: redacted-shake 0.4s ease;
+  }
+  @keyframes redacted-shake {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-6px); }
+    75%        { transform: translateX(6px); }
+  }
+
+  .redacted-block {
+    margin: 4px 0 18px;
+    padding: 16px 18px;
+    background: #0d0c0a;
+    border: 1px solid #2a2420;
+    box-shadow: inset 0 0 24px rgba(0,0,0,0.6);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.9s ease, max-height 0.9s ease;
+  }
+  .redacted-block.revealed {
+    opacity: 1;
+    max-height: 3000px;
+  }
+  .redacted-block :global(.redacted-heading) {
+    font-family: 'Arial', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #c94f4f;
+    margin: 0 0 4px;
+  }
+  .redacted-block :global(.redacted-sub) {
+    font-family: 'Arial', sans-serif;
+    font-style: italic;
+    font-size: 11px;
+    color: #6b6660;
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .redacted-block :global(p) {
+    font-family: 'Courier New', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #cfc6b0;
+    margin: 0 0 12px;
+    letter-spacing: 0.3px;
   }
 </style>

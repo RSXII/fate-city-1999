@@ -53,6 +53,73 @@ export const ENTRIES = [
     },
   },
 
+  {
+    id: "soft-angels",
+    category: "culture",
+    fileNo: "BW-016",
+    stamp: "CULTURAL INTELLIGENCE — SUBCULTURE",
+    colors: {
+      rule: "#5c5a68",
+      accent: "#a8a0c9",
+      stripe: "#5c5a68",
+      stampColor: "#a8a0c9",
+    },
+    name: "SOFT ANGELS",
+    epithet:
+      "Silver skin, a stillness like a held breath, and a beauty that stops reading as beauty the moment you notice how hard they're working not to feel anything.",
+    images: [],
+    stats: [
+      { label: "Origin", value: "Bloomwork subculture — companion trade, now spreading wider" },
+      {
+        label: "Cost",
+        value: "Plat for the clinic and the look; the real price comes due later",
+      },
+      { label: "Fray Cost", value: "None — Weave-tech dampening, not a Fray transaction" },
+      {
+        label: "Signature Marker",
+        value: "Neck-mounted dampener ring — white glow, star motifs",
+      },
+      { label: "Social Read", value: "Admired for the beauty, pitied for the reason" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Soft Angels are Bloomwork's quietest subculture — not antlers or fey ears, but the look of having already left. Pale, near-translucent skin in silver or white with faint luminescent veins beneath it; sharp, refined features held in a stillness that reads as inhuman, or simply above whatever noise the rest of the city can't stop making. Long silver-white hair, minimalist white-and-silver high fashion, delicate chains, and — for anyone serious about it — a glowing, halo-like headpiece finish the effect.",
+          "It started as a luxury service for elite companions and spread the way everything expensive in Fate City eventually does: downward, and further than whoever priced it first ever intended. What began as a booked-and-billed look for corporate functions became, for a much wider set of people, an actual escape.",
+        ],
+      },
+      {
+        heading: "The Dampener",
+        paragraphs: [
+          "The look isn't purely cosmetic — Soft Angels wear a magitech emotional dampener, tuned to numb rather than erase. Users keep their thoughts, their memory, their sense of self; the “why am I doing this” still surfaces. What goes quiet is the feeling that would normally answer it.",
+          "That numbness doesn't stay free. Heavy or long-term use dulls emotion gradually and permanently, and the city treats serious users accordingly — respected for the poise, quietly written off as lost. Recovery is its own separate problem: the same numbness that made the escape appealing is what erodes the will to climb back out of it.",
+          "Serious users carry the marker openly: a glowing white ring at the back of the neck, traced with star motifs. It reads as elegant. It is not meant to be subtle.",
+        ],
+      },
+      {
+        heading: "The Seraphim",
+        paragraphs: [
+          "At the top of the subculture sit the Seraphim — the original tier, and still the standard everyone else gets measured against. They're booked as elite corporate companions: living art for high-society events, private functions, and rooms where presence matters more than conversation. Many started in beautiful, low-income circumstances that the lifestyle pays its way out of, which is a large part of why the pipeline stays full.",
+          "Seraphim dampeners are toggleable rather than constant, which is exactly what lets them perform perfect composure on command instead of simply having none left to perform with.",
+        ],
+      },
+      {
+        heading: "A Note From Your Benefactor",
+        hooks: [
+          "The dampener doesn't turn anything off completely — the person in there is still thinking, still watching. What's missing is enough of the caring to make the “why” matter.",
+          "A toggleable ring means someone's still choosing when to feel. One that never comes off usually means the choosing stopped being the point a while ago.",
+          "Respect and pity aren't the same reaction, but this city hands out both to the same faces. Notice which one you're having, and why.",
+          "A high-end clinic and a back-alley one can install the exact same ring. What they can't install the same way is how far someone had to fall before they walked in the door.",
+        ],
+      },
+    ],
+    quote: {
+      text: "You stop being able to tell if she's serene or just isn't in there anymore. Nobody selling the look will help you figure out which.",
+      cite: "Street observation, uncredited",
+    },
+  },
+
   // ── TECHNOLOGY ────────────────────────────────────────────────────────
   {
     id: "the-wire",
