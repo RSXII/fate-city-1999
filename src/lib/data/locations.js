@@ -1,3 +1,350 @@
+export const DISTRICTS = [
+  {
+    id: "district-weston-heights",
+    fileNo: "DIST-01",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "WESTON HEIGHTS",
+    epithet: "Old money on one side of the street, new money pretending otherwise on the other.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Affluent, quiet, well-guarded" },
+      { label: "Notable", value: "Hillside residential enclave, western edge of the city" },
+      { label: "Read", value: "Comfortable if you belong here — conspicuous if you don&rsquo;t" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Fate City&rsquo;s western hillside district, and the kind of neighborhood that doesn&rsquo;t advertise how much it costs to live there. Wide lawns, private security nobody mentions by name, and a view of the rest of the city that most residents would rather not be reminded is down there.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-warehouse-district",
+    fileNo: "DIST-02",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "WAREHOUSE DISTRICT",
+    epithet: "Freight in, freight out, and the Fate City Racetrack running laps in the middle of it.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Industrial, working freight, mixed-use" },
+      { label: "Notable", value: "Home to the Fate City Racetrack" },
+      { label: "Read", value: "Busy, loud, more legitimate business than not" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Long blocks of loading docks and converted freight space on the city&rsquo;s northwest edge, built around the rail lines and highway spur that still move most of what Fate City imports. The Racetrack carved out a permanent home in the middle of it, drawing a very different crowd on race nights than the district sees the rest of the week.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-city-heights",
+    fileNo: "DIST-03",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "CITY HEIGHTS",
+    epithet: "The skyline everyone photographs from somewhere else.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Dense, vertical, corporate-adjacent residential" },
+      { label: "Notable", value: "Northern high-rise cluster" },
+      { label: "Read", value: "Upscale, orderly, cameras everywhere that aren&rsquo;t officially cameras" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A cluster of high-rises at the north end of the city, mostly residential towers built for people who work Downtown but didn&rsquo;t want to live there. Clean, well-lit, and quiet in a way that isn&rsquo;t entirely about how nice the neighborhood is.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-downtown",
+    fileNo: "DIST-04",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "DOWNTOWN",
+    epithet: "Every skyline shot of Fate City is really just a skyline shot of Downtown.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Corporate, political, old-money hospitality" },
+      { label: "Notable", value: "S.K.AM Tower, Galvère HQ, The Aurelian" },
+      { label: "Read", value: "Powerful, photograph-ready, watched" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "The city&rsquo;s financial and political center, and the district every other neighborhood measures itself against. Corporate towers, a fashion-house headquarters, and old-money hospitality share the same few blocks &mdash; along with most of the decisions that end up affecting the rest of the city without ever being made in front of it.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-sunny-estates",
+    fileNo: "DIST-05",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "SUNNY ESTATES",
+    epithet: "Wide streets, high fences, and neighbors who&rsquo;d rather not discuss what any of it costs.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Affluent, gated, immaculately maintained" },
+      { label: "Notable", value: "Multiple gated-community enclaves, private security patrols" },
+      { label: "Read", value: "Exclusive, insulated, aggressively pleasant" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Fate City&rsquo;s wealthiest residential district — broad, tree-lined streets, gated communities, and houses that don&rsquo;t need to advertise what they&rsquo;re worth. The name undersells how tightly this neighborhood polices its own borders.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-weston",
+    fileNo: "DIST-06",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "WESTON",
+    epithet: "Everything Weston Heights used to be, before the hyphen got expensive.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Working residential, unpretentious" },
+      { label: "Notable", value: "Southwestern residential district" },
+      { label: "Read", value: "Ordinary, overlooked, exactly as advertised" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A residential district on the western edge, doing the unglamorous work of housing the people who keep the rest of the city running. Fewer headlines than its uphill neighbor, and most residents would tell you that&rsquo;s the appeal.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-sebring",
+    fileNo: "DIST-07",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "SEBRING",
+    epithet: "Not quite Downtown, not quite anywhere else either.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Mixed residential/commercial, transitional" },
+      { label: "Notable", value: "Central-west district, near Police HQ" },
+      { label: "Read", value: "Unremarkable — which is its own kind of useful" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A central district that mostly gets described by what it&rsquo;s near — close enough to Downtown to matter, close enough to Police HQ to stay reasonably orderly, and just far enough from both to make its own rules on a quiet night.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-crescent-hills",
+    fileNo: "DIST-08",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "CRESCENT HILLS",
+    epithet: "Good views, better security deposits.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Upscale residential, hillside" },
+      { label: "Notable", value: "Central-east district, adjacent to FCR Square" },
+      { label: "Read", value: "Comfortable, guarded, a little self-satisfied" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A hillside residential district east of center, popular with anyone who wants easy reach of Downtown and FCR Square without living in either. Nice enough that most residents stopped noticing the price of nice a long time ago.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-fcr-square",
+    fileNo: "DIST-09",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "FCR SQUARE",
+    epithet: "The skyline you see first crossing the bridge from Broad Heights — and Fate City Records made sure of it.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Luxury high-rise, music industry, nightlife" },
+      { label: "Notable", value: "Fate City Records HQ tower" },
+      { label: "Read", value: "Loud, glamorous, expensive to just stand in" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A district built around Fate City Records&rsquo; headquarters — the skyscraper that&rsquo;s the first thing anyone sees crossing the bridge from Broad Heights toward Sunny Estates. Tall luxury apartment towers, record shops, and bars cluster around its base, all of it priced for people adjacent to the industry rather than necessarily in it.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-fulfillment-center",
+    fileNo: "DIST-15",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "FULFILLMENT CENTER",
+    epithet: "The building that ships everything and belongs to nowhere in particular.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Logistics, consumer warehousing, S.K.AM-operated" },
+      { label: "Notable", value: "The Fulfillment Center itself — the district is the building" },
+      { label: "Read", value: "Function over neighborhood, corporate through and through" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A single-purpose district built around the S.K.AM Fulfillment Center — the warehouse hub that ships half the delivery vans in the city. It doesn&rsquo;t belong to Sunny Estates, FCR Square, or anywhere else on the map; it&rsquo;s its own fenced-off footprint, existing purely to keep product moving.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-cooper-city",
+    fileNo: "DIST-10",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "COOPER CITY",
+    epithet: "Everyone passes through. Fewer people stay.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Transit, security, working-class residential" },
+      { label: "Notable", value: "Kara Aigner International Airport, Police HQ, The Agency HQ" },
+      { label: "Read", value: "Watched, functional, no illusions" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A district built around movement — the international airport anchors one end, Police HQ and Agency HQ sit at the other, and the residential streets in between mostly house people connected to one or the other. Nobody here is under the impression the neighborhood isn&rsquo;t being watched.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-industrial-square",
+    fileNo: "DIST-11",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "INDUSTRIAL SQUARE",
+    epithet: "The lights that never go all the way out.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Heavy industrial, resource extraction" },
+      { label: "Notable", value: "Linden Oil Well" },
+      { label: "Read", value: "Loud, functional, indifferent to who&rsquo;s asking" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Factories, refineries, and the Linden Oil Well anchor this district south of center — the unglamorous machinery that keeps the rest of the city&rsquo;s lights on and mostly goes unphotographed for it.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-broad-heights",
+    fileNo: "DIST-12",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "BROAD HEIGHTS",
+    epithet: "Nice enough to stop apologizing for, not nice enough to stop comparing.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Upper-middle-class residential" },
+      { label: "Notable", value: "Mid-level corporate execs, minor musicians, tech workers" },
+      { label: "Read", value: "Comfortable, aspirational, a rung below Sunny Estates and knows it" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A solidly upper-middle-class district on the city&rsquo;s eastern edge — nice apartments and nice houses, just smaller than anything in Sunny Estates. Mid-level corporate executives, working tech people, and musicians who haven&rsquo;t quite broken through make up most of the neighborhood.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-briarwood",
+    fileNo: "DIST-13",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "BRIARWOOD",
+    epithet: "Everyone knows somebody who knows somebody in Briarwood.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Working-class, resourceful, off-the-books economy" },
+      { label: "Notable", value: "Patch&rsquo;s, Decker&rsquo;s, and a clinic with no sign on the door" },
+      { label: "Read", value: "Rough edges, real loyalty, minds its own business" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A working-class district on the southern edge where most of the useful things in the city get fixed, sold, or quietly handled without a paper trail. Less money than its neighbors, considerably more word-of-mouth.",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "district-ellis",
+    fileNo: "DIST-14",
+    stamp: "DISTRICT OVERVIEW — FIELD MAP",
+    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    name: "ELLIS",
+    epithet: "The last stop before the map stops caring.",
+    images: [],
+    stats: [
+      { label: "Character", value: "Quiet, fringe, sparsely developed" },
+      { label: "Notable", value: "Southernmost district" },
+      { label: "Read", value: "Low visibility, low interference, low everything" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "The southernmost district, and the quietest one on the map by a wide margin. Development thins out fast past its edges, which suits most of the people who live there just fine.",
+        ],
+      },
+    ],
+  },
+];
+
 export const LOCATIONS = [
   {
     id: "patchs",
