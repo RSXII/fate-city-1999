@@ -112,6 +112,12 @@ const SENDERS = [
     color: "#d9a23f",
     avatar: "images/fcrecords_profile.png",
   },
+  {
+    id: "asher",
+    name: "Asher Yoon",
+    color: "#8eaac4",
+    avatar: "images/asher_profile.png",
+  },
 ];
 
 export default SENDERS;

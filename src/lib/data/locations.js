@@ -3,14 +3,27 @@ export const DISTRICTS = [
     id: "district-weston-heights",
     fileNo: "DIST-01",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "WESTON HEIGHTS",
-    epithet: "Old money on one side of the street, new money pretending otherwise on the other.",
+    epithet:
+      "Old money on one side of the street, new money pretending otherwise on the other.",
     images: [],
     stats: [
       { label: "Character", value: "Affluent, quiet, well-guarded" },
-      { label: "Notable", value: "Hillside residential enclave, western edge of the city" },
-      { label: "Read", value: "Comfortable if you belong here — conspicuous if you don&rsquo;t" },
+      {
+        label: "Notable",
+        value: "Hillside residential enclave, western edge of the city",
+      },
+      {
+        label: "Read",
+        value:
+          "Comfortable if you belong here — conspicuous if you don&rsquo;t",
+      },
     ],
     sections: [
       {
@@ -26,9 +39,15 @@ export const DISTRICTS = [
     id: "district-warehouse-district",
     fileNo: "DIST-02",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "WAREHOUSE DISTRICT",
-    epithet: "Freight in, freight out, and the Fate City Racetrack running laps in the middle of it.",
+    epithet:
+      "Freight in, freight out, and the Fate City Racetrack running laps in the middle of it.",
     images: [],
     stats: [
       { label: "Character", value: "Industrial, working freight, mixed-use" },
@@ -49,14 +68,26 @@ export const DISTRICTS = [
     id: "district-city-heights",
     fileNo: "DIST-03",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "CITY HEIGHTS",
     epithet: "The skyline everyone photographs from somewhere else.",
     images: [],
     stats: [
-      { label: "Character", value: "Dense, vertical, corporate-adjacent residential" },
+      {
+        label: "Character",
+        value: "Dense, vertical, corporate-adjacent residential",
+      },
       { label: "Notable", value: "Northern high-rise cluster" },
-      { label: "Read", value: "Upscale, orderly, cameras everywhere that aren&rsquo;t officially cameras" },
+      {
+        label: "Read",
+        value:
+          "Upscale, orderly, cameras everywhere that aren&rsquo;t officially cameras",
+      },
     ],
     sections: [
       {
@@ -72,12 +103,21 @@ export const DISTRICTS = [
     id: "district-downtown",
     fileNo: "DIST-04",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "DOWNTOWN",
-    epithet: "Every skyline shot of Fate City is really just a skyline shot of Downtown.",
+    epithet:
+      "Every skyline shot of Fate City is really just a skyline shot of Downtown.",
     images: [],
     stats: [
-      { label: "Character", value: "Corporate, political, old-money hospitality" },
+      {
+        label: "Character",
+        value: "Corporate, political, old-money hospitality",
+      },
       { label: "Notable", value: "S.K.AM Tower, Galvère HQ, The Aurelian" },
       { label: "Read", value: "Powerful, photograph-ready, watched" },
     ],
@@ -95,13 +135,22 @@ export const DISTRICTS = [
     id: "district-sunny-estates",
     fileNo: "DIST-05",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "SUNNY ESTATES",
-    epithet: "Wide streets, high fences, and neighbors who&rsquo;d rather not discuss what any of it costs.",
+    epithet:
+      "Wide streets, high fences, and neighbors who&rsquo;d rather not discuss what any of it costs.",
     images: [],
     stats: [
       { label: "Character", value: "Affluent, gated, immaculately maintained" },
-      { label: "Notable", value: "Multiple gated-community enclaves, private security patrols" },
+      {
+        label: "Notable",
+        value: "Multiple gated-community enclaves, private security patrols",
+      },
       { label: "Read", value: "Exclusive, insulated, aggressively pleasant" },
     ],
     sections: [
@@ -118,9 +167,15 @@ export const DISTRICTS = [
     id: "district-weston",
     fileNo: "DIST-06",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "WESTON",
-    epithet: "Everything Weston Heights used to be, before the hyphen got expensive.",
+    epithet:
+      "Everything Weston Heights used to be, before the hyphen got expensive.",
     images: [],
     stats: [
       { label: "Character", value: "Working residential, unpretentious" },
@@ -141,14 +196,25 @@ export const DISTRICTS = [
     id: "district-sebring",
     fileNo: "DIST-07",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "SEBRING",
     epithet: "Not quite Downtown, not quite anywhere else either.",
     images: [],
     stats: [
-      { label: "Character", value: "Mixed residential/commercial, transitional" },
+      {
+        label: "Character",
+        value: "Mixed residential/commercial, transitional",
+      },
       { label: "Notable", value: "Central-west district, near Police HQ" },
-      { label: "Read", value: "Unremarkable — which is its own kind of useful" },
+      {
+        label: "Read",
+        value: "Unremarkable — which is its own kind of useful",
+      },
     ],
     sections: [
       {
@@ -164,13 +230,21 @@ export const DISTRICTS = [
     id: "district-crescent-hills",
     fileNo: "DIST-08",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "CRESCENT HILLS",
     epithet: "Good views, better security deposits.",
     images: [],
     stats: [
       { label: "Character", value: "Upscale residential, hillside" },
-      { label: "Notable", value: "Central-east district, adjacent to FCR Square" },
+      {
+        label: "Notable",
+        value: "Central-east district, adjacent to FCR Square",
+      },
       { label: "Read", value: "Comfortable, guarded, a little self-satisfied" },
     ],
     sections: [
@@ -187,12 +261,21 @@ export const DISTRICTS = [
     id: "district-fcr-square",
     fileNo: "DIST-09",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "FCR SQUARE",
-    epithet: "The skyline you see first crossing the bridge from Broad Heights — and Fate City Records made sure of it.",
+    epithet:
+      "The skyline you see first crossing the bridge from Broad Heights — and Fate City Records made sure of it.",
     images: [],
     stats: [
-      { label: "Character", value: "Luxury high-rise, music industry, nightlife" },
+      {
+        label: "Character",
+        value: "Luxury high-rise, music industry, nightlife",
+      },
       { label: "Notable", value: "Fate City Records HQ tower" },
       { label: "Read", value: "Loud, glamorous, expensive to just stand in" },
     ],
@@ -210,14 +293,29 @@ export const DISTRICTS = [
     id: "district-fulfillment-center",
     fileNo: "DIST-15",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "FULFILLMENT CENTER",
-    epithet: "The building that ships everything and belongs to nowhere in particular.",
+    epithet:
+      "The building that ships everything and belongs to nowhere in particular.",
     images: [],
     stats: [
-      { label: "Character", value: "Logistics, consumer warehousing, S.K.AM-operated" },
-      { label: "Notable", value: "The Fulfillment Center itself — the district is the building" },
-      { label: "Read", value: "Function over neighborhood, corporate through and through" },
+      {
+        label: "Character",
+        value: "Logistics, consumer warehousing, S.K.AM-operated",
+      },
+      {
+        label: "Notable",
+        value: "The Fulfillment Center itself — the district is the building",
+      },
+      {
+        label: "Read",
+        value: "Function over neighborhood, corporate through and through",
+      },
     ],
     sections: [
       {
@@ -233,13 +331,24 @@ export const DISTRICTS = [
     id: "district-cooper-city",
     fileNo: "DIST-10",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "COOPER CITY",
     epithet: "Everyone passes through. Fewer people stay.",
     images: [],
     stats: [
-      { label: "Character", value: "Transit, security, working-class residential" },
-      { label: "Notable", value: "Kara Aigner International Airport, Police HQ, The Agency HQ" },
+      {
+        label: "Character",
+        value: "Transit, security, working-class residential",
+      },
+      {
+        label: "Notable",
+        value: "Kara Aigner International Airport, Police HQ, The Agency HQ",
+      },
       { label: "Read", value: "Watched, functional, no illusions" },
     ],
     sections: [
@@ -256,14 +365,22 @@ export const DISTRICTS = [
     id: "district-industrial-square",
     fileNo: "DIST-11",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "INDUSTRIAL SQUARE",
     epithet: "The lights that never go all the way out.",
     images: [],
     stats: [
       { label: "Character", value: "Heavy industrial, resource extraction" },
       { label: "Notable", value: "Linden Oil Well" },
-      { label: "Read", value: "Loud, functional, indifferent to who&rsquo;s asking" },
+      {
+        label: "Read",
+        value: "Loud, functional, indifferent to who&rsquo;s asking",
+      },
     ],
     sections: [
       {
@@ -279,14 +396,27 @@ export const DISTRICTS = [
     id: "district-broad-heights",
     fileNo: "DIST-12",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "BROAD HEIGHTS",
-    epithet: "Nice enough to stop apologizing for, not nice enough to stop comparing.",
+    epithet:
+      "Nice enough to stop apologizing for, not nice enough to stop comparing.",
     images: [],
     stats: [
       { label: "Character", value: "Upper-middle-class residential" },
-      { label: "Notable", value: "Mid-level corporate execs, minor musicians, tech workers" },
-      { label: "Read", value: "Comfortable, aspirational, a rung below Sunny Estates and knows it" },
+      {
+        label: "Notable",
+        value: "Mid-level corporate execs, minor musicians, tech workers",
+      },
+      {
+        label: "Read",
+        value:
+          "Comfortable, aspirational, a rung below Sunny Estates and knows it",
+      },
     ],
     sections: [
       {
@@ -302,14 +432,29 @@ export const DISTRICTS = [
     id: "district-briarwood",
     fileNo: "DIST-13",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "BRIARWOOD",
     epithet: "Everyone knows somebody who knows somebody in Briarwood.",
     images: [],
     stats: [
-      { label: "Character", value: "Working-class, resourceful, off-the-books economy" },
-      { label: "Notable", value: "Patch&rsquo;s, Decker&rsquo;s, and a clinic with no sign on the door" },
-      { label: "Read", value: "Rough edges, real loyalty, minds its own business" },
+      {
+        label: "Character",
+        value: "Working-class, resourceful, off-the-books economy",
+      },
+      {
+        label: "Notable",
+        value:
+          "Patch&rsquo;s, Decker&rsquo;s, and a clinic with no sign on the door",
+      },
+      {
+        label: "Read",
+        value: "Rough edges, real loyalty, minds its own business",
+      },
     ],
     sections: [
       {
@@ -325,14 +470,22 @@ export const DISTRICTS = [
     id: "district-ellis",
     fileNo: "DIST-14",
     stamp: "DISTRICT OVERVIEW — FIELD MAP",
-    colors: { rule: "#2c4a5c", accent: "#5fa0c9", stripe: "#2c4a5c", stampColor: "#5fa0c9" },
+    colors: {
+      rule: "#2c4a5c",
+      accent: "#5fa0c9",
+      stripe: "#2c4a5c",
+      stampColor: "#5fa0c9",
+    },
     name: "ELLIS",
     epithet: "The last stop before the map stops caring.",
     images: [],
     stats: [
       { label: "Character", value: "Quiet, fringe, sparsely developed" },
       { label: "Notable", value: "Southernmost district" },
-      { label: "Read", value: "Low visibility, low interference, low everything" },
+      {
+        label: "Read",
+        value: "Low visibility, low interference, low everything",
+      },
     ],
     sections: [
       {
@@ -688,8 +841,7 @@ export const LOCATIONS = [
       },
       {
         label: "Known For",
-        value:
-          "Galas, quiet dinners, careers decided over a second drink",
+        value: "Galas, quiet dinners, careers decided over a second drink",
       },
       { label: "Read", value: "Grand, warm-lit, watched" },
     ],
@@ -713,6 +865,57 @@ export const LOCATIONS = [
     quote: {
       text: "Most of our guests never see the top floor. Most of them never notice they haven&rsquo;t.",
       cite: "Attributed to an Aurelian concierge, off the record",
+    },
+  },
+  {
+    id: "marble-bar",
+    district: "FCR Square",
+    fileNo: "FCR-01",
+    stamp: "FCR SQUARE \u2014 NIGHTLIFE / UPSCALE",
+    colors: {
+      rule: "#1e2a38",
+      accent: "#8eaac4",
+      stripe: "#1e2a38",
+      stampColor: "#8eaac4",
+    },
+    name: "MARBLE",
+    epithet:
+      "The kind of room that photographs beautifully and tells none of its stories afterward.",
+    images: [],
+    stats: [
+      { label: "District", value: "FCR Square" },
+      { label: "Type", value: "Upscale cocktail lounge" },
+      {
+        label: "Access",
+        value: "Walk-in \u2014 but the good seats aren\u2019t guaranteed",
+      },
+      {
+        label: "Known For",
+        value:
+          "Industry adjacency, no paparazzi, drinks that cost what they cost",
+      },
+      { label: "Read", value: "Expensive, composed, carefully watched" },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "A black-marble lounge a few blocks from Fate City Records\u2019 tower \u2014 the room where label-adjacent money and rising talent go to be seen without the tabloid overhead that Nocturne or a public premiere would cost them. Dark surfaces, low lighting, a bar backed in stone that runs the full length of the room. The crowd is curated not by a door policy but by price point and reputation: if you can afford the drinks and someone behind the bar knows your name, you\u2019re in. If neither is true, the experience is noticeably shorter.",
+        ],
+      },
+      {
+        heading: "A Note From Your Benefactor",
+        hooks: [
+          "The room sees enough industry traffic that a conversation here carries real weight. Whoever\u2019s two seats down has probably heard of whatever you\u2019re working on, or knows someone who has.",
+          "Loud enough to talk privately. Quiet enough that people hear what you\u2019re saying. Account for both.",
+          "Nobody photographs you here without your permission. That guarantee is worth more than the drink price suggests.",
+          "Regulars who\u2019ve been coming long enough remember faces. Showing up consistently matters more than showing up once with money.",
+        ],
+      },
+    ],
+    quote: {
+      text: "You come here to be seen. Just not by everyone.",
+      cite: "Overheard at the bar, Marble",
     },
   },
 ];
