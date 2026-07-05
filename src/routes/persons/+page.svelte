@@ -1,6 +1,10 @@
 <script>
   import { base } from '$app/paths';
+  import { onMount } from 'svelte';
   import { NPCS } from '$lib/data/persons.js';
+  import { dbGet } from '$lib/firebase-db.js';
+  import { toBriefingEntry } from '$lib/briefing-format.js';
+  import BriefingCard from '$lib/components/BriefingCard.svelte';
 
   // Group in canonical order: briefing → person → organization
   const CATEGORY_ORDER = ['briefing', 'person', 'organization'];
@@ -9,6 +13,18 @@
   const GROUPS = CATEGORY_ORDER
     .map(key => ({ label: CATEGORY_LABELS[key], entries: NPCS.filter(n => n.category === key) }))
     .filter(g => g.entries.length > 0);
+
+  // ── GM-authored case files, staged via the console ─────────────────────────
+  let liveEntries = [];
+  onMount(async () => {
+    const data = await dbGet('briefings');
+    if (!data) return;
+    liveEntries = Object.keys(data)
+      .map(k => ({ _id: k, ...data[k] }))
+      .filter(b => b.section === 'persons' && b.staged === true)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .map(toBriefingEntry);
+  });
 
   // ── Redacted gate ─────────────────────────────────────────────────────────
   const REDACTED_PASSWORD = '03171989';
@@ -151,6 +167,15 @@
       </div>
     {/each}
   {/each}
+
+  {#if liveEntries.length}
+    <div class="section-divider">
+      <span class="section-divider-label">Field Updates</span>
+    </div>
+    {#each liveEntries as entry (entry.id)}
+      <BriefingCard {entry} onImageClick={openLightbox} />
+    {/each}
+  {/if}
 </div>
 
 <!-- Lightbox -->

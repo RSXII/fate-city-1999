@@ -1,11 +1,27 @@
 <script>
   import { base } from '$app/paths';
+  import { onMount } from 'svelte';
   import { ENTRIES, CATEGORY_ORDER } from '$lib/data/intel.js';
+  import { dbGet } from '$lib/firebase-db.js';
+  import { toBriefingEntry } from '$lib/briefing-format.js';
+  import BriefingCard from '$lib/components/BriefingCard.svelte';
 
   // Group by category in display order
   const GROUPS = CATEGORY_ORDER
     .map(g => ({ ...g, entries: ENTRIES.filter(e => e.category === g.key) }))
     .filter(g => g.entries.length > 0);
+
+  // ── GM-authored case files, staged via the console ─────────────────────────
+  let liveEntries = [];
+  onMount(async () => {
+    const data = await dbGet('briefings');
+    if (!data) return;
+    liveEntries = Object.keys(data)
+      .map(k => ({ _id: k, ...data[k] }))
+      .filter(b => b.section === 'intel' && b.staged === true)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .map(toBriefingEntry);
+  });
 
   // ── Lightbox ──────────────────────────────────────────────────────────────
   let lbOpen = false;
@@ -94,6 +110,15 @@
       </div>
     {/each}
   {/each}
+
+  {#if liveEntries.length}
+    <div class="section-divider">
+      <span class="section-divider-label">Field Updates</span>
+    </div>
+    {#each liveEntries as entry (entry.id)}
+      <BriefingCard {entry} onImageClick={openLightbox} />
+    {/each}
+  {/if}
 </div>
 
 <!-- Lightbox -->
