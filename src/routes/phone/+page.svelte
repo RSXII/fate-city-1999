@@ -319,6 +319,7 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.1) transparent;
+    padding-top: 50px;
     padding-bottom: 8px;
   }
 
