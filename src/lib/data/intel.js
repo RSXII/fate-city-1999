@@ -67,19 +67,29 @@ export const ENTRIES = [
     name: "SOFT ANGELS",
     epithet:
       "Silver skin, a stillness like a held breath, and a beauty that stops reading as beauty the moment you notice how hard they're working not to feel anything.",
-    images: [],
+    images: ["images/soft_angel_style.png"],
     stats: [
-      { label: "Origin", value: "Bloomwork subculture — companion trade, now spreading wider" },
+      {
+        label: "Origin",
+        value: "Bloomwork subculture — companion trade, now spreading wider",
+      },
       {
         label: "Cost",
-        value: "Plat for the clinic and the look; the real price comes due later",
+        value:
+          "Plat for the clinic and the look; the real price comes due later",
       },
-      { label: "Fray Cost", value: "None — Weave-tech dampening, not a Fray transaction" },
+      {
+        label: "Fray Cost",
+        value: "None — Weave-tech dampening, not a Fray transaction",
+      },
       {
         label: "Signature Marker",
         value: "Neck-mounted dampener ring — white glow, star motifs",
       },
-      { label: "Social Read", value: "Admired for the beauty, pitied for the reason" },
+      {
+        label: "Social Read",
+        value: "Admired for the beauty, pitied for the reason",
+      },
     ],
     sections: [
       {
