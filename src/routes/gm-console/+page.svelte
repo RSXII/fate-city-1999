@@ -4,11 +4,14 @@
   import SENDERS from '$lib/data/senders.js';
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
+  import { CASE_SECTIONS } from '$lib/data/case-sections.js';
 
   let activeTab = 'wire';
 
   const GITHUB_IMAGES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images/messages';
+  const GITHUB_ROOT_IMAGES_API =
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/images';
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function relTime(ts) {
@@ -240,6 +243,130 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 2b: Case Files (persons / locations / intel builder) ──────────
+  let caseSection = CASE_SECTIONS[0]?.key ?? 'persons';
+  let caseFileNo = '';
+  let caseName = '';
+  let caseSpecies = '';
+  let caseRep = '';
+  let caseOverview = '';
+  let caseNotes = '';
+  let caseAccentColor = '#b8902f';
+  let caseImages = []; // { name, path, url }
+  let caseImagePicker = { open: false, loading: false, error: '', images: [] };
+  let caseStatus = { text: '', type: '' };
+  let stagingCase = false;
+  let stagedCases = [];
+  let liveCases = [];
+
+  function caseSectionLabel(key) {
+    return CASE_SECTIONS.find(s => s.key === key)?.label ?? key;
+  }
+
+  async function toggleCaseImagePicker() {
+    if (caseImagePicker.open) { caseImagePicker = { ...caseImagePicker, open: false }; return; }
+    caseImagePicker = { open: true, loading: true, error: '', images: [] };
+    try {
+      const res = await fetch(GITHUB_ROOT_IMAGES_API);
+      if (res.status === 404) {
+        caseImagePicker = { ...caseImagePicker, loading: false, error: 'No images found in images/ yet.' };
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const images = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      caseImagePicker = { ...caseImagePicker, loading: false, images, error: images.length ? '' : 'No images found.' };
+    } catch (e) {
+      caseImagePicker = { ...caseImagePicker, loading: false, error: `Failed: ${e?.message ?? 'error'}` };
+    }
+  }
+
+  function addCaseImage(img) {
+    if (caseImages.some(i => i.name === img.name)) return;
+    caseImages = [...caseImages, { name: img.name, path: img.path, url: img.download_url }];
+  }
+
+  function removeCaseImage(name) {
+    caseImages = caseImages.filter(i => i.name !== name);
+  }
+
+  async function stageCase() {
+    const name = caseName.trim();
+    if (!name) { caseStatus = { text: 'A name is required.', type: 'err' }; return; }
+    stagingCase = true;
+    caseStatus = { text: 'Staging…', type: '' };
+    try {
+      await dbPost('briefings', {
+        section: caseSection,
+        staged: false,
+        createdAt: Date.now(),
+        fileNo: caseFileNo.trim(),
+        name,
+        species: caseSpecies.trim(),
+        rep: caseRep.trim(),
+        overview: caseOverview.trim(),
+        notes: caseNotes.trim(),
+        accentColor: caseAccentColor,
+        images: caseImages.map(i => i.path),
+      });
+      caseFileNo = '';
+      caseName = '';
+      caseSpecies = '';
+      caseRep = '';
+      caseOverview = '';
+      caseNotes = '';
+      caseImages = [];
+      caseImagePicker = { open: false, loading: false, error: '', images: [] };
+      caseStatus = { text: 'Staged. Use Deploy when the players are ready.', type: 'ok' };
+      await refreshCaseStaged();
+    } catch (e) {
+      caseStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    stagingCase = false;
+  }
+
+  async function loadCases(stagedValue) {
+    try {
+      const data = await dbGet('briefings');
+      if (!data) return [];
+      return Object.keys(data)
+        .map(k => { const c = data[k]; c._id = k; return c; })
+        .filter(c => c.staged === stagedValue)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch { return []; }
+  }
+
+  async function refreshCaseStaged() { stagedCases = await loadCases(false); }
+  async function refreshCaseLive()   { liveCases   = await loadCases(true);  }
+
+  let deployingCaseId = null;
+  async function deployCase(id) {
+    deployingCaseId = id;
+    try { await dbPut(`briefings/${id}/staged`, true); await refreshCaseStaged(); await refreshCaseLive(); }
+    catch (e) { console.error('Deploy failed', e); }
+    deployingCaseId = null;
+  }
+
+  let recallingCaseId = null;
+  async function recallCase(id) {
+    if (!confirm('Recall this case file? It will disappear from player devices.')) return;
+    recallingCaseId = id;
+    try { await dbPut(`briefings/${id}/staged`, false); await refreshCaseStaged(); await refreshCaseLive(); }
+    catch (e) { console.error('Recall failed', e); }
+    recallingCaseId = null;
+  }
+
+  async function deleteCase(id, isLive) {
+    const msg = isLive
+      ? 'Permanently delete this live case file from all devices?'
+      : 'Delete this staged case file? This cannot be undone.';
+    if (!confirm(msg)) return;
+    try {
+      await dbDelete(`briefings/${id}`);
+      if (isLive) await refreshCaseLive(); else await refreshCaseStaged();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
   // ── Section 3: Phone Contacts ─────────────────────────────────────────────
   let contactList = [];
   let newCName = '';
@@ -370,6 +497,7 @@
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
+  let casePoll;
   let contactPoll;
   let datePoll;
   let oncePoll;
@@ -379,11 +507,14 @@
     refreshLog();
     refreshStaged();
     refreshLive();
+    refreshCaseStaged();
+    refreshCaseLive();
     refreshContacts();
     loadCurrentCalDate();
     refreshOnceLog();
     msgPoll     = visibilityAwareInterval(refreshLog,  5000);
     emailPoll   = visibilityAwareInterval(() => { refreshStaged(); refreshLive(); }, 8000);
+    casePoll    = visibilityAwareInterval(() => { refreshCaseStaged(); refreshCaseLive(); }, 8000);
     contactPoll = visibilityAwareInterval(refreshContacts, 10000);
     datePoll    = visibilityAwareInterval(loadCurrentCalDate, 10000);
     oncePoll    = visibilityAwareInterval(refreshOnceLog, 6000);
@@ -392,6 +523,7 @@
   onDestroy(() => {
     if (msgPoll) msgPoll();
     if (emailPoll) emailPoll();
+    if (casePoll) casePoll();
     if (contactPoll) contactPoll();
     if (datePoll) datePoll();
     if (oncePoll) oncePoll();
@@ -414,6 +546,7 @@
   <div class="tab-bar" role="tablist">
     <button class="tab" class:active={activeTab === 'wire'}     role="tab" on:click={() => activeTab = 'wire'}>Wire</button>
     <button class="tab" class:active={activeTab === 'email'}    role="tab" on:click={() => activeTab = 'email'}>Email</button>
+    <button class="tab" class:active={activeTab === 'cases'}    role="tab" on:click={() => activeTab = 'cases'}>Case Files</button>
     <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
     <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
@@ -653,6 +786,138 @@
                     {recallingId === chain._id ? 'Recalling…' : 'Recall'}
                   </button>
                   <button class="danger-btn" on:click={() => deleteChain(chain._id, true)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+    <!-- ══ CASE FILES (persons / locations / intel) ══════════════════════════ -->
+    {:else if activeTab === 'cases'}
+
+      <p class="tab-sub">Author a new persons, locations, or intel case file. Stage it, then deploy when players are ready.</p>
+
+      <div class="section">
+        <div class="section-label">New Case File</div>
+
+        <select class="case-select" bind:value={caseSection}>
+          {#each CASE_SECTIONS as s (s.key)}
+            <option value={s.key}>{s.label}</option>
+          {/each}
+        </select>
+
+        <input type="text" class="email-subject-input" placeholder="File No. (e.g. CE-014)…" bind:value={caseFileNo} />
+        <input type="text" class="email-subject-input" placeholder="Name…" bind:value={caseName} />
+        <input type="text" class="email-subject-input" placeholder="Species…" bind:value={caseSpecies} />
+        <input type="text" class="email-subject-input" placeholder="Reputation…" bind:value={caseRep} />
+
+        <textarea placeholder="Overview…" bind:value={caseOverview}></textarea>
+        <div style="height:10px"></div>
+        <textarea placeholder="A Note From Your Benefactor — one line per bullet…" bind:value={caseNotes}></textarea>
+
+        <div class="case-color-row">
+          <span class="section-label" style="margin-bottom:0">Accent Color</span>
+          <input type="color" class="color-swatch" bind:value={caseAccentColor} />
+        </div>
+
+        <div class="section-label-row" style="margin-top:14px">
+          <div class="section-label" style="margin-bottom:0">Images ({caseImages.length})</div>
+          <button class="ghost-btn" type="button" on:click={toggleCaseImagePicker}>
+            {caseImagePicker.open ? 'Close picker' : '+ Add image'}
+          </button>
+        </div>
+
+        {#if caseImages.length}
+          <div class="case-image-chips">
+            {#each caseImages as img (img.name)}
+              <div class="attached-preview">
+                <img src={img.url} alt="" />
+                <span>{img.name}</span>
+                <button type="button" on:click={() => removeCaseImage(img.name)}>&times;</button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if caseImagePicker.open}
+          <div class="image-picker">
+            {#if caseImagePicker.loading}
+              <div class="img-picker-status">Loading…</div>
+            {:else if caseImagePicker.error}
+              <div class="img-picker-status err">{caseImagePicker.error}</div>
+            {:else}
+              {#each caseImagePicker.images as img (img.name)}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="img-thumb" on:click={() => addCaseImage(img)}>
+                  <img src={img.download_url} alt={img.name} loading="lazy" />
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
+        <div style="height:12px"></div>
+        <button class="primary" disabled={stagingCase} on:click={stageCase}>
+          {stagingCase ? 'Staging…' : 'Stage Case File (hidden from players)'}
+        </button>
+        <div class="status-line" class:ok={caseStatus.type === 'ok'} class:err={caseStatus.type === 'err'}>
+          {caseStatus.text}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
+          <button class="ghost-btn" on:click={refreshCaseStaged}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !stagedCases.length}
+            <div class="log-empty">No staged case files.</div>
+          {:else}
+            {#each stagedCases as c (c._id)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="chain-log-subject" style="color:#c9a227">
+                    <span class="case-section-badge">{caseSectionLabel(c.section)}</span> {c.name}
+                  </span>
+                  <span class="chain-log-meta">{relTime(c.createdAt || 0)}</span>
+                </div>
+                <div class="chain-log-actions">
+                  <button class="deploy-btn" disabled={deployingCaseId === c._id} on:click={() => deployCase(c._id)}>
+                    {deployingCaseId === c._id ? 'Deploying…' : 'Deploy → Players'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteCase(c._id, false)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
+          <button class="ghost-btn" on:click={refreshCaseLive}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !liveCases.length}
+            <div class="log-empty">No live case files.</div>
+          {:else}
+            {#each liveCases as c (c._id)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="chain-log-subject">
+                    <span class="live-label">▶ LIVE &nbsp;</span>
+                    <span class="case-section-badge">{caseSectionLabel(c.section)}</span> {c.name}
+                  </span>
+                  <span class="chain-log-meta">{relTime(c.createdAt || 0)}</span>
+                </div>
+                <div class="chain-log-actions" style="justify-content:flex-end">
+                  <button class="recall-btn" disabled={recallingCaseId === c._id} on:click={() => recallCase(c._id)}>
+                    {recallingCaseId === c._id ? 'Recalling…' : 'Recall'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteCase(c._id, true)}>Delete</button>
                 </div>
               </div>
             {/each}
@@ -980,6 +1245,23 @@
   .danger-btn:hover { background: rgba(226,75,74,0.08); }
 
   .live-label { color: #4ade80; font-size: 10px; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
+
+  /* ── Case Files section ── */
+  .case-select {
+    width: 100%; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px;
+    color: #e8dfc8; font-family: inherit; font-size: 13.5px; padding: 10px 12px; outline: none; margin-bottom: 12px;
+  }
+  .case-select:focus { border-color: #c9a227; }
+  .case-color-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .color-swatch {
+    width: 40px; height: 28px; padding: 0; border: 1px solid #1a2030; border-radius: 6px;
+    background: none; cursor: pointer;
+  }
+  .case-image-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .case-section-badge {
+    display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    color: #6a7d90; border: 1px solid #3a4a5a; border-radius: 4px; padding: 1px 6px; margin-right: 4px;
+  }
 
   /* ── Current Date section ── */
   .cal-current-row {
