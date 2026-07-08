@@ -247,7 +247,7 @@
         </div>
 
         <div class="hs-row">
-          <div class="hs-icon">
+          <a class="hs-icon" href="{base}/camera">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
@@ -256,7 +256,7 @@
               </svg>
             </div>
             <span class="hs-icon-label">Camera</span>
-          </div>
+          </a>
           <a class="hs-icon" href="{base}/emails">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
