@@ -41,7 +41,7 @@
 </svelte:head>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
-<wire-header back="{base}/home" title="Jobs" subtitle="Active Operations — Fate City: 1999"></wire-header>
+<wire-header back="{base}/home" title="Jobs" subtitle="Active Operations — Fate City: 1999" layout="flex"></wire-header>
 
 <div class="jobs-scroll">
   {#if jobs.length === 0}

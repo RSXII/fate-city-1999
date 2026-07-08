@@ -81,7 +81,7 @@
 </svelte:head>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
-<wire-header back="{base}/home" title="Phone"></wire-header>
+<wire-header back="{base}/home" title="Phone" layout="flex"></wire-header>
 
 <div class="phone-wrap">
 
@@ -319,7 +319,6 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.1) transparent;
-    padding-top: 50px;
     padding-bottom: 8px;
   }
 
