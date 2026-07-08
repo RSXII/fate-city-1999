@@ -4,7 +4,7 @@ import { join } from 'path';
 export const prerender = true;
 
 export function load() {
-  const dir = join(process.cwd(), 'static', 'camera');
+  const dir = join(process.cwd(), 'static', 'images', 'camera');
   let photos = [];
   try {
     photos = readdirSync(dir)

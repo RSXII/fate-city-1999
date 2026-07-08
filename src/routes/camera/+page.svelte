@@ -30,6 +30,11 @@
 <wire-header back="{base}/home" title="Camera" layout="flex"></wire-header>
 
 <div class="cam-scroll">
+  <div class="lib-banner">
+    <span class="lib-title">Library</span>
+    <span class="lib-count">{photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}</span>
+  </div>
+
   {#if photos.length === 0}
     <div class="empty">
       <div class="empty-icon">
@@ -40,14 +45,14 @@
         </svg>
       </div>
       <p class="empty-label">No Photos</p>
-      <p class="empty-sub">Drop images into static/camera/ — they appear here automatically.</p>
+      <p class="empty-sub">Drop images into static/images/camera/ — they appear here automatically.</p>
     </div>
   {:else}
     <div class="grid">
       {#each photos as src, i}
         <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
         <div class="cell" on:click={() => open(i)}>
-          <img src="{base}/camera/{src}" alt="" loading="lazy" />
+          <img src="{base}/images/camera/{src}" alt="" loading="lazy" />
         </div>
       {/each}
     </div>
@@ -66,7 +71,7 @@
     <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
     <img
       class="lb-img"
-      src="{base}/camera/{photos[lbIndex]}"
+      src="{base}/images/camera/{photos[lbIndex]}"
       alt=""
       on:click|stopPropagation
     />
@@ -85,6 +90,37 @@
     background: #000;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+
+  /* ── Library banner ─────────────────────────────────────────────────────── */
+  .lib-banner {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 14px 16px 12px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .lib-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: -0.4px;
+    line-height: 1.1;
+  }
+
+  .lib-count {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.38);
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: 0.2px;
   }
 
   /* ── Empty state ─────────────────────────────────────────────────────────── */

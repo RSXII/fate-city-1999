@@ -5,6 +5,7 @@
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
+  import { CLASS_CONFIG } from '$lib/data/rides.js';
 
   let activeTab = 'wire';
 
@@ -12,6 +13,8 @@
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images/messages';
   const GITHUB_ROOT_IMAGES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images';
+  const GITHUB_RIDES_API =
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/rides';
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function relTime(ts) {
@@ -588,6 +591,125 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 6: Rides ─────────────────────────────────────────────────────
+  let rideMake = '';
+  let rideModel = '';
+  let rideYear = 1999;
+  let rideClass = 'sedan';
+  let rideImage = '';
+  let rideSpd = '';
+  let rideSeats = '';
+  let rideSpeedCombat = '';
+  let rideSpeedNarrative = '';
+  let rideCost = '';
+  let rideCreateStatus = { text: '', type: '' };
+  let creatingRide = false;
+
+  let ridesPickerOpen = false;
+  let ridesPickerLoading = false;
+  let ridesPickerError = '';
+  let ridesPickerImages = [];
+
+  async function toggleRidesPicker() {
+    if (ridesPickerOpen) { ridesPickerOpen = false; return; }
+    ridesPickerOpen = true;
+    ridesPickerLoading = true;
+    ridesPickerError = '';
+    ridesPickerImages = [];
+    try {
+      const res = await fetch(GITHUB_RIDES_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      ridesPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      ridesPickerError = ridesPickerImages.length ? '' : 'No images found in static/images/rides/.';
+    } catch (e) {
+      ridesPickerError = `Failed: ${e?.message ?? 'error'}`;
+    }
+    ridesPickerLoading = false;
+  }
+
+  function selectRidesImage(img) {
+    rideImage = img.name;
+    ridesPickerOpen = false;
+  }
+
+  let stagedRides = [];
+  let liveRides = [];
+
+  async function loadRidesData(staged) {
+    try {
+      const data = await dbGet('rides');
+      if (!data) return [];
+      return Object.keys(data)
+        .map(k => { const r = data[k]; r._id = k; return r; })
+        .filter(r => r.make && r.staged === staged)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch { return []; }
+  }
+
+  async function refreshStagedRides() { stagedRides = await loadRidesData(false); }
+  async function refreshLiveRides()   { liveRides   = await loadRidesData(true);  }
+
+  async function createRide() {
+    if (!rideMake.trim() || !rideModel.trim()) {
+      rideCreateStatus = { text: 'Make and Model are required.', type: 'err' }; return;
+    }
+    creatingRide = true;
+    rideCreateStatus = { text: 'Staging…', type: '' };
+    try {
+      await dbPost('rides', {
+        make: rideMake.trim(),
+        model: rideModel.trim(),
+        year: parseInt(rideYear) || null,
+        class: rideClass,
+        image: rideImage.trim() || null,
+        stats: {
+          spd: parseInt(rideSpd) || 0,
+          seats: parseInt(rideSeats) || 0,
+          speedCombat: parseInt(rideSpeedCombat) || 0,
+          speedNarrative: parseInt(rideSpeedNarrative) || 0,
+          cost: parseInt(rideCost) || 0,
+        },
+        staged: false,
+        createdAt: Date.now(),
+      });
+      rideMake = ''; rideModel = ''; rideImage = '';
+      rideSpd = ''; rideSeats = ''; rideSpeedCombat = ''; rideSpeedNarrative = ''; rideCost = '';
+      rideYear = 1999; rideClass = 'sedan';
+      rideCreateStatus = { text: 'Vehicle staged. Deploy when ready.', type: 'ok' };
+      await refreshStagedRides();
+    } catch (e) {
+      rideCreateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    creatingRide = false;
+  }
+
+  let deployingRideId = null;
+  async function deployRide(id) {
+    deployingRideId = id;
+    try { await dbPut(`rides/${id}/staged`, true); await refreshStagedRides(); await refreshLiveRides(); }
+    catch (e) { console.error('Deploy failed', e); }
+    deployingRideId = null;
+  }
+
+  let recallingRideId = null;
+  async function recallRide(id) {
+    if (!confirm('Remove this vehicle from player devices?')) return;
+    recallingRideId = id;
+    try { await dbPut(`rides/${id}/staged`, false); await refreshStagedRides(); await refreshLiveRides(); }
+    catch (e) { console.error('Recall failed', e); }
+    recallingRideId = null;
+  }
+
+  async function deleteRide(id, isLive) {
+    const msg = isLive ? 'Remove from all devices and delete permanently?' : 'Delete this staged vehicle?';
+    if (!confirm(msg)) return;
+    try {
+      await dbDelete(`rides/${id}`);
+      if (isLive) await refreshLiveRides(); else await refreshStagedRides();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
@@ -596,6 +718,7 @@
   let datePoll;
   let oncePoll;
   let jobPoll;
+  let ridesPoll;
 
   onMount(() => {
     addReply(); addReply();
@@ -615,6 +738,9 @@
     oncePoll    = visibilityAwareInterval(refreshOnceLog, 6000);
     loadJobs();
     jobPoll     = visibilityAwareInterval(loadJobs, 8000);
+    refreshStagedRides();
+    refreshLiveRides();
+    ridesPoll   = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
   });
 
   onDestroy(() => {
@@ -625,6 +751,7 @@
     if (datePoll) datePoll();
     if (oncePoll) oncePoll();
     if (jobPoll) jobPoll();
+    if (ridesPoll) ridesPoll();
   });
 </script>
 
@@ -648,7 +775,8 @@
     <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
     <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
-    <button class="tab" class:active={activeTab === 'jobs'} role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
+    <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
+    <button class="tab" class:active={activeTab === 'rides'} role="tab" on:click={() => activeTab = 'rides'}>Rides</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -1264,6 +1392,144 @@
 
     {/if}
 
+    {#if activeTab === 'rides'}
+      <div class="rides-builder">
+        <h3 class="section-label">New Vehicle</h3>
+
+        <div class="form-row">
+          <label class="form-label">Make</label>
+          <input class="form-input" type="text" placeholder="e.g. Thorsen" bind:value={rideMake} />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Model</label>
+          <input class="form-input" type="text" placeholder="e.g. Hound" bind:value={rideModel} />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Year</label>
+          <input class="form-input" type="number" min="1900" max="2099" bind:value={rideYear} />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Class</label>
+          <select class="form-input form-select" bind:value={rideClass}>
+            <optgroup label="Cars & Trucks">
+              <option value="compact">Compact</option>
+              <option value="sedan">Sedan</option>
+              <option value="sport">Sport</option>
+              <option value="super_sport">Super Sport</option>
+              <option value="light_armored">Light Armored</option>
+              <option value="heavy_armored">Heavy Armored</option>
+              <option value="off_road">Off Road</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="light_armor">Light Armor</option>
+              <option value="heavy_armor">Heavy Armor</option>
+              <option value="military">Military</option>
+              <option value="aircraft">Aircraft</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Image</label>
+          <div class="img-picker-row">
+            <span class="img-selected">{rideImage || 'None'}</span>
+            <button class="picker-btn" on:click={toggleRidesPicker}>
+              {ridesPickerOpen ? 'Close' : 'Pick'}
+            </button>
+          </div>
+        </div>
+
+        {#if ridesPickerOpen}
+          <div class="img-picker-grid">
+            {#if ridesPickerLoading}
+              <span class="picker-status">Loading…</span>
+            {:else if ridesPickerError}
+              <span class="picker-status picker-err">{ridesPickerError}</span>
+            {:else}
+              {#each ridesPickerImages as img}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="picker-thumb" class:selected={rideImage === img.name} on:click={() => selectRidesImage(img)}>
+                  <img src={img.download_url} alt={img.name} loading="lazy" />
+                  <span class="picker-name">{img.name}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
+        <h3 class="section-label" style="margin-top:18px">Stats</h3>
+        <div class="stats-grid">
+          <div class="form-row">
+            <label class="form-label">SPD</label>
+            <input class="form-input" type="number" placeholder="0" bind:value={rideSpd} />
+          </div>
+          <div class="form-row">
+            <label class="form-label">Seats</label>
+            <input class="form-input" type="number" placeholder="0" bind:value={rideSeats} />
+          </div>
+          <div class="form-row">
+            <label class="form-label">Spd · Combat</label>
+            <input class="form-input" type="number" placeholder="0" bind:value={rideSpeedCombat} />
+          </div>
+          <div class="form-row">
+            <label class="form-label">Spd · Narrative</label>
+            <input class="form-input" type="number" placeholder="0" bind:value={rideSpeedNarrative} />
+          </div>
+          <div class="form-row">
+            <label class="form-label">Cost</label>
+            <input class="form-input" type="number" placeholder="0" bind:value={rideCost} />
+          </div>
+        </div>
+
+        <button class="action-btn" disabled={creatingRide} on:click={createRide}>
+          {creatingRide ? 'Staging…' : 'Stage Vehicle'}
+        </button>
+        {#if rideCreateStatus.text}
+          <p class="status-msg" class:ok={rideCreateStatus.type === 'ok'} class:err={rideCreateStatus.type === 'err'}>
+            {rideCreateStatus.text}
+          </p>
+        {/if}
+
+        <!-- Staged vehicles -->
+        {#if stagedRides.length > 0}
+          <h3 class="section-label" style="margin-top:24px">Staged</h3>
+          {#each stagedRides as r}
+            <div class="ride-item">
+              <div class="ride-item-info">
+                <span class="ride-title">{r.year} {r.make} {r.model}</span>
+                <span class="ride-class">{CLASS_CONFIG[r.class]?.label ?? r.class}</span>
+              </div>
+              <div class="ride-item-actions">
+                <button class="deploy-btn" disabled={deployingRideId === r._id} on:click={() => deployRide(r._id)}>
+                  {deployingRideId === r._id ? '…' : 'Deploy'}
+                </button>
+                <button class="danger-btn" on:click={() => deleteRide(r._id, false)}>Delete</button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+
+        <!-- Live vehicles -->
+        {#if liveRides.length > 0}
+          <h3 class="section-label" style="margin-top:24px">Live</h3>
+          {#each liveRides as r}
+            <div class="ride-item ride-item--live">
+              <div class="ride-item-info">
+                <span class="ride-title">{r.year} {r.make} {r.model}</span>
+                <span class="ride-class">{CLASS_CONFIG[r.class]?.label ?? r.class}</span>
+              </div>
+              <div class="ride-item-actions">
+                <button class="recall-btn" disabled={recallingRideId === r._id} on:click={() => recallRide(r._id)}>
+                  {recallingRideId === r._id ? '…' : 'Recall'}
+                </button>
+                <button class="danger-btn" on:click={() => deleteRide(r._id, true)}>Delete</button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -1643,4 +1909,197 @@
   .job-date-input:focus { border-color: #c9a227; }
   .job-date-input::placeholder { color: #3a4a5a; }
   .job-item-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); }
+
+  /* ── Rides builder ──────────────────────────────────────────────────────── */
+  .rides-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .stats-grid { display: flex; flex-direction: column; gap: 10px; }
+
+  .form-row { display: flex; align-items: center; gap: 10px; }
+  .form-label {
+    width: 104px;
+    flex-shrink: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #6a7d90;
+  }
+  .form-input {
+    flex: 1;
+    background: #0d1118;
+    border: 1px solid #1a2030;
+    border-radius: 6px;
+    color: #e8dfc8;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    min-width: 0;
+  }
+  .form-input:focus { border-color: #c9a227; }
+  .form-input::placeholder { color: #3a4a5a; }
+  .form-select { cursor: pointer; appearance: auto; }
+  .form-select option, .form-select optgroup { background: #0d1118; color: #e8dfc8; }
+
+  .action-btn {
+    background: #c9a227;
+    color: #15130f;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+    font-family: inherit;
+  }
+  .action-btn:active { transform: scale(0.98); }
+  .action-btn:disabled { background: #2a2a26; color: #5a5650; cursor: not-allowed; }
+
+  .status-msg {
+    font-size: 11.5px;
+    color: #6a7d90;
+    text-align: center;
+    padding: 4px 0;
+    margin: 0;
+  }
+  .status-msg.ok { color: #6a9a40; }
+  .status-msg.err { color: #c93a27; }
+
+  .img-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+  .img-selected {
+    flex: 1;
+    font-size: 12px;
+    color: rgba(232,223,200,0.5);
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .picker-btn {
+    background: none;
+    border: 1px solid rgba(201,162,39,0.3);
+    border-radius: 6px;
+    color: rgba(201,162,39,0.8);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 5px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .picker-btn:hover { border-color: #c9a227; color: #c9a227; }
+
+  .img-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: #080b10;
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 260px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .picker-status {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: rgba(232,223,200,0.35);
+    text-align: center;
+    padding: 16px 0;
+  }
+  .picker-err { color: rgba(201,62,39,0.7); }
+
+  .picker-thumb {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.12s;
+  }
+  .picker-thumb:hover { border-color: rgba(201,162,39,0.5); }
+  .picker-thumb.selected { border-color: #c9a227; }
+  .picker-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #111; }
+  .picker-name {
+    font-size: 8px;
+    font-family: 'Courier New', monospace;
+    color: rgba(232,223,200,0.3);
+    padding: 0 3px 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ride-item {
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .ride-item--live { border-color: rgba(201,162,39,0.25); }
+  .ride-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .ride-title {
+    font-size: 13px;
+    color: #e8dfc8;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ride-class {
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(201,162,39,0.5);
+  }
+  .ride-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .deploy-btn {
+    background: rgba(201,162,39,0.12);
+    border: 1px solid rgba(201,162,39,0.4);
+    border-radius: 6px;
+    color: #c9a227;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .deploy-btn:hover:not(:disabled) { background: rgba(201,162,39,0.22); }
+  .deploy-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .recall-btn {
+    background: rgba(80,140,200,0.12);
+    border: 1px solid rgba(80,140,200,0.35);
+    border-radius: 6px;
+    color: rgba(130,180,230,0.9);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .recall-btn:hover:not(:disabled) { background: rgba(80,140,200,0.22); }
+  .recall-btn:disabled { opacity: 0.4; cursor: default; }
 </style>
