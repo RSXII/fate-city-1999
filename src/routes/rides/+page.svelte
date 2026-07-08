@@ -85,12 +85,12 @@
             </div>
             <div class="stat-divider"></div>
             <div class="stat">
-              <span class="stat-label">Spd · Combat</span>
+              <span class="stat-label">MOVE · Combat</span>
               <span class="stat-value">{v.stats?.speedCombat ?? '—'}</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat">
-              <span class="stat-label">Spd · Narrative</span>
+              <span class="stat-label">MOVE · Narrative</span>
               <span class="stat-value">{v.stats?.speedNarrative ?? '—'}</span>
             </div>
             <div class="stat-divider"></div>
