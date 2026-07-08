@@ -96,7 +96,7 @@
             <div class="stat-divider"></div>
             <div class="stat">
               <span class="stat-label">Cost</span>
-              <span class="stat-value">{(v.stats?.cost ?? 0).toLocaleString()}</span>
+              <span class="stat-value">{v.stats?.cost ?? '—'}</span>
             </div>
           </div>
         </div>

@@ -674,8 +674,8 @@
           spd: parseInt(rideSpd) || 0,
           seats: parseInt(rideSeats) || 0,
           speedCombat: parseInt(rideSpeedCombat) || 0,
-          speedNarrative: parseInt(rideSpeedNarrative) || 0,
-          cost: parseInt(rideCost) || 0,
+          speedNarrative: rideSpeedNarrative.trim() || null,
+          cost: rideCost.trim() || null,
         },
         staged: false,
         createdAt: Date.now(),
@@ -1480,11 +1480,11 @@
           </div>
           <div class="form-row">
             <label class="form-label">MOVE · Narrative</label>
-            <input class="form-input" type="number" placeholder="0" bind:value={rideSpeedNarrative} />
+            <input class="form-input" type="text" placeholder="e.g. 60 MPH" bind:value={rideSpeedNarrative} />
           </div>
           <div class="form-row">
             <label class="form-label">Cost</label>
-            <input class="form-input" type="number" placeholder="0" bind:value={rideCost} />
+            <input class="form-input" type="text" placeholder="e.g. 10,000" bind:value={rideCost} />
           </div>
         </div>
 
