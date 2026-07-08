@@ -30,6 +30,11 @@
 <wire-header back="{base}/home" title="Camera" layout="flex"></wire-header>
 
 <div class="cam-scroll">
+  <div class="lib-banner">
+    <span class="lib-title">Library</span>
+    <span class="lib-count">{photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}</span>
+  </div>
+
   {#if photos.length === 0}
     <div class="empty">
       <div class="empty-icon">
@@ -85,6 +90,37 @@
     background: #000;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+
+  /* ── Library banner ─────────────────────────────────────────────────────── */
+  .lib-banner {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 14px 16px 12px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .lib-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: -0.4px;
+    line-height: 1.1;
+  }
+
+  .lib-count {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.38);
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: 0.2px;
   }
 
   /* ── Empty state ─────────────────────────────────────────────────────────── */
