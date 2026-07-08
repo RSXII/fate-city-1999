@@ -5,7 +5,7 @@
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
-  import { CLASS_CONFIG } from '$lib/data/rides.js';
+  import { CLASS_CONFIG, CLASS_DEFAULTS } from '$lib/data/rides.js';
 
   let activeTab = 'wire';
 
@@ -610,6 +610,13 @@
   let ridesPickerError = '';
   let ridesPickerImages = [];
 
+  function applyClassDefaults(cls) {
+    const d = CLASS_DEFAULTS[cls];
+    if (!d) return;
+    rideSpd          = String(d.spd);
+    rideSpeedCombat  = String(d.speedCombat);
+  }
+
   async function toggleRidesPicker() {
     if (ridesPickerOpen) { ridesPickerOpen = false; return; }
     ridesPickerOpen = true;
@@ -667,8 +674,8 @@
           spd: parseInt(rideSpd) || 0,
           seats: parseInt(rideSeats) || 0,
           speedCombat: parseInt(rideSpeedCombat) || 0,
-          speedNarrative: parseInt(rideSpeedNarrative) || 0,
-          cost: parseInt(rideCost) || 0,
+          speedNarrative: rideSpeedNarrative.trim() || null,
+          cost: rideCost.trim() || null,
         },
         staged: false,
         createdAt: Date.now(),
@@ -1410,7 +1417,7 @@
         </div>
         <div class="form-row">
           <label class="form-label">Class</label>
-          <select class="form-input form-select" bind:value={rideClass}>
+          <select class="form-input form-select" bind:value={rideClass} on:change={() => applyClassDefaults(rideClass)}>
             <optgroup label="Cars & Trucks">
               <option value="compact">Compact</option>
               <option value="sedan">Sedan</option>
@@ -1468,16 +1475,16 @@
             <input class="form-input" type="number" placeholder="0" bind:value={rideSeats} />
           </div>
           <div class="form-row">
-            <label class="form-label">Spd · Combat</label>
+            <label class="form-label">MOVE · Combat</label>
             <input class="form-input" type="number" placeholder="0" bind:value={rideSpeedCombat} />
           </div>
           <div class="form-row">
-            <label class="form-label">Spd · Narrative</label>
-            <input class="form-input" type="number" placeholder="0" bind:value={rideSpeedNarrative} />
+            <label class="form-label">MOVE · Narrative</label>
+            <input class="form-input" type="text" placeholder="e.g. 60 MPH" bind:value={rideSpeedNarrative} />
           </div>
           <div class="form-row">
             <label class="form-label">Cost</label>
-            <input class="form-input" type="number" placeholder="0" bind:value={rideCost} />
+            <input class="form-input" type="text" placeholder="e.g. 10,000" bind:value={rideCost} />
           </div>
         </div>
 
