@@ -494,6 +494,90 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 6: Jobs ──────────────────────────────────────────────────────────
+  const JOB_STATUS = {
+    active:      { label: 'Active',      color: '#22c55e' },
+    danger:      { label: 'In Danger',   color: '#f59e0b' },
+    compromised: { label: 'Compromised', color: '#e05a3a' },
+  };
+
+  let jobTitle = '';
+  let jobBrief = '';
+  let jobNewStatus = 'active';
+  let allJobs = [];
+  let stepTexts = {};
+  let jobCreateStatus = { text: '', type: '' };
+  let creatingJob = false;
+
+  function nextJobFileNo() {
+    const nums = allJobs
+      .map(j => parseInt((j.fileNo ?? '').replace('JB-', '')))
+      .filter(n => !isNaN(n));
+    const next = nums.length ? Math.max(...nums) + 1 : 1;
+    return `JB-${String(next).padStart(3, '0')}`;
+  }
+
+  async function loadJobs() {
+    try {
+      const data = await dbGet('jobs');
+      if (!data) { allJobs = []; stepTexts = {}; return; }
+      const loaded = Object.keys(data)
+        .map(k => { const j = data[k]; j._id = k; return j; })
+        .filter(j => j.title)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      allJobs = loaded;
+      const inputs = {};
+      for (const j of loaded) { inputs[j._id] = stepTexts[j._id] ?? ''; }
+      stepTexts = inputs;
+    } catch { allJobs = []; }
+  }
+
+  async function createJob() {
+    const title = jobTitle.trim();
+    if (!title) { jobCreateStatus = { text: 'A title is required.', type: 'err' }; return; }
+    creatingJob = true;
+    jobCreateStatus = { text: 'Creating…', type: '' };
+    try {
+      const fileNo = nextJobFileNo();
+      await dbPost('jobs', { title, brief: jobBrief.trim(), status: jobNewStatus, fileNo, steps: [], createdAt: Date.now() });
+      jobTitle = '';
+      jobBrief = '';
+      jobNewStatus = 'active';
+      jobCreateStatus = { text: `Job created (${fileNo}).`, type: 'ok' };
+      await loadJobs();
+    } catch (e) {
+      jobCreateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    creatingJob = false;
+  }
+
+  async function addJobStep(id) {
+    const text = (stepTexts[id] ?? '').trim();
+    if (!text) return;
+    const job = allJobs.find(j => j._id === id);
+    const existing = Array.isArray(job?.steps) ? job.steps : [];
+    try {
+      await dbPut(`jobs/${id}/steps`, [...existing, { text, ts: Date.now() }]);
+      stepTexts = { ...stepTexts, [id]: '' };
+      await loadJobs();
+    } catch (e) { console.error('Step add failed', e); }
+  }
+
+  async function setJobStatus(id, status) {
+    try {
+      await dbPut(`jobs/${id}/status`, status);
+      await loadJobs();
+    } catch (e) { console.error('Status update failed', e); }
+  }
+
+  async function deleteJob(id) {
+    if (!confirm('Delete this job? It will disappear from player devices.')) return;
+    try {
+      await dbDelete(`jobs/${id}`);
+      await loadJobs();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
@@ -501,6 +585,7 @@
   let contactPoll;
   let datePoll;
   let oncePoll;
+  let jobPoll;
 
   onMount(() => {
     addReply(); addReply();
@@ -518,6 +603,8 @@
     contactPoll = visibilityAwareInterval(refreshContacts, 10000);
     datePoll    = visibilityAwareInterval(loadCurrentCalDate, 10000);
     oncePoll    = visibilityAwareInterval(refreshOnceLog, 6000);
+    loadJobs();
+    jobPoll     = visibilityAwareInterval(loadJobs, 8000);
   });
 
   onDestroy(() => {
@@ -527,6 +614,7 @@
     if (contactPoll) contactPoll();
     if (datePoll) datePoll();
     if (oncePoll) oncePoll();
+    if (jobPoll) jobPoll();
   });
 </script>
 
@@ -550,6 +638,7 @@
     <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
     <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
+    <button class="tab" class:active={activeTab === 'jobs'} role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -1055,6 +1144,108 @@
         </div>
       </div>
 
+    <!-- ══ JOBS ══════════════════════════════════════════════════════════════ -->
+    {:else if activeTab === 'jobs'}
+
+      <p class="tab-sub">Create active jobs and log steps live during play. Updates appear on player devices immediately.</p>
+
+      <div class="section">
+        <div class="section-label">New Job</div>
+
+        <input
+          type="text"
+          class="email-subject-input"
+          placeholder="Title (e.g. BLOOMWORK FAIRY)…"
+          bind:value={jobTitle}
+        />
+
+        <textarea
+          placeholder="Brief description (optional)…"
+          bind:value={jobBrief}
+          rows="2"
+          style="margin-bottom:12px"
+        ></textarea>
+
+        <div class="section-label" style="margin-bottom:8px">Initial Status</div>
+        <div class="job-status-group">
+          <button
+            class="job-status-btn"
+            class:active={jobNewStatus === 'active'}
+            style="--sc:#22c55e"
+            on:click={() => jobNewStatus = 'active'}
+          >● Active</button>
+          <button
+            class="job-status-btn"
+            class:active={jobNewStatus === 'danger'}
+            style="--sc:#f59e0b"
+            on:click={() => jobNewStatus = 'danger'}
+          >⚠ In Danger</button>
+          <button
+            class="job-status-btn"
+            class:active={jobNewStatus === 'compromised'}
+            style="--sc:#e05a3a"
+            on:click={() => jobNewStatus = 'compromised'}
+          >✕ Compromised</button>
+        </div>
+
+        <button class="primary" style="margin-top:14px" disabled={creatingJob || !jobTitle.trim()} on:click={createJob}>
+          {creatingJob ? 'Creating…' : 'Create Job'}
+        </button>
+        <div class="status-line" class:ok={jobCreateStatus.type === 'ok'} class:err={jobCreateStatus.type === 'err'}>
+          {jobCreateStatus.text}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Jobs ({allJobs.length})</div>
+          <button class="ghost-btn" on:click={loadJobs}>Refresh</button>
+        </div>
+
+        {#if !allJobs.length}
+          <div class="log" style="margin-top:8px"><div class="log-empty">No jobs yet. Create one above.</div></div>
+        {:else}
+          {#each allJobs as job (job._id)}
+            {@const sc = JOB_STATUS[job.status] ?? JOB_STATUS.active}
+            <div class="job-item">
+              <div class="job-item-head">
+                <span class="job-item-no">{job.fileNo ?? '—'}</span>
+                <span class="job-item-title">{job.title}</span>
+                <span class="job-item-badge" style="color:{sc.color}">● {sc.label}</span>
+              </div>
+              {#if job.brief}
+                <div class="job-item-brief">{job.brief}</div>
+              {/if}
+              {#if job.steps?.length}
+                <ul class="job-item-steps">
+                  {#each [...job.steps].reverse() as step}
+                    <li>{step.text}</li>
+                  {/each}
+                </ul>
+              {/if}
+              <div class="job-item-controls">
+                <input
+                  type="text"
+                  class="job-step-input"
+                  placeholder="Log a step…"
+                  bind:value={stepTexts[job._id]}
+                  on:keydown={e => e.key === 'Enter' && addJobStep(job._id)}
+                />
+                <button class="ghost-btn" on:click={() => addJobStep(job._id)}>Log</button>
+              </div>
+              <div class="job-item-actions">
+                <div class="job-status-group small">
+                  <button class="job-status-btn" class:active={job.status === 'active'} style="--sc:#22c55e" on:click={() => setJobStatus(job._id, 'active')}>Active</button>
+                  <button class="job-status-btn" class:active={job.status === 'danger'} style="--sc:#f59e0b" on:click={() => setJobStatus(job._id, 'danger')}>Danger</button>
+                  <button class="job-status-btn" class:active={job.status === 'compromised'} style="--sc:#e05a3a" on:click={() => setJobStatus(job._id, 'compromised')}>Compromised</button>
+                </div>
+                <button class="danger-btn" on:click={() => deleteJob(job._id)}>Delete</button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
+
     {/if}
 
   </div><!-- /tab-panel -->
@@ -1368,4 +1559,57 @@
   .once-log-row:last-child { margin-bottom: 0; }
   .once-log-m { font-weight: 700; color: #9b6dff; flex-shrink: 0; }
   .once-delete-btn { margin-left: auto; flex-shrink: 0; padding: 3px 8px; font-size: 14px; line-height: 1; }
+
+  /* ── Jobs section ── */
+  .job-status-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .job-status-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(232,223,200,0.35);
+    border-radius: 6px;
+    padding: 5px 11px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    font-family: inherit;
+  }
+  .job-status-btn:hover { border-color: var(--sc); color: var(--sc); }
+  .job-status-btn.active { border-color: var(--sc); color: var(--sc); background: color-mix(in srgb, var(--sc) 12%, transparent); }
+  .job-status-group.small .job-status-btn { padding: 4px 9px; font-size: 10.5px; }
+
+  .job-item {
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .job-item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .job-item-no { font-family: 'Courier New', monospace; font-size: 9.5px; letter-spacing: 1px; color: #3a4a5a; flex-shrink: 0; }
+  .job-item-title { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: #c9a227; flex: 1; min-width: 0; }
+  .job-item-badge { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; flex-shrink: 0; }
+  .job-item-brief { font-size: 11.5px; color: #6a7d90; line-height: 1.5; }
+  .job-item-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .job-item-steps li { font-size: 11.5px; color: rgba(232,223,200,0.6); padding-left: 14px; position: relative; line-height: 1.45; }
+  .job-item-steps li::before { content: '—'; position: absolute; left: 0; color: #3a4a5a; }
+  .job-item-controls { display: flex; gap: 6px; align-items: center; }
+  .job-step-input {
+    flex: 1;
+    background: #0d1118;
+    border: 1px solid #1a2030;
+    border-radius: 6px;
+    color: #e8dfc8;
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 7px 10px;
+    outline: none;
+  }
+  .job-step-input:focus { border-color: #c9a227; }
+  .job-step-input::placeholder { color: #3a4a5a; }
+  .job-item-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); }
 </style>
