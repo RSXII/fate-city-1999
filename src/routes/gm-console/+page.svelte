@@ -14,7 +14,7 @@
   const GITHUB_ROOT_IMAGES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images';
   const GITHUB_RIDES_API =
-    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/rides';
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/rides';
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function relTime(ts) {
@@ -621,7 +621,7 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       ridesPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
-      ridesPickerError = ridesPickerImages.length ? '' : 'No images found in static/rides/.';
+      ridesPickerError = ridesPickerImages.length ? '' : 'No images found in static/images/rides/.';
     } catch (e) {
       ridesPickerError = `Failed: ${e?.message ?? 'error'}`;
     }

@@ -56,7 +56,7 @@
         <div class="card-stripe" style="background:{cc.stripe}"></div>
 
         {#if v.image}
-          <img class="card-img" src="{base}/rides/{v.image}" alt="{v.make} {v.model}" loading="lazy" />
+          <img class="card-img" src="{base}/images/rides/{v.image}" alt="{v.make} {v.model}" loading="lazy" />
         {/if}
 
         <div class="card-body">

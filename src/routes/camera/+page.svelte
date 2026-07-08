@@ -45,14 +45,14 @@
         </svg>
       </div>
       <p class="empty-label">No Photos</p>
-      <p class="empty-sub">Drop images into static/camera/ — they appear here automatically.</p>
+      <p class="empty-sub">Drop images into static/images/camera/ — they appear here automatically.</p>
     </div>
   {:else}
     <div class="grid">
       {#each photos as src, i}
         <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
         <div class="cell" on:click={() => open(i)}>
-          <img src="{base}/camera/{src}" alt="" loading="lazy" />
+          <img src="{base}/images/camera/{src}" alt="" loading="lazy" />
         </div>
       {/each}
     </div>
@@ -71,7 +71,7 @@
     <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
     <img
       class="lb-img"
-      src="{base}/camera/{photos[lbIndex]}"
+      src="{base}/images/camera/{photos[lbIndex]}"
       alt=""
       on:click|stopPropagation
     />
