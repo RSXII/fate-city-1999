@@ -215,21 +215,18 @@
         </div>
 
         <div class="hs-row">
-          <div class="hs-icon">
+          <a class="hs-icon" href="{base}/jobs">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
-                <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
-                <circle cx="8.4" cy="13" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="13" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="15.6" cy="13" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="8.4" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="15.6" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+                <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7l-5-4z" />
+                <polyline points="14 3 14 7 18 7" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+                <line x1="8" y1="15.5" x2="16" y2="15.5" />
+                <line x1="8" y1="19" x2="12" y2="19" />
               </svg>
             </div>
-            <span class="hs-icon-label">Calculator</span>
-          </div>
+            <span class="hs-icon-label">Jobs</span>
+          </a>
           <div class="hs-icon">
             <div class="hs-icon-tile">
               <div class="hs-plat-glyph">P</div>
@@ -364,7 +361,21 @@
             </div>
             <span class="hs-icon-label">EverNear</span>
           </a>
-          <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
+          <div class="hs-icon">
+            <div class="hs-icon-tile">
+              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
+                <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
+                <circle cx="8.4" cy="13" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="13" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="15.6" cy="13" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="8.4" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="15.6" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <span class="hs-icon-label">Calculator</span>
+          </div>
           <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
         </div>
         <div class="hs-row" aria-hidden="true" style="visibility:hidden">

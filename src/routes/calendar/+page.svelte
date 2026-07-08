@@ -76,7 +76,7 @@
 </svelte:head>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
-<wire-header back="{base}/home" title="Calendar" subtitle="Fate City: 1999"></wire-header>
+<wire-header back="{base}/home" title="Calendar" subtitle="Fate City: 1999" layout="flex"></wire-header>
 
 <div class="cal-wrap">
   <!-- Month navigation -->

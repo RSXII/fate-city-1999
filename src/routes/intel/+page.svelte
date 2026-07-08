@@ -45,7 +45,7 @@
 </svelte:head>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
-<wire-header back="{base}/once" title="Field Intel" subtitle="Fate City: 1999 — World Briefing" more></wire-header>
+<wire-header back="{base}/once" title="Field Intel" subtitle="Fate City: 1999 — World Briefing" more layout="flex"></wire-header>
 
 <div class="intel-scroll">
   {#each GROUPS as group, gi}
