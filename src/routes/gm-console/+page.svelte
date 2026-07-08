@@ -506,6 +506,7 @@
   let jobNewStatus = 'active';
   let allJobs = [];
   let stepTexts = {};
+  let stepDates = {};
   let jobCreateStatus = { text: '', type: '' };
   let creatingJob = false;
 
@@ -527,8 +528,13 @@
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       allJobs = loaded;
       const inputs = {};
-      for (const j of loaded) { inputs[j._id] = stepTexts[j._id] ?? ''; }
+      const dates = {};
+      for (const j of loaded) {
+        inputs[j._id] = stepTexts[j._id] ?? '';
+        dates[j._id] = stepDates[j._id] ?? '';
+      }
       stepTexts = inputs;
+      stepDates = dates;
     } catch { allJobs = []; }
   }
 
@@ -554,11 +560,15 @@
   async function addJobStep(id) {
     const text = (stepTexts[id] ?? '').trim();
     if (!text) return;
+    const date = (stepDates[id] ?? '').trim();
     const job = allJobs.find(j => j._id === id);
     const existing = Array.isArray(job?.steps) ? job.steps : [];
+    const step = { text, ts: Date.now() };
+    if (date) step.date = date;
     try {
-      await dbPut(`jobs/${id}/steps`, [...existing, { text, ts: Date.now() }]);
+      await dbPut(`jobs/${id}/steps`, [...existing, step]);
       stepTexts = { ...stepTexts, [id]: '' };
+      stepDates = { ...stepDates, [id]: '' };
       await loadJobs();
     } catch (e) { console.error('Step add failed', e); }
   }
@@ -1231,6 +1241,12 @@
                   bind:value={stepTexts[job._id]}
                   on:keydown={e => e.key === 'Enter' && addJobStep(job._id)}
                 />
+                <input
+                  type="text"
+                  class="job-date-input"
+                  placeholder="YYYY-MM-DD"
+                  bind:value={stepDates[job._id]}
+                />
                 <button class="ghost-btn" on:click={() => addJobStep(job._id)}>Log</button>
               </div>
               <div class="job-item-actions">
@@ -1597,7 +1613,7 @@
   .job-item-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
   .job-item-steps li { font-size: 11.5px; color: rgba(232,223,200,0.6); padding-left: 14px; position: relative; line-height: 1.45; }
   .job-item-steps li::before { content: '—'; position: absolute; left: 0; color: #3a4a5a; }
-  .job-item-controls { display: flex; gap: 6px; align-items: center; }
+  .job-item-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .job-step-input {
     flex: 1;
     background: #0d1118;
@@ -1611,5 +1627,20 @@
   }
   .job-step-input:focus { border-color: #c9a227; }
   .job-step-input::placeholder { color: #3a4a5a; }
+  .job-date-input {
+    width: 108px;
+    flex-shrink: 0;
+    background: #0d1118;
+    border: 1px solid #1a2030;
+    border-radius: 6px;
+    color: #e8dfc8;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    padding: 7px 8px;
+    outline: none;
+    letter-spacing: 0.5px;
+  }
+  .job-date-input:focus { border-color: #c9a227; }
+  .job-date-input::placeholder { color: #3a4a5a; }
   .job-item-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); }
 </style>

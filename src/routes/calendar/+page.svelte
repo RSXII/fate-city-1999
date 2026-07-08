@@ -18,6 +18,7 @@
   let viewMonth = DEFAULT_DATE.month; // 1-indexed
   let firstLoad = true;
   let pollTimer;
+  let jobDateMap = {}; // "YYYY-MM-DD" → ["JB-001", ...]
 
   async function loadCurrentDate() {
     const data = await dbGet('calendar/currentDate');
@@ -31,6 +32,30 @@
       viewMonth = currentDate.month;
       firstLoad = false;
     }
+  }
+
+  async function loadJobMarkers() {
+    try {
+      const data = await dbGet('jobs');
+      if (!data) { jobDateMap = {}; return; }
+      const map = {};
+      for (const key of Object.keys(data)) {
+        const job = data[key];
+        if (!Array.isArray(job.steps)) continue;
+        for (const step of job.steps) {
+          if (!step.date) continue;
+          if (!map[step.date]) map[step.date] = [];
+          if (job.fileNo && !map[step.date].includes(job.fileNo)) {
+            map[step.date].push(job.fileNo);
+          }
+        }
+      }
+      jobDateMap = map;
+    } catch { jobDateMap = {}; }
+  }
+
+  function dayKey(d) {
+    return `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
   function daysInMonth(year, month) {
@@ -60,10 +85,15 @@
   $: totalDays = daysInMonth(viewYear, viewMonth);
   $: offset = firstDayOfMonth(viewYear, viewMonth);
 
+  async function loadAll() {
+    await loadCurrentDate();
+    await loadJobMarkers();
+  }
+
   onMount(() => {
     if (!browser) return;
-    loadCurrentDate();
-    pollTimer = visibilityAwareInterval(loadCurrentDate, 10000);
+    loadAll();
+    pollTimer = visibilityAwareInterval(loadAll, 10000);
   });
 
   onDestroy(() => {
@@ -101,8 +131,16 @@
     <!-- Day cells -->
     {#each { length: totalDays } as _, i}
       {@const day = i + 1}
-      <div class="cal-day" class:cal-day--today={isToday(day)}>
+      {@const markers = jobDateMap[dayKey(day)] ?? []}
+      <div class="cal-day" class:cal-day--today={isToday(day)} class:cal-day--marked={markers.length > 0}>
         <span class="cal-day-num">{day}</span>
+        {#if markers.length > 0}
+          <div class="cal-markers">
+            {#each markers as fileNo}
+              <span class="cal-marker">{fileNo}</span>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
@@ -186,14 +224,16 @@
   }
 
   .cal-empty {
-    aspect-ratio: 1;
+    min-height: 44px;
   }
 
   .cal-day {
-    aspect-ratio: 1;
+    min-height: 44px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    padding: 7px 2px 5px;
     position: relative;
   }
 
@@ -204,22 +244,55 @@
     letter-spacing: 0.2px;
     position: relative;
     z-index: 1;
+    line-height: 1;
   }
 
-  /* ── Today indicator (gold filled circle) ──────────────────────────────── */
+  .cal-markers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-top: 4px;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+  }
+
+  .cal-marker {
+    font-family: 'Courier New', monospace;
+    font-size: 7px;
+    letter-spacing: 0.5px;
+    color: #c9a227;
+    background: #0c0f16;
+    border: 1px solid rgba(201, 162, 39, 0.5);
+    border-radius: 2px;
+    padding: 1px 3px;
+    line-height: 1.2;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Today indicator (gold filled circle around the day number) ─────────── */
   .cal-day--today::before {
     content: '';
     position: absolute;
-    inset: 8%;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: #c9a227;
+    z-index: 0;
+    background: rgba(201, 162, 39, 0.55);
     box-shadow:
-      0 0 10px rgba(201, 162, 39, 0.7),
-      0 0 22px rgba(201, 162, 39, 0.3);
+      0 0 8px rgba(201, 162, 39, 0.4),
+      0 0 16px rgba(201, 162, 39, 0.15);
   }
 
   .cal-day--today .cal-day-num {
-    color: #0a0710;
+    color: #e8dfc8;
     font-weight: 800;
   }
 
