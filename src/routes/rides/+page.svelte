@@ -75,8 +75,8 @@
 
           <div class="card-stats">
             <div class="stat">
-              <span class="stat-label">SPD</span>
-              <span class="stat-value">{v.stats?.spd ?? '—'}</span>
+              <span class="stat-label">SDP</span>
+              <span class="stat-value">{v.stats?.sdp ?? v.stats?.spd ?? '—'}</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat">

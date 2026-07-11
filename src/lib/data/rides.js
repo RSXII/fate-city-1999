@@ -17,13 +17,13 @@ export const VEHICLE_UPGRADES = [
 ];
 
 export const CLASS_DEFAULTS = {
-  compact:       { spd: 50,  speedCombat: 22 },
-  sedan:         { spd: 70,  speedCombat: 20 },
-  sport:         { spd: 60,  speedCombat: 24 },
-  super_sport:   { spd: 50,  speedCombat: 28 },
-  light_armored: { spd: 90,  speedCombat: 18 },
-  heavy_armored: { spd: 120, speedCombat: 14 },
-  off_road:      { spd: 80,  speedCombat: 19 },
+  compact:       { sdp: 50,  speedCombat: 22 },
+  sedan:         { sdp: 70,  speedCombat: 20 },
+  sport:         { sdp: 60,  speedCombat: 24 },
+  super_sport:   { sdp: 50,  speedCombat: 28 },
+  light_armored: { sdp: 90,  speedCombat: 18 },
+  heavy_armored: { sdp: 120, speedCombat: 14 },
+  off_road:      { sdp: 80,  speedCombat: 19 },
 };
 
 export const CLASS_CONFIG = {

@@ -597,7 +597,7 @@
   let rideYear = 1999;
   let rideClass = 'sedan';
   let rideImage = '';
-  let rideSpd = '';
+  let rideSdp = '';
   let rideSeats = '';
   let rideSpeedCombat = '';
   let rideSpeedNarrative = '';
@@ -620,7 +620,7 @@
   function applyClassDefaults(cls) {
     const d = CLASS_DEFAULTS[cls];
     if (!d) return;
-    rideSpd          = String(d.spd);
+    rideSdp          = String(d.sdp);
     rideSpeedCombat  = String(d.speedCombat);
   }
 
@@ -678,7 +678,7 @@
         class: rideClass,
         image: rideImage.trim() || null,
         stats: {
-          spd: parseInt(rideSpd) || 0,
+          sdp: parseInt(rideSdp) || 0,
           seats: parseInt(rideSeats) || 0,
           speedCombat: parseInt(rideSpeedCombat) || 0,
           speedNarrative: rideSpeedNarrative.trim() || null,
@@ -689,7 +689,7 @@
         createdAt: Date.now(),
       });
       rideMake = ''; rideModel = ''; rideImage = '';
-      rideSpd = ''; rideSeats = ''; rideSpeedCombat = ''; rideSpeedNarrative = ''; rideCost = '';
+      rideSdp = ''; rideSeats = ''; rideSpeedCombat = ''; rideSpeedNarrative = ''; rideCost = '';
       rideYear = 1999; rideClass = 'sedan'; rideUpgrades = new Set();
       rideCreateStatus = { text: 'Vehicle staged. Deploy when ready.', type: 'ok' };
       await refreshStagedRides();
@@ -1475,8 +1475,8 @@
         <h3 class="section-label" style="margin-top:18px">Stats</h3>
         <div class="stats-grid">
           <div class="form-row">
-            <label class="form-label">SPD</label>
-            <input class="form-input" type="number" placeholder="0" bind:value={rideSpd} />
+            <label class="form-label">SDP</label>
+            <input class="form-input" type="number" placeholder="0" bind:value={rideSdp} />
           </div>
           <div class="form-row">
             <label class="form-label">Seats</label>
