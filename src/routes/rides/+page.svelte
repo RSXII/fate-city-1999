@@ -4,7 +4,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { dbGet } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
-  import { CLASS_CONFIG } from '$lib/data/rides.js';
+  import { CLASS_CONFIG, VEHICLE_UPGRADES } from '$lib/data/rides.js';
 
   let vehicles = [];
   let pollTimer;
@@ -99,6 +99,16 @@
               <span class="stat-value">{v.stats?.cost ?? '—'}</span>
             </div>
           </div>
+
+          {#if v.upgrades?.length}
+            {@const upgradeMap = Object.fromEntries(VEHICLE_UPGRADES.map(u => [u.key, u.label]))}
+            <div class="upgrade-rule" style="border-color:{cc.stripe}99"></div>
+            <div class="upgrade-chips">
+              {#each v.upgrades as key (key)}
+                <span class="upgrade-chip">{upgradeMap[key] ?? key}</span>
+              {/each}
+            </div>
+          {/if}
         </div>
       </div>
     {/each}
@@ -243,5 +253,28 @@
     background: rgba(201, 162, 39, 0.1);
     margin: 0 2px;
     flex-shrink: 0;
+  }
+
+  .upgrade-rule {
+    margin: 14px 0 12px;
+    border: none;
+    border-top: 1px solid;
+  }
+  .upgrade-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .upgrade-chip {
+    font-family: 'Courier New', monospace;
+    font-size: 7.5px;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: rgba(201, 162, 39, 0.7);
+    background: rgba(201, 162, 39, 0.06);
+    border: 1px solid rgba(201, 162, 39, 0.2);
+    border-radius: 2px;
+    padding: 4px 6px;
+    white-space: nowrap;
   }
 </style>

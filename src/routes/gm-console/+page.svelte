@@ -5,7 +5,7 @@
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
-  import { CLASS_CONFIG, CLASS_DEFAULTS } from '$lib/data/rides.js';
+  import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
 
   let activeTab = 'wire';
 
@@ -602,8 +602,15 @@
   let rideSpeedCombat = '';
   let rideSpeedNarrative = '';
   let rideCost = '';
+  let rideUpgrades = new Set();
   let rideCreateStatus = { text: '', type: '' };
   let creatingRide = false;
+
+  function toggleUpgrade(key) {
+    const s = new Set(rideUpgrades);
+    s.has(key) ? s.delete(key) : s.add(key);
+    rideUpgrades = s;
+  }
 
   let ridesPickerOpen = false;
   let ridesPickerLoading = false;
@@ -677,12 +684,13 @@
           speedNarrative: rideSpeedNarrative.trim() || null,
           cost: rideCost.trim() || null,
         },
+        upgrades: [...rideUpgrades],
         staged: false,
         createdAt: Date.now(),
       });
       rideMake = ''; rideModel = ''; rideImage = '';
       rideSpd = ''; rideSeats = ''; rideSpeedCombat = ''; rideSpeedNarrative = ''; rideCost = '';
-      rideYear = 1999; rideClass = 'sedan';
+      rideYear = 1999; rideClass = 'sedan'; rideUpgrades = new Set();
       rideCreateStatus = { text: 'Vehicle staged. Deploy when ready.', type: 'ok' };
       await refreshStagedRides();
     } catch (e) {
@@ -1488,6 +1496,18 @@
           </div>
         </div>
 
+        <h3 class="section-label" style="margin-top:18px">Upgrades</h3>
+        <div class="upgrade-toggle-grid">
+          {#each VEHICLE_UPGRADES as u (u.key)}
+            <button
+              type="button"
+              class="upgrade-toggle"
+              class:active={rideUpgrades.has(u.key)}
+              on:click={() => toggleUpgrade(u.key)}
+            >{u.label}</button>
+          {/each}
+        </div>
+
         <button class="action-btn" disabled={creatingRide} on:click={createRide}>
           {creatingRide ? 'Staging…' : 'Stage Vehicle'}
         </button>
@@ -1504,7 +1524,10 @@
             <div class="ride-item">
               <div class="ride-item-info">
                 <span class="ride-title">{r.year} {r.make} {r.model}</span>
-                <span class="ride-class">{CLASS_CONFIG[r.class]?.label ?? r.class}</span>
+                <span class="ride-class">
+                  {CLASS_CONFIG[r.class]?.label ?? r.class}
+                  {#if r.upgrades?.length}<span class="ride-upgrade-count">· {r.upgrades.length} upgrade{r.upgrades.length !== 1 ? 's' : ''}</span>{/if}
+                </span>
               </div>
               <div class="ride-item-actions">
                 <button class="deploy-btn" disabled={deployingRideId === r._id} on:click={() => deployRide(r._id)}>
@@ -1523,7 +1546,10 @@
             <div class="ride-item ride-item--live">
               <div class="ride-item-info">
                 <span class="ride-title">{r.year} {r.make} {r.model}</span>
-                <span class="ride-class">{CLASS_CONFIG[r.class]?.label ?? r.class}</span>
+                <span class="ride-class">
+                  {CLASS_CONFIG[r.class]?.label ?? r.class}
+                  {#if r.upgrades?.length}<span class="ride-upgrade-count">· {r.upgrades.length} upgrade{r.upgrades.length !== 1 ? 's' : ''}</span>{/if}
+                </span>
               </div>
               <div class="ride-item-actions">
                 <button class="recall-btn" disabled={recallingRideId === r._id} on:click={() => recallRide(r._id)}>
@@ -2081,6 +2107,34 @@
     color: rgba(201,162,39,0.5);
   }
   .ride-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .ride-upgrade-count { color: rgba(201,162,39,0.35); font-size: 9px; }
+
+  .upgrade-toggle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    gap: 5px;
+  }
+  .upgrade-toggle {
+    background: none;
+    border: 1px solid #1a2030;
+    border-radius: 5px;
+    color: rgba(232,223,200,0.3);
+    font-family: 'Courier New', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.4px;
+    padding: 7px 8px;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.35;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    font-style: normal;
+  }
+  .upgrade-toggle:hover { border-color: rgba(201,162,39,0.3); color: rgba(232,223,200,0.6); }
+  .upgrade-toggle.active {
+    border-color: rgba(201,162,39,0.55);
+    color: #c9a227;
+    background: rgba(201,162,39,0.08);
+  }
 
   .deploy-btn {
     background: rgba(201,162,39,0.12);

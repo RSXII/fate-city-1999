@@ -1,3 +1,21 @@
+export const VEHICLE_UPGRADES = [
+  { key: 'bulletproof_glass',    label: 'Bulletproof Glass' },
+  { key: 'comms_center',         label: 'Communications Center' },
+  { key: 'nos',                  label: 'NOS' },
+  { key: 'flamethrower',         label: 'Onboard Flamethrower' },
+  { key: 'machine_gun',          label: 'Onboard Machine Gun' },
+  { key: 'seating_upgrade',      label: 'Seating Upgrade' },
+  { key: 'security_upgrade',     label: 'Security Upgrade' },
+  { key: 'smuggling_upgrade',    label: 'Smuggling Upgrade' },
+  { key: 'armored_chassis',      label: 'Armored Chassis' },
+  { key: 'heavy_chassis',        label: 'Heavy Chassis' },
+  { key: 'rocket_pod',           label: 'Onboard Rocket Pod' },
+  { key: 'heavy_weapon_mount',   label: 'Heavy Weapon Mount' },
+  { key: 'melee_weapon',         label: 'Onboard Melee Weapon' },
+  { key: 'combat_plow',          label: 'Combat Plow' },
+  { key: 'spike_strip',          label: 'Deployable Spike Strip' },
+];
+
 export const CLASS_DEFAULTS = {
   compact:       { spd: 50,  speedCombat: 22 },
   sedan:         { spd: 70,  speedCombat: 20 },
