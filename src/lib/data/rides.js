@@ -1,11 +1,29 @@
+export const VEHICLE_UPGRADES = [
+  { key: 'bulletproof_glass',    label: 'Bulletproof Glass' },
+  { key: 'comms_center',         label: 'Communications Center' },
+  { key: 'nos',                  label: 'NOS' },
+  { key: 'flamethrower',         label: 'Onboard Flamethrower' },
+  { key: 'machine_gun',          label: 'Onboard Machine Gun' },
+  { key: 'seating_upgrade',      label: 'Seating Upgrade' },
+  { key: 'security_upgrade',     label: 'Security Upgrade' },
+  { key: 'smuggling_upgrade',    label: 'Smuggling Upgrade' },
+  { key: 'armored_chassis',      label: 'Armored Chassis' },
+  { key: 'heavy_chassis',        label: 'Heavy Chassis' },
+  { key: 'rocket_pod',           label: 'Onboard Rocket Pod' },
+  { key: 'heavy_weapon_mount',   label: 'Heavy Weapon Mount' },
+  { key: 'melee_weapon',         label: 'Onboard Melee Weapon' },
+  { key: 'combat_plow',          label: 'Combat Plow' },
+  { key: 'spike_strip',          label: 'Deployable Spike Strip' },
+];
+
 export const CLASS_DEFAULTS = {
-  compact:       { spd: 50,  speedCombat: 22 },
-  sedan:         { spd: 70,  speedCombat: 20 },
-  sport:         { spd: 60,  speedCombat: 24 },
-  super_sport:   { spd: 50,  speedCombat: 28 },
-  light_armored: { spd: 90,  speedCombat: 18 },
-  heavy_armored: { spd: 120, speedCombat: 14 },
-  off_road:      { spd: 80,  speedCombat: 19 },
+  compact:       { sdp: 50,  speedCombat: 22 },
+  sedan:         { sdp: 70,  speedCombat: 20 },
+  sport:         { sdp: 60,  speedCombat: 24 },
+  super_sport:   { sdp: 50,  speedCombat: 28 },
+  light_armored: { sdp: 90,  speedCombat: 18 },
+  heavy_armored: { sdp: 120, speedCombat: 14 },
+  off_road:      { sdp: 80,  speedCombat: 19 },
 };
 
 export const CLASS_CONFIG = {
