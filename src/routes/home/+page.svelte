@@ -316,7 +316,7 @@
           </div>
 
           <!-- FateStaGram -->
-          <div class="hs-icon">
+          <a class="hs-icon" href="{base}/fatestagram">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <!-- IG-style rounded square -->
@@ -331,7 +331,7 @@
               </svg>
             </div>
             <span class="hs-icon-label">FateStaGram</span>
-          </div>
+          </a>
         </div>
       </div>
       <!-- /page 1 -->
