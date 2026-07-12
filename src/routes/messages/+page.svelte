@@ -5,7 +5,6 @@
   import { base } from '$app/paths';
   import { dbGet } from '$lib/firebase-db.js';
   import { relTime, visibilityAwareInterval } from '$lib/utils.js';
-  import SENDERS from '$lib/data/senders.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
   import SearchModal from '$lib/components/SearchModal.svelte';
@@ -20,13 +19,25 @@
   let lastSeenMap = {};
   let feedEl;
   let pollTimer;
+  let contactsPollTimer;
   let needsScroll = false;
   let searchOpen = false;
+
+  let contacts = [];
+  $: contactsByName = Object.fromEntries(contacts.map(c => [c.name, c]));
+
+  async function loadContacts() {
+    try {
+      const data = await dbGet('contacts');
+      if (!data) { contacts = []; return; }
+      contacts = Object.keys(data).map(k => { const c = data[k]; c._id = k; return c; });
+    } catch { contacts = []; }
+  }
 
   // ── helpers ──────────────────────────────────────────────────────────────────
 
   function senderMeta(name) {
-    return SENDERS.find(s => s.name === name) ?? { color: '#b8902f', avatar: null };
+    return contactsByName[name] ?? { color: '#b8902f', avatar: null };
   }
 
   function hexToRgba(hex, a) {
@@ -79,11 +90,16 @@
 
   onMount(() => {
     lastSeenMap = loadLastSeen();
+    loadContacts();
     poll();
     pollTimer = visibilityAwareInterval(poll, 5000);
+    contactsPollTimer = visibilityAwareInterval(loadContacts, 30000);
   });
 
-  onDestroy(() => { if (pollTimer) pollTimer(); });
+  onDestroy(() => {
+    if (pollTimer) pollTimer();
+    if (contactsPollTimer) contactsPollTimer();
+  });
 
   // ── derived views ─────────────────────────────────────────────────────────────
 
@@ -127,7 +143,7 @@
 <!-- Per-page header — custom markup, not wire-header web component -->
 <header class="msg-header">
   {#if activeSender}
-    {@const meta = senderMeta(activeSender)}
+    {@const meta = contactsByName[activeSender] ?? { color: '#b8902f', avatar: null }}
     <a class="msg-back" href="{base}/messages" aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-avatar"
       style="background:{hexToRgba(meta.color, 0.16)};border-color:{meta.color};color:{meta.color}">
@@ -139,7 +155,7 @@
     </div>
     <div>
       <div class="msg-header-title" style="color:{meta.color}">{activeSender}</div>
-      <div class="msg-header-sub">Fate City</div>
+      <div class="msg-header-sub">{meta.number || 'Fate City'}</div>
     </div>
   {:else}
     <a class="msg-back" href="{base}/home" aria-label="Back to home screen">&lsaquo;</a>
@@ -158,7 +174,7 @@
       <p class="msg-empty">Nothing from {activeSender} yet.</p>
     {:else}
       {#each threadMessages as m (m.id)}
-        {@const meta = senderMeta(m.sender)}
+        {@const meta = contactsByName[m.sender] ?? { color: '#b8902f', avatar: null }}
         {@const color = m.color || meta.color}
         <div class="msg-row" in:fly={{ y: 10, duration: 400 }}>
           <div class="msg-avatar"

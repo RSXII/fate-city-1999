@@ -52,6 +52,124 @@ export const ENTRIES = [
       cite: "S.K.AM Technologies ad campaign, citywide Wire placement",
     },
   },
+  {
+    id: "wardrobe-system",
+    category: "mechanics",
+    fileNo: "WS-023",
+    stamp: "GAMEPLAY MECHANICS \u2014 SOCIAL LAYER",
+    colors: {
+      rule: "#4a3a12",
+      accent: "#b8902f",
+      stripe: "#4a3a12",
+      stampColor: "#b8902f",
+    },
+    name: "WARDROBE SYSTEM",
+    epithet:
+      "The clothes you walk in wearing are already saying something. This is the mechanic for what they say \u2014 and what it costs when the room hears it.",
+    images: [],
+    stats: [
+      {
+        label: "Applies To",
+        value: "Wardrobe & Style, Personal Grooming, Persuasion, Facedowns",
+      },
+      {
+        label: "Active Pool",
+        value: "Points from your current outfit \u2014 resets when you change",
+      },
+      {
+        label: "Wardrobe Pool",
+        value:
+          "Total charges across all qualifying items \u2014 only restored by new purchases",
+      },
+      {
+        label: "Max Per Check",
+        value: "Half your COOL, rounded down \u2014 declared before the roll",
+      },
+      {
+        label: "Does Not Apply To",
+        value:
+          "Combat, Netrunning, Driving, or any check where appearance is not plausibly relevant",
+      },
+      {
+        label: "Fray Cost",
+        value: "None \u2014 this is fashion, not chrome",
+      },
+    ],
+    sections: [
+      {
+        heading: "Overview",
+        paragraphs: [
+          "Fate City runs on Bloomwork, Galv\u00e8re, and the premise that a better version of yourself is purchasable. The clothes you wear communicate something before you open your mouth. The Wardrobe System gives that fiction mechanical weight without replacing the social skills already doing that work.",
+          "The RAW social framework stays intact. Wardrobe & Style, Personal Grooming, Persuasion, and Facedowns remain the primary mechanics. This system adds a spendable resource layer on top of them \u2014 one that degrades as you use it, and only refills when you buy new clothes.",
+        ],
+      },
+      {
+        heading: "Item Tiers",
+        paragraphs: [
+          "Not all clothing contributes to the pool. Items must be Budget tier or above to qualify. Standard clothing contributes nothing.",
+        ],
+        hooks: [
+          "<strong>Budget / Knockoff \u2014 4 charges.</strong> Fake Galv\u00e8re, Briarwood back-alley storefronts. Cannot be refreshed when depleted.",
+          "<strong>Mid-Market \u2014 6 charges.</strong> S.K.AM premium line and equivalents.",
+          "<strong>Galv\u00e8re Proper \u2014 8 charges.</strong> Authentic Galv\u00e8re pieces. 800 Plat per item. Refreshable at any Galv\u00e8re boutique for 200 Plat \u2014 one day\u2019s wait.",
+          "<strong>Galv\u00e8re Couture \u2014 10 charges.</strong> Custom or limited run. Access is part of the cost.",
+        ],
+      },
+      {
+        heading: "Outfit Slots",
+        paragraphs: [
+          "Four slots contribute to your Active Pool: Top, Bottom, Footwear, and Accessory (jewelry, bag, headwear). Each equipped qualifying item contributes its remaining charges to the pool. Only qualifying items count \u2014 standard clothing contributes nothing.",
+          "Your Active Pool is what you spend from. Spent charges come off both the Active Pool and the Wardrobe Pool simultaneously. When an item hits 0 charges it stops contributing, permanently, until you refresh or replace it. Refreshing requires visiting the issuing boutique. Budget knockoffs cannot be refreshed and are discarded when spent.",
+        ],
+      },
+      {
+        heading: "Spending & Changing",
+        paragraphs: [
+          "Before making a qualifying check, declare a spend from your Active Pool and add that number to the roll. Maximum spend per check equals half your COOL, rounded down. Points must be declared before the dice hit the table \u2014 this is a commitment, not a safety net after a bad result. Unlike Luck, Wardrobe Points represent preparation and intention.",
+          "When you change into a different outfit, your Active Pool resets to reflect the new outfit\u2019s remaining charges. Changing requires a full outfit swap \u2014 leaving the scene, changing, and returning. It is not a mid-scene action.",
+        ],
+      },
+      {
+        heading: "Outfit Categories",
+        paragraphs: [
+          "Clothing communicates register before you open your mouth. Categories are flavor labels that inform how the GM reads the room and sets the DV for social checks. There is no formula. The GM adjusts by feel.",
+        ],
+        hooks: [
+          "<strong>Luxury</strong> \u2014 Wealth, status, cultural capital. Galas, Galv\u00e8re events, high-end corporate social spaces.",
+          "<strong>Corporate</strong> \u2014 Authority, institutional affiliation. FCR offices, boardrooms, professional meetings.",
+          "<strong>Club</strong> \u2014 Scene membership, trend-awareness. Nocturne floors, music venues, fashion-forward crowds.",
+          "<strong>Street</strong> \u2014 City-level credibility, crew adjacency. Deals, crew meetings, Night Crows pit lane.",
+          "<strong>Casual</strong> \u2014 Unremarkable, intentionally neutral. Doesn\u2019t communicate much in either direction.",
+          "<strong>Utility</strong> \u2014 Expecting trouble. Communicates you\u2019re working, not socializing.",
+        ],
+      },
+      {
+        heading: "GM Guidance",
+        paragraphs: [
+          "If the table can narrate the read before anyone rolls \u2014 \u201cthey look at you like you\u2019re lost\u201d \u2014 let that do the work. The adjustments below are reference points, not rules.",
+        ],
+        hooks: [
+          "Right category for the room: DV as normal.",
+          "Neutral or generic \u2014 close but not quite right: DV +2. Not wrong, but not helping.",
+          "Wrong category entirely: DV +3 to +5. The outfit is telling a story you didn\u2019t want told.",
+          "Overdressing has a cost. A Galv\u00e8re couture outfit at the Night Crows pit lane may raise the DV more than showing up in Utility gear. Wardrobe Points cannot spend your way out of a misread.",
+        ],
+      },
+      {
+        heading: "A Note From Your Benefactor",
+        hooks: [
+          "A full pool doesn\u2019t guarantee anything. It means you came prepared. The room still decides whether prepared matters.",
+          "Budget knockoffs look the same until someone who knows better is in the room. In a city full of people who buy Galv\u00e8re, that\u2019s a shorter window than it sounds.",
+          "Wardrobe Points and Luck both spend before you see the number. The difference is that Luck can save anyone. The pool only helps the people who thought to fill it before walking through the door.",
+          "Changing outfits takes time you might not always have. Showing up in the wrong clothes and spending through the penalty is a viable play. Just an expensive one.",
+        ],
+      },
+    ],
+    quote: {
+      text: "A couture job and a budget job can produce the exact same antlers. They do not produce the exact same room when you walk into one wearing it.",
+      cite: "Cultural Intelligence Briefing BW-015 \u2014 Bloomwork",
+    },
+  },
 
   {
     id: "soft-angels",
@@ -346,4 +464,5 @@ export const CATEGORY_ORDER = [
   { key: "technology", label: "Technology" },
   { key: "services", label: "Services" },
   { key: "substances", label: "Substances" },
+  { key: "mechanics", label: "Mechanics" },
 ];

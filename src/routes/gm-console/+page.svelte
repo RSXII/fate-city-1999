@@ -1,7 +1,6 @@
 <script>
   import { base } from '$app/paths';
   import { onMount, onDestroy } from 'svelte';
-  import SENDERS from '$lib/data/senders.js';
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
@@ -15,6 +14,8 @@
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images';
   const GITHUB_RIDES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/rides';
+  const GITHUB_WIRE_PROFILES_API =
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/wire-profiles';
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function relTime(ts) {
@@ -370,13 +371,27 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
-  // ── Section 3: Phone Contacts ─────────────────────────────────────────────
+  // ── Section 3: Contacts (unified wire senders + phone contacts) ──────────
   let contactList = [];
   let newCName = '';
   let newCNumber = '';
   let newCSubtitle = '';
+  let newCColor = '#c9a227';
+  let newCAvatar = '';
   let contactStatus = { text: '', type: '' };
   let addingContact = false;
+
+  let contactAvatarPickerOpen = false;
+  let contactAvatarPickerLoading = false;
+  let contactAvatarPickerError = '';
+  let contactAvatarPickerImages = [];
+
+  let editingId = null;
+  let editCName = '', editCNumber = '', editCSubtitle = '';
+  let editCColor = '#c9a227', editCAvatar = '';
+  let savingContact = false;
+  let editAvatarPickerOpen = false, editAvatarPickerLoading = false;
+  let editAvatarPickerError = '', editAvatarPickerImages = [];
 
   async function refreshContacts() {
     try {
@@ -390,13 +405,22 @@
 
   async function addContact() {
     const name = newCName.trim();
-    const number = newCNumber.trim();
-    if (!name || !number) { contactStatus = { text: 'Name and number are required.', type: 'err' }; return; }
+    if (!name) { contactStatus = { text: 'Name is required.', type: 'err' }; return; }
     addingContact = true;
     contactStatus = { text: 'Adding…', type: '' };
     try {
-      await dbPost('contacts', { name, number, subtitle: newCSubtitle.trim(), enabled: true });
+      await dbPost('contacts', {
+        name,
+        number: newCNumber.trim() || null,
+        subtitle: newCSubtitle.trim() || null,
+        color: newCColor,
+        avatar: newCAvatar || null,
+        enabled: true,
+        createdAt: Date.now(),
+      });
       newCName = ''; newCNumber = ''; newCSubtitle = '';
+      newCColor = '#c9a227'; newCAvatar = '';
+      contactAvatarPickerOpen = false;
       contactStatus = { text: 'Contact added.', type: 'ok' };
       await refreshContacts();
     } catch (e) {
@@ -413,11 +437,98 @@
   }
 
   async function deleteContact(id) {
-    if (!confirm('Remove this contact from player phones?')) return;
+    if (!confirm('Remove this contact?')) return;
     try {
       await dbDelete(`contacts/${id}`);
       await refreshContacts();
     } catch (e) { console.error('Delete failed', e); }
+  }
+
+  async function toggleContactAvatarPicker() {
+    if (contactAvatarPickerOpen) { contactAvatarPickerOpen = false; return; }
+    contactAvatarPickerOpen = true;
+    contactAvatarPickerLoading = true;
+    contactAvatarPickerError = '';
+    contactAvatarPickerImages = [];
+    try {
+      const res = await fetch(GITHUB_WIRE_PROFILES_API);
+      if (res.status === 404) {
+        contactAvatarPickerLoading = false;
+        contactAvatarPickerError = 'No images in static/images/wire-profiles/ yet.';
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      contactAvatarPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      contactAvatarPickerError = contactAvatarPickerImages.length ? '' : 'No images found yet.';
+    } catch (e) {
+      contactAvatarPickerError = `Failed: ${e?.message ?? 'error'}`;
+    }
+    contactAvatarPickerLoading = false;
+  }
+
+  function selectContactAvatar(img) {
+    newCAvatar = `images/wire-profiles/${img.name}`;
+    contactAvatarPickerOpen = false;
+  }
+
+  function startEdit(c) {
+    editingId = c._id;
+    editCName = c.name;
+    editCNumber = c.number || '';
+    editCSubtitle = c.subtitle || '';
+    editCColor = c.color || '#c9a227';
+    editCAvatar = c.avatar || '';
+    editAvatarPickerOpen = false;
+  }
+
+  function cancelEdit() { editingId = null; }
+
+  async function saveContact() {
+    if (!editCName.trim()) return;
+    savingContact = true;
+    try {
+      await dbPut(`contacts/${editingId}`, {
+        name: editCName.trim(),
+        number: editCNumber.trim() || null,
+        subtitle: editCSubtitle.trim() || null,
+        color: editCColor,
+        avatar: editCAvatar || null,
+      });
+      await refreshContacts();
+      editingId = null;
+    } catch (e) {
+      contactStatus = { text: `Save failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+    savingContact = false;
+  }
+
+  async function toggleEditAvatarPicker() {
+    if (editAvatarPickerOpen) { editAvatarPickerOpen = false; return; }
+    editAvatarPickerOpen = true;
+    editAvatarPickerLoading = true;
+    editAvatarPickerError = '';
+    editAvatarPickerImages = [];
+    try {
+      const res = await fetch(GITHUB_WIRE_PROFILES_API);
+      if (res.status === 404) {
+        editAvatarPickerLoading = false;
+        editAvatarPickerError = 'No images in static/images/wire-profiles/ yet.';
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      editAvatarPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      editAvatarPickerError = editAvatarPickerImages.length ? '' : 'No images found yet.';
+    } catch (e) {
+      editAvatarPickerError = `Failed: ${e?.message ?? 'error'}`;
+    }
+    editAvatarPickerLoading = false;
+  }
+
+  function selectEditAvatar(img) {
+    editCAvatar = `images/wire-profiles/${img.name}`;
+    editAvatarPickerOpen = false;
   }
 
   // ── Section 4: Current Date ────────────────────────────────────────────────
@@ -755,7 +866,7 @@
     jobPoll     = visibilityAwareInterval(loadJobs, 8000);
     refreshStagedRides();
     refreshLiveRides();
-    ridesPoll   = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
+    ridesPoll    = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
   });
 
   onDestroy(() => {
@@ -803,22 +914,28 @@
       <div class="section">
         <div class="section-label">Sender</div>
         <div class="chip-grid">
-          {#each SENDERS as s (s.id)}
+          {#each contactList as c (c._id)}
+            {@const chipColor = c.color || '#c9a227'}
             <button
               type="button"
               class="chip"
-              class:selected={selectedSender?.id === s.id}
-              style="color:{s.color};border-color:{s.color}"
-              on:click={() => { selectedSender = s; }}
+              class:selected={selectedSender?._id === c._id}
+              style="color:{chipColor};border-color:{chipColor}"
+              on:click={() => { selectedSender = c; }}
             >
-              <img
-                class="chip-avatar"
-                src="{base}/{s.avatar}"
-                alt=""
-                loading="lazy"
-                on:error={e => e.target.style.display = 'none'}
-              />
-              <span>{s.name}</span>
+              {#if c.avatar}
+                <img
+                  class="chip-avatar"
+                  src="{base}/{c.avatar}"
+                  alt=""
+                  loading="lazy"
+                  on:error={e => e.target.style.display = 'none'}
+                />
+              {/if}
+              <span class="chip-label">
+                <span>{c.name}</span>
+                {#if c.number}<span class="chip-number">{c.number}</span>{/if}
+              </span>
             </button>
           {/each}
         </div>
@@ -1170,18 +1287,48 @@
     <!-- ══ PHONE CONTACTS ══════════════════════════════════════════════════ -->
     {:else if activeTab === 'contacts'}
 
-      <p class="tab-sub">Manage contacts that appear on player devices. Toggle visibility without deleting.</p>
+      <p class="tab-sub">Manage contacts. All contacts appear in the Wire sender list. Toggle phone visibility without deleting.</p>
 
       <div class="section">
         <div class="section-label">Add Contact</div>
         <div class="contact-form">
           <input type="text" class="contact-input" placeholder="Name…" bind:value={newCName} />
-          <input type="text" class="contact-input" placeholder="Phone number…" bind:value={newCNumber} />
+          <input type="text" class="contact-input" placeholder="Phone number (optional)…" bind:value={newCNumber} />
           <input type="text" class="contact-input" placeholder="Role / subtitle (optional)…" bind:value={newCSubtitle} />
+          <div class="sender-color-row">
+            <span class="form-label" style="width:auto;flex-shrink:0">Color</span>
+            <input type="color" class="color-swatch" bind:value={newCColor} />
+            <span class="sender-color-preview" style="color:{newCColor}">{newCColor}</span>
+          </div>
+          <div class="img-picker-row" style="margin-top:2px">
+            <span class="img-selected">{newCAvatar || 'No avatar selected'}</span>
+            <button class="picker-btn" type="button" on:click={toggleContactAvatarPicker}>
+              {contactAvatarPickerOpen ? 'Close' : 'Pick avatar'}
+            </button>
+          </div>
         </div>
+
+        {#if contactAvatarPickerOpen}
+          <div class="img-picker-grid" style="margin-top:8px">
+            {#if contactAvatarPickerLoading}
+              <span class="picker-status">Loading…</span>
+            {:else if contactAvatarPickerError}
+              <span class="picker-status picker-err">{contactAvatarPickerError}</span>
+            {:else}
+              {#each contactAvatarPickerImages as img (img.name)}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="picker-thumb" class:selected={newCAvatar === `images/wire-profiles/${img.name}`} on:click={() => selectContactAvatar(img)}>
+                  <img src={img.download_url} alt={img.name} loading="lazy" style="aspect-ratio:1;object-position:50% 20%" />
+                  <span class="picker-name">{img.name}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
         <div style="height:10px"></div>
-        <button class="primary" disabled={addingContact} on:click={addContact}>
-          {addingContact ? 'Adding…' : 'Add to Phone Contacts'}
+        <button class="primary" disabled={addingContact || !newCName.trim()} on:click={addContact}>
+          {addingContact ? 'Adding…' : 'Add Contact'}
         </button>
         <div class="status-line" class:ok={contactStatus.type === 'ok'} class:err={contactStatus.type === 'err'}>
           {contactStatus.text}
@@ -1198,18 +1345,73 @@
             <div class="log-empty">No contacts yet. Add one above.</div>
           {:else}
             {#each contactList as c (c._id)}
-              <div class="contact-log-row">
-                <div class="contact-log-info">
-                  <span class="contact-log-name" class:dimmed={!c.enabled}>{c.name}</span>
-                  <span class="contact-log-meta">{c.number}{c.subtitle ? ' · ' + c.subtitle : ''}</span>
+              {#if editingId === c._id}
+                <div class="contact-edit-block">
+                  <div class="contact-form" style="margin-bottom:8px">
+                    <input type="text" class="contact-input" placeholder="Name…" bind:value={editCName} />
+                    <input type="text" class="contact-input" placeholder="Phone number (optional)…" bind:value={editCNumber} />
+                    <input type="text" class="contact-input" placeholder="Role / subtitle (optional)…" bind:value={editCSubtitle} />
+                    <div class="sender-color-row">
+                      <span class="form-label" style="width:auto;flex-shrink:0">Color</span>
+                      <input type="color" class="color-swatch" bind:value={editCColor} />
+                      <span class="sender-color-preview" style="color:{editCColor}">{editCColor}</span>
+                    </div>
+                    <div class="img-picker-row" style="margin-top:2px">
+                      <span class="img-selected">{editCAvatar || 'No avatar selected'}</span>
+                      <button class="picker-btn" type="button" on:click={toggleEditAvatarPicker}>
+                        {editAvatarPickerOpen ? 'Close' : 'Pick avatar'}
+                      </button>
+                    </div>
+                  </div>
+                  {#if editAvatarPickerOpen}
+                    <div class="img-picker-grid" style="margin-bottom:8px">
+                      {#if editAvatarPickerLoading}
+                        <span class="picker-status">Loading…</span>
+                      {:else if editAvatarPickerError}
+                        <span class="picker-status picker-err">{editAvatarPickerError}</span>
+                      {:else}
+                        {#each editAvatarPickerImages as img (img.name)}
+                          <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                          <div class="picker-thumb" class:selected={editCAvatar === `images/wire-profiles/${img.name}`} on:click={() => selectEditAvatar(img)}>
+                            <img src={img.download_url} alt={img.name} loading="lazy" style="aspect-ratio:1;object-position:50% 20%" />
+                            <span class="picker-name">{img.name}</span>
+                          </div>
+                        {/each}
+                      {/if}
+                    </div>
+                  {/if}
+                  <div class="contact-edit-actions">
+                    <button class="primary" style="flex:1" disabled={savingContact || !editCName.trim()} on:click={saveContact}>
+                      {savingContact ? 'Saving…' : 'Save'}
+                    </button>
+                    <button class="ghost-btn" on:click={cancelEdit}>Cancel</button>
+                  </div>
                 </div>
-                <div class="contact-log-actions">
-                  <button class="toggle-btn" class:on={c.enabled} on:click={() => toggleContact(c._id, c.enabled)}>
-                    {c.enabled ? 'Visible' : 'Hidden'}
-                  </button>
-                  <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
+              {:else}
+                <div class="contact-log-row">
+                  <div class="contact-log-info">
+                    {#if c.avatar}
+                      <img class="contact-log-avatar" src="{base}/{c.avatar}" alt="" loading="lazy"
+                        on:error={e => e.target.style.display = 'none'} />
+                    {:else}
+                      <span class="contact-log-dot" style="background:{c.color || '#c9a227'}"></span>
+                    {/if}
+                    <div class="contact-log-text">
+                      <span class="contact-log-name" class:dimmed={!c.enabled} style="color:{c.color || '#e8dfc8'}">{c.name}</span>
+                      {#if c.number || c.subtitle}
+                        <span class="contact-log-meta">{c.number || ''}{c.number && c.subtitle ? ' · ' : ''}{c.subtitle || ''}</span>
+                      {/if}
+                    </div>
+                  </div>
+                  <div class="contact-log-actions">
+                    <button class="ghost-btn" style="padding:4px 9px;font-size:10px" on:click={() => startEdit(c)}>Edit</button>
+                    <button class="toggle-btn" class:on={c.enabled} on:click={() => toggleContact(c._id, c.enabled)}>
+                      {c.enabled ? 'In Phone' : 'Hidden'}
+                    </button>
+                    <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
+                  </div>
                 </div>
-              </div>
+              {/if}
             {/each}
           {/if}
         </div>
@@ -1655,6 +1857,8 @@
   .chip:active { transform: scale(0.96); }
   .chip-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; border: 1px solid rgba(255,255,255,0.15); flex-shrink: 0; }
   .chip.selected { box-shadow: inset 0 0 0 1px currentColor; }
+  .chip-label { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .chip-number { font-family: 'Courier New', monospace; font-size: 8px; letter-spacing: 0.3px; opacity: 0.55; }
 
   textarea {
     width: 100%; min-height: 70px; background: #0c0f16;
@@ -1828,11 +2032,20 @@
     padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
   }
   .contact-log-row:last-child { border-bottom: none; }
-  .contact-log-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .contact-log-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .contact-log-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .contact-log-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .contact-log-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .contact-log-name { font-size: 13px; font-weight: 600; color: #e8dfc8; }
   .contact-log-name.dimmed { color: #3a4a5a; }
   .contact-log-meta { font-size: 11px; color: #6a7d90; }
   .contact-log-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .contact-edit-block {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .contact-edit-block:last-child { border-bottom: none; }
+  .contact-edit-actions { display: flex; gap: 8px; align-items: center; }
   .toggle-btn {
     background: none; border: 1px solid #3a4a5a; color: #6a7d90;
     border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer;
@@ -2108,6 +2321,19 @@
   }
   .ride-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .ride-upgrade-count { color: rgba(201,162,39,0.35); font-size: 9px; }
+
+  /* ── Sender management ── */
+  .sender-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+  .sender-list-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; background: #0c0f16;
+    border: 1px solid #1a2030; border-radius: 6px;
+  }
+  .sender-list-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .sender-list-name { flex: 1; font-size: 12.5px; color: #e8dfc8; }
+  .sender-list-empty { font-size: 11px; color: #3a4a5a; font-style: italic; margin: 6px 0 0; }
+  .sender-color-row { display: flex; align-items: center; gap: 10px; }
+  .sender-color-preview { font-family: 'Courier New', monospace; font-size: 11px; color: #6a7d90; }
 
   .upgrade-toggle-grid {
     display: grid;
