@@ -853,6 +853,25 @@
   let fsgPosting = false;
   let fsgStatus = { text: '', type: '' };
   let fsgPosts = [];
+  let fsgKnownAuthors = []; // { username, handle } — persisted to localStorage
+
+  const FSG_AUTHORS_KEY = 'fsg-known-authors';
+
+  function loadFsgAuthors() {
+    try { fsgKnownAuthors = JSON.parse(localStorage.getItem(FSG_AUTHORS_KEY) ?? '[]'); }
+    catch { fsgKnownAuthors = []; }
+  }
+
+  function saveFsgAuthor(username, handle) {
+    const existing = fsgKnownAuthors.filter(a => a.username !== username);
+    fsgKnownAuthors = [{ username, handle: handle || '' }, ...existing];
+    localStorage.setItem(FSG_AUTHORS_KEY, JSON.stringify(fsgKnownAuthors));
+  }
+
+  function quickFillAuthor(author) {
+    fsgUsername = author.username;
+    fsgHandle = author.handle;
+  }
 
   let fsgPickerOpen = false;
   let fsgPickerLoading = false;
@@ -949,6 +968,7 @@
       fsgPickerSelected = null;
       fsgPickerOpen = false;
       fsgAvatarPickerOpen = false;
+      saveFsgAuthor(username, fsgHandle.trim());
       fsgStatus = { text: 'Posted to FateStaGram.', type: 'ok' };
       await loadFsgPosts();
     } catch (e) {
@@ -1008,6 +1028,7 @@
     refreshLiveRides();
     ridesPoll    = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
     loadFsgPosts();
+    loadFsgAuthors();
   });
 
   onDestroy(() => {
@@ -1915,6 +1936,17 @@
       <div class="section">
         <div class="section-label">New Post</div>
 
+        <!-- Known author quick-fill -->
+        {#if fsgKnownAuthors.length}
+          <div class="fsg-author-chips">
+            {#each fsgKnownAuthors as a (a.username)}
+              <button type="button" class="fsg-author-chip" class:selected={fsgUsername === a.username} on:click={() => quickFillAuthor(a)}>
+                {a.username}{a.handle ? ` · ${a.handle}` : ''}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
         <!-- Username + handle -->
         <input type="text" class="email-subject-input" placeholder="Username (display name)…" bind:value={fsgUsername} />
         <input type="text" class="email-subject-input" placeholder="@handle (optional)…" bind:value={fsgHandle} />
@@ -2669,6 +2701,27 @@
   .recall-btn:disabled { opacity: 0.4; cursor: default; }
 
   /* ── FateStaGram tab ── */
+  .fsg-author-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .fsg-author-chip {
+    background: rgba(201,162,39,0.07);
+    border: 1px solid rgba(201,162,39,0.3);
+    border-radius: 20px;
+    color: rgba(201,162,39,0.8);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .fsg-author-chip:hover { background: rgba(201,162,39,0.15); border-color: #c9a227; color: #c9a227; }
+  .fsg-author-chip.selected { background: rgba(201,162,39,0.18); border-color: #c9a227; color: #c9a227; }
+
   .fsg-post-btn {
     background: linear-gradient(90deg, #c9a227, #e05a3a);
     color: #fff;
