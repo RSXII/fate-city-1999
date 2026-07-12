@@ -12,6 +12,8 @@
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images/messages';
   const GITHUB_ROOT_IMAGES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/images';
+  const GITHUB_FATESTAGRAM_API =
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/fatestagram';
   const GITHUB_RIDES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/rides';
   const GITHUB_WIRE_PROFILES_API =
@@ -836,6 +838,144 @@
     } catch (e) { console.error('Delete failed', e); }
   }
 
+  // ── Section 7: FateStaGram ────────────────────────────────────────────────
+  let fsgUsername = '';
+  let fsgHandle = '';
+  let fsgCaption = '';
+  let fsgTags = '';
+  let fsgLocation = '';
+  let fsgLikes = '';
+  let fsgImageUrl = '';
+  let fsgAvatarUrl = '';
+  let fsgTopCommentUser = '';
+  let fsgTopCommentText = '';
+  let fsgTopCommentLikes = '';
+  let fsgPosting = false;
+  let fsgStatus = { text: '', type: '' };
+  let fsgPosts = [];
+
+  let fsgPickerOpen = false;
+  let fsgPickerLoading = false;
+  let fsgPickerError = '';
+  let fsgPickerImages = [];
+  let fsgPickerSelected = null; // { url, name }
+
+  let fsgAvatarPickerOpen = false;
+  let fsgAvatarPickerLoading = false;
+  let fsgAvatarPickerError = '';
+  let fsgAvatarPickerImages = [];
+
+  async function toggleFsgPicker() {
+    if (fsgPickerOpen) { fsgPickerOpen = false; return; }
+    fsgPickerOpen = true;
+    fsgPickerLoading = true;
+    fsgPickerError = '';
+    fsgPickerImages = [];
+    try {
+      const res = await fetch(GITHUB_FATESTAGRAM_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      fsgPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      if (!fsgPickerImages.length) fsgPickerError = 'No images found in static/images/ yet.';
+    } catch (e) {
+      fsgPickerError = `Failed: ${e?.message ?? 'error'}`;
+    }
+    fsgPickerLoading = false;
+  }
+
+  function selectFsgImage(img) {
+    fsgPickerSelected = { url: img.download_url, name: img.name };
+    fsgImageUrl = img.download_url;
+    fsgPickerOpen = false;
+  }
+
+  async function toggleFsgAvatarPicker() {
+    if (fsgAvatarPickerOpen) { fsgAvatarPickerOpen = false; return; }
+    fsgAvatarPickerOpen = true;
+    fsgAvatarPickerLoading = true;
+    fsgAvatarPickerError = '';
+    fsgAvatarPickerImages = [];
+    try {
+      const res = await fetch(GITHUB_WIRE_PROFILES_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      fsgAvatarPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      if (!fsgAvatarPickerImages.length) fsgAvatarPickerError = 'No images in static/images/wire-profiles/ yet.';
+    } catch (e) {
+      fsgAvatarPickerError = `Failed: ${e?.message ?? 'error'}`;
+    }
+    fsgAvatarPickerLoading = false;
+  }
+
+  function selectFsgAvatar(img) {
+    fsgAvatarUrl = img.download_url;
+    fsgAvatarPickerOpen = false;
+  }
+
+  async function postToFatestagram() {
+    const username = fsgUsername.trim();
+    if (!username) { fsgStatus = { text: 'Username is required.', type: 'err' }; return; }
+    if (!fsgImageUrl.trim()) { fsgStatus = { text: 'An image is required.', type: 'err' }; return; }
+    fsgPosting = true;
+    fsgStatus = { text: 'Posting…', type: '' };
+    try {
+      const topCommentUser = fsgTopCommentUser.trim();
+      const topCommentText = fsgTopCommentText.trim();
+      await dbPost('fatestagram', {
+        username,
+        handle: fsgHandle.trim() || null,
+        caption: fsgCaption.trim() || null,
+        tags: fsgTags.trim() || null,
+        location: fsgLocation.trim() || null,
+        likes: parseInt(fsgLikes) || 0,
+        imageUrl: fsgImageUrl.trim(),
+        avatarUrl: fsgAvatarUrl.trim() || null,
+        topComment: (topCommentUser && topCommentText)
+          ? { username: topCommentUser, text: topCommentText, likes: parseInt(fsgTopCommentLikes) || 0 }
+          : null,
+        ts: Date.now(),
+      });
+      fsgUsername = '';
+      fsgHandle = '';
+      fsgCaption = '';
+      fsgTags = '';
+      fsgLocation = '';
+      fsgLikes = '';
+      fsgImageUrl = '';
+      fsgAvatarUrl = '';
+      fsgTopCommentUser = '';
+      fsgTopCommentText = '';
+      fsgTopCommentLikes = '';
+      fsgPickerSelected = null;
+      fsgPickerOpen = false;
+      fsgAvatarPickerOpen = false;
+      fsgStatus = { text: 'Posted to FateStaGram.', type: 'ok' };
+      await loadFsgPosts();
+    } catch (e) {
+      fsgStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    fsgPosting = false;
+  }
+
+  async function loadFsgPosts() {
+    try {
+      const data = await dbGet('fatestagram', { orderBy: '$key', limitToLast: 50 });
+      if (!data) { fsgPosts = []; return; }
+      fsgPosts = Object.keys(data)
+        .map(k => { const p = data[k]; p._id = k; return p; })
+        .filter(p => p.imageUrl || p.caption)
+        .sort((a, b) => b.ts - a.ts);
+    } catch { fsgPosts = []; }
+  }
+
+  async function deleteFsgPost(id) {
+    if (!confirm('Delete this post from FateStaGram?')) return;
+    try {
+      await dbDelete(`fatestagram/${id}`);
+      await loadFsgPosts();
+    } catch (e) { console.error('Delete failed', e); }
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
@@ -867,6 +1007,7 @@
     refreshStagedRides();
     refreshLiveRides();
     ridesPoll    = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
+    loadFsgPosts();
   });
 
   onDestroy(() => {
@@ -903,6 +1044,7 @@
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
     <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
     <button class="tab" class:active={activeTab === 'rides'} role="tab" on:click={() => activeTab = 'rides'}>Rides</button>
+    <button class="tab tab--fsg" class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -1765,6 +1907,139 @@
       </div>
     {/if}
 
+    <!-- ══ FATESTAGRAM ══════════════════════════════════════════════════════ -->
+    {#if activeTab === 'fatestagram'}
+
+      <p class="tab-sub">Author FateStaGram posts. They appear on player devices immediately.</p>
+
+      <div class="section">
+        <div class="section-label">New Post</div>
+
+        <!-- Username + handle -->
+        <input type="text" class="email-subject-input" placeholder="Username (display name)…" bind:value={fsgUsername} />
+        <input type="text" class="email-subject-input" placeholder="@handle (optional)…" bind:value={fsgHandle} />
+
+        <!-- Post image picker -->
+        <div class="section-label-row" style="margin-top:10px">
+          <div class="section-label" style="margin-bottom:0">Post Image</div>
+          <button class="ghost-btn" type="button" on:click={toggleFsgPicker}>
+            {fsgPickerOpen ? 'Close picker' : '+ Pick image'}
+          </button>
+        </div>
+
+        {#if fsgPickerSelected}
+          <div class="attached-preview" style="margin-bottom:10px">
+            <img src={fsgPickerSelected.url} alt="" />
+            <span>{fsgPickerSelected.name}</span>
+            <button type="button" on:click={() => { fsgPickerSelected = null; fsgImageUrl = ''; }}>&times;</button>
+          </div>
+        {:else if !fsgPickerOpen}
+          <input type="text" class="email-subject-input" placeholder="Or paste image URL directly…" bind:value={fsgImageUrl} />
+        {/if}
+
+        {#if fsgPickerOpen}
+          <div class="image-picker">
+            {#if fsgPickerLoading}
+              <div class="img-picker-status">Loading…</div>
+            {:else if fsgPickerError}
+              <div class="img-picker-status err">{fsgPickerError}</div>
+            {:else}
+              {#each fsgPickerImages as img (img.name)}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="img-thumb" class:selected={fsgImageUrl === img.download_url} on:click={() => selectFsgImage(img)}>
+                  <img src={img.download_url} alt={img.name} loading="lazy" />
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Avatar picker -->
+        <div class="section-label-row" style="margin-top:12px">
+          <div class="section-label" style="margin-bottom:0">Profile Avatar (optional)</div>
+          <button class="ghost-btn" type="button" on:click={toggleFsgAvatarPicker}>
+            {fsgAvatarPickerOpen ? 'Close' : 'Pick avatar'}
+          </button>
+        </div>
+
+        {#if fsgAvatarUrl}
+          <div class="attached-preview" style="margin-bottom:8px">
+            <img src={fsgAvatarUrl} alt="" style="border-radius:50%" />
+            <span>Avatar set</span>
+            <button type="button" on:click={() => { fsgAvatarUrl = ''; fsgAvatarPickerOpen = false; }}>&times;</button>
+          </div>
+        {/if}
+
+        {#if fsgAvatarPickerOpen}
+          <div class="img-picker-grid" style="margin-bottom:10px">
+            {#if fsgAvatarPickerLoading}
+              <span class="picker-status">Loading…</span>
+            {:else if fsgAvatarPickerError}
+              <span class="picker-status picker-err">{fsgAvatarPickerError}</span>
+            {:else}
+              {#each fsgAvatarPickerImages as img (img.name)}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="picker-thumb" class:selected={fsgAvatarUrl === img.download_url} on:click={() => selectFsgAvatar(img)}>
+                  <img src={img.download_url} alt={img.name} loading="lazy" style="aspect-ratio:1;object-position:50% 20%" />
+                  <span class="picker-name">{img.name}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Caption / tags / location / likes -->
+        <textarea placeholder="Caption…" bind:value={fsgCaption} rows="3" style="margin-top:10px"></textarea>
+        <input type="text" class="email-subject-input" style="margin-top:8px" placeholder="#hashtags (optional)…" bind:value={fsgTags} />
+        <input type="text" class="email-subject-input" placeholder="Location tag (optional)…" bind:value={fsgLocation} />
+        <input type="number" class="email-subject-input" placeholder="Starting like count (optional, e.g. 42)…" bind:value={fsgLikes} />
+
+        <!-- Top comment -->
+        <div class="section-label" style="margin-top:16px;margin-bottom:8px">Top Comment (optional)</div>
+        <input type="text" class="email-subject-input" placeholder="Commenter username…" bind:value={fsgTopCommentUser} />
+        <input type="text" class="email-subject-input" placeholder="Comment text…" bind:value={fsgTopCommentText} />
+        <input type="number" class="email-subject-input" placeholder="Comment likes (optional, e.g. 312)…" bind:value={fsgTopCommentLikes} />
+
+        <div style="height:12px"></div>
+        <button class="primary fsg-post-btn" disabled={fsgPosting || !fsgUsername.trim() || !fsgImageUrl.trim()} on:click={postToFatestagram}>
+          {fsgPosting ? 'Posting…' : 'Post to FateStaGram'}
+        </button>
+        <div class="status-line" class:ok={fsgStatus.type === 'ok'} class:err={fsgStatus.type === 'err'}>
+          {fsgStatus.text}
+        </div>
+      </div>
+
+      <!-- Live posts list -->
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Live Posts ({fsgPosts.length})</div>
+          <button class="ghost-btn" on:click={loadFsgPosts}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !fsgPosts.length}
+            <div class="log-empty">No posts yet.</div>
+          {:else}
+            {#each fsgPosts as p (p._id)}
+              <div class="fsg-log-row">
+                {#if p.imageUrl}
+                  <img class="fsg-log-thumb" src={p.imageUrl} alt="" loading="lazy" />
+                {/if}
+                <div class="fsg-log-info">
+                  <span class="fsg-log-user">{p.username ?? '—'}</span>
+                  {#if p.caption}
+                    <span class="fsg-log-caption">{p.caption.slice(0, 60)}{p.caption.length > 60 ? '…' : ''}</span>
+                  {/if}
+                  <span class="log-time">{relTime(p.ts)}</span>
+                </div>
+                <button class="danger-btn" on:click={() => deleteFsgPost(p._id)}>Delete</button>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -1830,6 +2105,9 @@
   .tab--once { color: #4a3070; }
   .tab--once:hover { color: #9b6dff; }
   .tab--once.active { color: #9b6dff; border-bottom-color: #7c3aed; }
+  .tab--fsg { color: #7a4520; }
+  .tab--fsg:hover { color: #e05a3a; }
+  .tab--fsg.active { color: #e05a3a; border-bottom-color: #c9a227; }
 
   /* ── Tab panel (the scrollable area) ── */
   .tab-panel {
@@ -2389,4 +2667,50 @@
   }
   .recall-btn:hover:not(:disabled) { background: rgba(80,140,200,0.22); }
   .recall-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* ── FateStaGram tab ── */
+  .fsg-post-btn {
+    background: linear-gradient(90deg, #c9a227, #e05a3a);
+    color: #fff;
+  }
+  .fsg-post-btn:disabled { background: #2a2a26; color: #5a5650; cursor: not-allowed; }
+
+  .fsg-log-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #1a2030;
+  }
+  .fsg-log-row:last-child { border-bottom: none; }
+  .fsg-log-thumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #111;
+    flex-shrink: 0;
+  }
+  .fsg-log-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .fsg-log-user {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c9a227;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fsg-log-caption {
+    font-size: 11px;
+    color: rgba(232,223,200,0.45);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 </style>
