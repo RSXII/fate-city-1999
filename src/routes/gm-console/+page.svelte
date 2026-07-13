@@ -574,39 +574,66 @@
   let onceText = '';
   let onceSending = false;
   let onceStatus = { text: '', type: '' };
-  let onceLog = [];
+  let stagedOnce = [];
+  let liveOnce = [];
 
-  async function refreshOnceLog() {
+  async function loadOnce(stagedValue) {
     try {
       const data = await dbGet('once-messages');
-      if (!data) { onceLog = []; return; }
-      onceLog = Object.keys(data)
+      if (!data) return [];
+      return Object.keys(data)
         .map(k => { const m = data[k]; m._id = k; return m; })
+        .filter(m => m.staged === stagedValue)
         .sort((a, b) => b.ts - a.ts);
-    } catch { onceLog = []; }
+    } catch { return []; }
   }
 
-  async function sendOnceMessage() {
+  async function refreshStagedOnce() { stagedOnce = await loadOnce(false); }
+  async function refreshLiveOnce()   { liveOnce   = await loadOnce(true);  }
+
+  async function refreshOnceLog() { await refreshStagedOnce(); await refreshLiveOnce(); }
+
+  async function stageOnceMessage() {
     const text = onceText.trim();
     if (!text) return;
     onceSending = true;
-    onceStatus = { text: 'Transmitting…', type: '' };
+    onceStatus = { text: 'Staging…', type: '' };
     try {
-      await dbPost('once-messages', { text, ts: Date.now() });
+      await dbPost('once-messages', { text, ts: Date.now(), staged: false });
       onceText = '';
-      onceStatus = { text: 'Transmitted.', type: 'ok' };
-      await refreshOnceLog();
+      onceStatus = { text: 'Staged. Use Deploy when players are ready.', type: 'ok' };
+      await refreshStagedOnce();
     } catch (e) {
       onceStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
     onceSending = false;
   }
 
-  async function deleteOnceMessage(id) {
-    if (!confirm('Delete this transmission? It will vanish from player devices.')) return;
+  let deployingOnceId = null;
+  async function deployOnce(id) {
+    deployingOnceId = id;
+    try { await dbPut(`once-messages/${id}/staged`, true); await refreshStagedOnce(); await refreshLiveOnce(); }
+    catch (e) { console.error('Deploy failed', e); }
+    deployingOnceId = null;
+  }
+
+  let recallingOnceId = null;
+  async function recallOnce(id) {
+    if (!confirm('Recall this transmission? It will disappear from player devices.')) return;
+    recallingOnceId = id;
+    try { await dbPut(`once-messages/${id}/staged`, false); await refreshStagedOnce(); await refreshLiveOnce(); }
+    catch (e) { console.error('Recall failed', e); }
+    recallingOnceId = null;
+  }
+
+  async function deleteOnceMessage(id, isLive) {
+    const msg = isLive
+      ? 'Permanently delete this live transmission from all devices?'
+      : 'Delete this staged transmission? This cannot be undone.';
+    if (!confirm(msg)) return;
     try {
       await dbDelete(`once-messages/${id}`);
-      await refreshOnceLog();
+      if (isLive) await refreshLiveOnce(); else await refreshStagedOnce();
     } catch (e) { console.error('Delete failed', e); }
   }
 
@@ -620,64 +647,97 @@
   let jobTitle = '';
   let jobBrief = '';
   let jobNewStatus = 'active';
-  let allJobs = [];
+  let stagedJobs = [];
+  let liveJobs = [];
   let stepTexts = {};
   let stepDates = {};
   let jobCreateStatus = { text: '', type: '' };
   let creatingJob = false;
 
   function nextJobFileNo() {
-    const nums = allJobs
+    const nums = [...stagedJobs, ...liveJobs]
       .map(j => parseInt((j.fileNo ?? '').replace('JB-', '')))
       .filter(n => !isNaN(n));
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return `JB-${String(next).padStart(3, '0')}`;
   }
 
-  async function loadJobs() {
+  function syncJobInputs() {
+    const inputs = {};
+    const dates = {};
+    for (const j of [...stagedJobs, ...liveJobs]) {
+      inputs[j._id] = stepTexts[j._id] ?? '';
+      dates[j._id]  = stepDates[j._id] ?? '';
+    }
+    stepTexts = inputs;
+    stepDates = dates;
+  }
+
+  async function loadJobsData(staged) {
     try {
       const data = await dbGet('jobs');
-      if (!data) { allJobs = []; stepTexts = {}; return; }
-      const loaded = Object.keys(data)
+      if (!data) return [];
+      const all = Object.keys(data)
         .map(k => { const j = data[k]; j._id = k; return j; })
-        .filter(j => j.title)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      allJobs = loaded;
-      const inputs = {};
-      const dates = {};
-      for (const j of loaded) {
-        inputs[j._id] = stepTexts[j._id] ?? '';
-        dates[j._id] = stepDates[j._id] ?? '';
+        .filter(j => j.title);
+      // Back-fill: jobs created before staging was added default to live
+      for (const j of all) {
+        if (j.staged == null) {
+          j.staged = true;
+          dbPut(`jobs/${j._id}/staged`, true);
+        }
       }
-      stepTexts = inputs;
-      stepDates = dates;
-    } catch { allJobs = []; }
+      return all
+        .filter(j => j.staged === staged)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch { return []; }
   }
+
+  async function refreshStagedJobs() { stagedJobs = await loadJobsData(false); syncJobInputs(); }
+  async function refreshLiveJobs()   { liveJobs   = await loadJobsData(true);  syncJobInputs(); }
+  async function loadJobs() { await refreshStagedJobs(); await refreshLiveJobs(); }
 
   async function createJob() {
     const title = jobTitle.trim();
     if (!title) { jobCreateStatus = { text: 'A title is required.', type: 'err' }; return; }
     creatingJob = true;
-    jobCreateStatus = { text: 'Creating…', type: '' };
+    jobCreateStatus = { text: 'Staging…', type: '' };
     try {
       const fileNo = nextJobFileNo();
-      await dbPost('jobs', { title, brief: jobBrief.trim(), status: jobNewStatus, fileNo, steps: [], createdAt: Date.now() });
+      await dbPost('jobs', { title, brief: jobBrief.trim(), status: jobNewStatus, fileNo, steps: [], staged: false, createdAt: Date.now() });
       jobTitle = '';
       jobBrief = '';
       jobNewStatus = 'active';
-      jobCreateStatus = { text: `Job created (${fileNo}).`, type: 'ok' };
-      await loadJobs();
+      jobCreateStatus = { text: `Staged (${fileNo}). Deploy when players are ready.`, type: 'ok' };
+      await refreshStagedJobs();
     } catch (e) {
       jobCreateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
     creatingJob = false;
   }
 
+  let deployingJobId = null;
+  async function deployJob(id) {
+    deployingJobId = id;
+    try { await dbPut(`jobs/${id}/staged`, true); await refreshStagedJobs(); await refreshLiveJobs(); }
+    catch (e) { console.error('Deploy failed', e); }
+    deployingJobId = null;
+  }
+
+  let recallingJobId = null;
+  async function recallJob(id) {
+    if (!confirm('Recall this job? It will disappear from player devices.')) return;
+    recallingJobId = id;
+    try { await dbPut(`jobs/${id}/staged`, false); await refreshStagedJobs(); await refreshLiveJobs(); }
+    catch (e) { console.error('Recall failed', e); }
+    recallingJobId = null;
+  }
+
   async function addJobStep(id) {
     const text = (stepTexts[id] ?? '').trim();
     if (!text) return;
     const date = (stepDates[id] ?? '').trim();
-    const job = allJobs.find(j => j._id === id);
+    const job = liveJobs.find(j => j._id === id);
     const existing = Array.isArray(job?.steps) ? job.steps : [];
     const step = { text, ts: Date.now() };
     if (date) step.date = date;
@@ -685,22 +745,25 @@
       await dbPut(`jobs/${id}/steps`, [...existing, step]);
       stepTexts = { ...stepTexts, [id]: '' };
       stepDates = { ...stepDates, [id]: '' };
-      await loadJobs();
+      await refreshLiveJobs();
     } catch (e) { console.error('Step add failed', e); }
   }
 
   async function setJobStatus(id, status) {
     try {
       await dbPut(`jobs/${id}/status`, status);
-      await loadJobs();
+      await refreshLiveJobs();
     } catch (e) { console.error('Status update failed', e); }
   }
 
-  async function deleteJob(id) {
-    if (!confirm('Delete this job? It will disappear from player devices.')) return;
+  async function deleteJob(id, isLive) {
+    const msg = isLive
+      ? 'Delete this job? It will disappear from player devices.'
+      : 'Delete this staged job? This cannot be undone.';
+    if (!confirm(msg)) return;
     try {
       await dbDelete(`jobs/${id}`);
-      await loadJobs();
+      if (isLive) await refreshLiveJobs(); else await refreshStagedJobs();
     } catch (e) { console.error('Delete failed', e); }
   }
 
@@ -1626,7 +1689,7 @@
     <!-- ══ O.N.C.E. TRANSMISSIONS ══════════════════════════════════════════ -->
     {:else if activeTab === 'once'}
 
-      <p class="tab-sub">Send an encrypted message from Unknown / M to the O.N.C.E. channel on all player devices.</p>
+      <p class="tab-sub">Author a transmission from M. Stage it silently, then deploy when players are ready.</p>
 
       <div class="section">
         <div class="section-label once-section-label">New Transmission</div>
@@ -1636,8 +1699,8 @@
           placeholder="Message from M… instructions, objectives, warnings."
         ></textarea>
         <div style="height:10px"></div>
-        <button class="once-send-btn" disabled={onceSending || !onceText.trim()} on:click={sendOnceMessage}>
-          {onceSending ? 'Transmitting…' : 'Transmit to O.N.C.E.'}
+        <button class="once-send-btn" disabled={onceSending || !onceText.trim()} on:click={stageOnceMessage}>
+          {onceSending ? 'Staging…' : 'Stage Transmission (hidden from players)'}
         </button>
         <div class="status-line" class:ok={onceStatus.type === 'ok'} class:err={onceStatus.type === 'err'}>
           {onceStatus.text}
@@ -1646,18 +1709,52 @@
 
       <div class="section">
         <div class="section-label-row">
-          <div class="section-label once-section-label" style="margin-bottom:0">Transmissions (live)</div>
-          <button class="ghost-btn" on:click={refreshOnceLog}>Refresh</button>
+          <div class="section-label once-section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
+          <button class="ghost-btn" on:click={refreshStagedOnce}>Refresh</button>
         </div>
         <div class="log">
-          {#if !onceLog.length}
-            <div class="log-empty">No transmissions sent yet.</div>
+          {#if !stagedOnce.length}
+            <div class="log-empty">No staged transmissions.</div>
           {:else}
-            {#each onceLog as m (m._id ?? m.ts)}
-              <div class="once-log-row">
-                <span class="once-log-m">M:</span>
-                <span class="log-text">{m.text}<span class="log-time">{relTime(m.ts)}</span></span>
-                <button class="danger-btn once-delete-btn" on:click={() => deleteOnceMessage(m._id)}>&times;</button>
+            {#each stagedOnce as m (m._id ?? m.ts)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="once-log-m">M:</span>
+                  <span class="log-text">{m.text}<span class="log-time">{relTime(m.ts)}</span></span>
+                </div>
+                <div class="chain-log-actions">
+                  <button class="deploy-btn" disabled={deployingOnceId === m._id} on:click={() => deployOnce(m._id)}>
+                    {deployingOnceId === m._id ? 'Deploying…' : 'Deploy → Players'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteOnceMessage(m._id, false)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label once-section-label" style="margin-bottom:0">Live — on player devices</div>
+          <button class="ghost-btn" on:click={refreshLiveOnce}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !liveOnce.length}
+            <div class="log-empty">No live transmissions.</div>
+          {:else}
+            {#each liveOnce as m (m._id ?? m.ts)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="once-log-m"><span class="live-label">▶ LIVE &nbsp;</span>M:</span>
+                  <span class="log-text">{m.text}<span class="log-time">{relTime(m.ts)}</span></span>
+                </div>
+                <div class="chain-log-actions" style="justify-content:flex-end">
+                  <button class="recall-btn" disabled={recallingOnceId === m._id} on:click={() => recallOnce(m._id)}>
+                    {recallingOnceId === m._id ? 'Recalling…' : 'Recall'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteOnceMessage(m._id, true)}>Delete</button>
+                </div>
               </div>
             {/each}
           {/if}
@@ -1667,7 +1764,7 @@
     <!-- ══ JOBS ══════════════════════════════════════════════════════════════ -->
     {:else if activeTab === 'jobs'}
 
-      <p class="tab-sub">Create active jobs and log steps live during play. Updates appear on player devices immediately.</p>
+      <p class="tab-sub">Author a job and stage it silently, then deploy when players are ready.</p>
 
       <div class="section">
         <div class="section-label">New Job</div>
@@ -1709,7 +1806,7 @@
         </div>
 
         <button class="primary" style="margin-top:14px" disabled={creatingJob || !jobTitle.trim()} on:click={createJob}>
-          {creatingJob ? 'Creating…' : 'Create Job'}
+          {creatingJob ? 'Staging…' : 'Stage Job (hidden from players)'}
         </button>
         <div class="status-line" class:ok={jobCreateStatus.type === 'ok'} class:err={jobCreateStatus.type === 'err'}>
           {jobCreateStatus.text}
@@ -1718,18 +1815,47 @@
 
       <div class="section">
         <div class="section-label-row">
-          <div class="section-label" style="margin-bottom:0">Jobs ({allJobs.length})</div>
-          <button class="ghost-btn" on:click={loadJobs}>Refresh</button>
+          <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
+          <button class="ghost-btn" on:click={refreshStagedJobs}>Refresh</button>
         </div>
-
-        {#if !allJobs.length}
-          <div class="log" style="margin-top:8px"><div class="log-empty">No jobs yet. Create one above.</div></div>
+        {#if !stagedJobs.length}
+          <div class="log" style="margin-top:8px"><div class="log-empty">No staged jobs.</div></div>
         {:else}
-          {#each allJobs as job (job._id)}
+          {#each stagedJobs as job (job._id)}
             {@const sc = JOB_STATUS[job.status] ?? JOB_STATUS.active}
             <div class="job-item">
               <div class="job-item-head">
                 <span class="job-item-no">{job.fileNo ?? '—'}</span>
+                <span class="job-item-title">{job.title}</span>
+                <span class="job-item-badge" style="color:{sc.color}">● {sc.label}</span>
+              </div>
+              {#if job.brief}
+                <div class="job-item-brief">{job.brief}</div>
+              {/if}
+              <div class="chain-log-actions" style="margin-top:10px">
+                <button class="deploy-btn" disabled={deployingJobId === job._id} on:click={() => deployJob(job._id)}>
+                  {deployingJobId === job._id ? 'Deploying…' : 'Deploy → Players'}
+                </button>
+                <button class="danger-btn" on:click={() => deleteJob(job._id, false)}>Delete</button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
+          <button class="ghost-btn" on:click={refreshLiveJobs}>Refresh</button>
+        </div>
+        {#if !liveJobs.length}
+          <div class="log" style="margin-top:8px"><div class="log-empty">No live jobs.</div></div>
+        {:else}
+          {#each liveJobs as job (job._id)}
+            {@const sc = JOB_STATUS[job.status] ?? JOB_STATUS.active}
+            <div class="job-item">
+              <div class="job-item-head">
+                <span class="job-item-no"><span class="live-label">▶ LIVE &nbsp;</span>{job.fileNo ?? '—'}</span>
                 <span class="job-item-title">{job.title}</span>
                 <span class="job-item-badge" style="color:{sc.color}">● {sc.label}</span>
               </div>
@@ -1765,7 +1891,10 @@
                   <button class="job-status-btn" class:active={job.status === 'danger'} style="--sc:#f59e0b" on:click={() => setJobStatus(job._id, 'danger')}>Danger</button>
                   <button class="job-status-btn" class:active={job.status === 'compromised'} style="--sc:#e05a3a" on:click={() => setJobStatus(job._id, 'compromised')}>Compromised</button>
                 </div>
-                <button class="danger-btn" on:click={() => deleteJob(job._id)}>Delete</button>
+                <button class="recall-btn" disabled={recallingJobId === job._id} on:click={() => recallJob(job._id)}>
+                  {recallingJobId === job._id ? 'Recalling…' : 'Recall'}
+                </button>
+                <button class="danger-btn" on:click={() => deleteJob(job._id, true)}>Delete</button>
               </div>
             </div>
           {/each}

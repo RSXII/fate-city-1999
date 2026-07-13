@@ -20,7 +20,7 @@
       if (!data) { jobs = []; return; }
       jobs = Object.keys(data)
         .map(k => { const j = data[k]; j._id = k; return j; })
-        .filter(j => j.title)
+        .filter(j => j.title && j.staged !== false)
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch { jobs = []; }
   }

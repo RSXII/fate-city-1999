@@ -29,6 +29,7 @@
       else {
         liveMessages = Object.keys(data)
           .map(k => { const m = data[k]; m._id = k; return m; })
+          .filter(m => m.staged === true)
           .sort((a, b) => b.ts - a.ts);
       }
       // Mark all as seen — store the latest ts so home screen clears the alert
