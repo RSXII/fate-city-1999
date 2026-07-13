@@ -2,10 +2,9 @@
   import { base } from '$app/paths';
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
-  import { dbGet } from '$lib/firebase-db.js';
+  import { dbGet, dbPut } from '$lib/firebase-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
 
-  const ONCE_LAST_SEEN_KEY = 'wire-once-last-seen';
 
   let liveMessages = [];
   let loading = true;
@@ -32,9 +31,8 @@
           .filter(m => m.staged === true)
           .sort((a, b) => b.ts - a.ts);
       }
-      // Mark all as seen — store the latest ts so home screen clears the alert
       if (browser && liveMessages.length) {
-        localStorage.setItem(ONCE_LAST_SEEN_KEY, String(liveMessages[0].ts));
+        dbPut('once-settings/onceMessageSeen', true);
       }
     } catch { liveMessages = []; }
     loading = false;

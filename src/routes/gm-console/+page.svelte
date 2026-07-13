@@ -612,7 +612,11 @@
   let deployingOnceId = null;
   async function deployOnce(id) {
     deployingOnceId = id;
-    try { await dbPut(`once-messages/${id}/staged`, true); await refreshStagedOnce(); await refreshLiveOnce(); }
+    try {
+      await dbPut(`once-messages/${id}/staged`, true);
+      await dbPut('once-settings/onceMessageSeen', false);
+      await refreshStagedOnce(); await refreshLiveOnce();
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingOnceId = null;
   }
