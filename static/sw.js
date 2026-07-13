@@ -104,9 +104,18 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Navigation requests (HTML shells): network-first, fall back to cache so the
-  // app opens offline after the first visit.
+  // Navigation requests (HTML shells): network-first, store in cache, fall back
+  // to cached copy so the app survives offline and SW cache rotations.
   if (e.request.mode === "navigate") {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    e.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        fetch(e.request)
+          .then((res) => {
+            cache.put(e.request, res.clone());
+            return res;
+          })
+          .catch(() => cache.match(e.request))
+      )
+    );
   }
 });
