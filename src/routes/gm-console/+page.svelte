@@ -933,7 +933,9 @@
 
   async function postToFatestagram() {
     const username = fsgUsername.trim();
+    const handle = fsgHandle.trim();
     if (!username) { fsgStatus = { text: 'Username is required.', type: 'err' }; return; }
+    if (!handle) { fsgStatus = { text: 'Handle is required.', type: 'err' }; return; }
     if (!fsgImageUrl.trim()) { fsgStatus = { text: 'An image is required.', type: 'err' }; return; }
     fsgPosting = true;
     fsgStatus = { text: 'Posting…', type: '' };
@@ -942,7 +944,7 @@
       const topCommentText = fsgTopCommentText.trim();
       await dbPost('fatestagram', {
         username,
-        handle: fsgHandle.trim() || null,
+        handle,
         caption: fsgCaption.trim() || null,
         tags: fsgTags.trim() || null,
         location: fsgLocation.trim() || null,
@@ -968,7 +970,7 @@
       fsgPickerSelected = null;
       fsgPickerOpen = false;
       fsgAvatarPickerOpen = false;
-      saveFsgAuthor(username, fsgHandle.trim());
+      saveFsgAuthor(username, handle);
       fsgStatus = { text: 'Posted to FateStaGram.', type: 'ok' };
       await loadFsgPosts();
     } catch (e) {
@@ -2033,7 +2035,7 @@
         <input type="number" class="email-subject-input" placeholder="Comment likes (optional, e.g. 312)…" bind:value={fsgTopCommentLikes} />
 
         <div style="height:12px"></div>
-        <button class="primary fsg-post-btn" disabled={fsgPosting || !fsgUsername.trim() || !fsgImageUrl.trim()} on:click={postToFatestagram}>
+        <button class="primary fsg-post-btn" disabled={fsgPosting || !fsgUsername.trim() || !fsgHandle.trim() || !fsgImageUrl.trim()} on:click={postToFatestagram}>
           {fsgPosting ? 'Posting…' : 'Post to FateStaGram'}
         </button>
         <div class="status-line" class:ok={fsgStatus.type === 'ok'} class:err={fsgStatus.type === 'err'}>
