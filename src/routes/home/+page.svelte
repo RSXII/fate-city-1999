@@ -90,7 +90,7 @@
     try {
       const data = await dbGet('once-messages', { orderBy: '$key', limitToLast: 20 });
       if (!data) { onceUnread = false; return; }
-      const msgs = Object.values(data).filter(Boolean);
+      const msgs = Object.values(data).filter(m => m && m.staged === true);
       if (!msgs.length) { onceUnread = false; return; }
       const latestTs = Math.max(...msgs.map(m => m.ts || 0));
       const lastSeen = Number(localStorage.getItem(ONCE_LAST_SEEN_KEY) ?? 0);
@@ -101,6 +101,7 @@
       if (hasNew && !isFirstOncePoll && latestTs !== onceAlertShownFor) {
         showOnceAlert = true;
         onceAlertShownFor = latestTs;
+        try { new Audio(`${base}/sounds/once_sound.mp3`).play(); } catch { /* blocked */ }
       }
       isFirstOncePoll = false;
     } catch { /* network hiccup */ }

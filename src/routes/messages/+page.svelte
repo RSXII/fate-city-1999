@@ -23,6 +23,15 @@
   let needsScroll = false;
   let searchOpen = false;
 
+  let isFirstPoll = true;
+
+  function playTextChime() {
+    try {
+      const audio = new Audio(`${base}/sounds/message_sound.mp3`);
+      audio.play();
+    } catch { /* audio blocked or unavailable */ }
+  }
+
   let contacts = [];
   $: contactsByName = Object.fromEntries(contacts.map(c => [c.name, c]));
 
@@ -78,7 +87,9 @@
     const hadNew = fetched.length > messages.length;
     messages = fetched;
     messagesCache.set(fetched);
+    if (hadNew && !isFirstPoll) playTextChime();
     if (activeSender && hadNew) needsScroll = true;
+    isFirstPoll = false;
   }
 
   afterUpdate(() => {
