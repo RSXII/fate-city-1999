@@ -80,7 +80,9 @@
             <div class="steps-head">// Progress</div>
             <ul class="steps">
               {#each steps as step}
-                <li class="step">{step.text}</li>
+                <li class="step">
+                  {step.text}{#if step.date}<span class="step-date">&nbsp;— {step.date}</span>{/if}
+                </li>
               {/each}
             </ul>
           {/if}
@@ -237,5 +239,10 @@
     left: 0;
     color: rgba(201, 162, 39, 0.38);
     font-weight: 700;
+  }
+  .step-date {
+    color: #c9a227;
+    font-size: 11px;
+    letter-spacing: 0.3px;
   }
 </style>

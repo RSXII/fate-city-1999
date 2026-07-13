@@ -41,6 +41,7 @@
       const map = {};
       for (const key of Object.keys(data)) {
         const job = data[key];
+        if (job.staged !== true) continue;
         if (!Array.isArray(job.steps)) continue;
         for (const step of job.steps) {
           if (!step.date) continue;

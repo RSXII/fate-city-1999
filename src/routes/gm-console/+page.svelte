@@ -737,7 +737,7 @@
     const text = (stepTexts[id] ?? '').trim();
     if (!text) return;
     const date = (stepDates[id] ?? '').trim();
-    const job = liveJobs.find(j => j._id === id);
+    const job = [...stagedJobs, ...liveJobs].find(j => j._id === id);
     const existing = Array.isArray(job?.steps) ? job.steps : [];
     const step = { text, ts: Date.now() };
     if (date) step.date = date;
@@ -745,7 +745,8 @@
       await dbPut(`jobs/${id}/steps`, [...existing, step]);
       stepTexts = { ...stepTexts, [id]: '' };
       stepDates = { ...stepDates, [id]: '' };
-      await refreshLiveJobs();
+      if (stagedJobs.some(j => j._id === id)) await refreshStagedJobs();
+      else await refreshLiveJobs();
     } catch (e) { console.error('Step add failed', e); }
   }
 
@@ -1832,6 +1833,29 @@
               {#if job.brief}
                 <div class="job-item-brief">{job.brief}</div>
               {/if}
+              {#if job.steps?.length}
+                <ul class="job-item-steps">
+                  {#each [...job.steps].reverse() as step}
+                    <li>{step.text}{#if step.date} <span style="color:#c9a227;font-size:11px">— {step.date}</span>{/if}</li>
+                  {/each}
+                </ul>
+              {/if}
+              <div class="job-item-controls">
+                <input
+                  type="text"
+                  class="job-step-input"
+                  placeholder="Log a step…"
+                  bind:value={stepTexts[job._id]}
+                  on:keydown={e => e.key === 'Enter' && addJobStep(job._id)}
+                />
+                <input
+                  type="text"
+                  class="job-date-input"
+                  placeholder="YYYY-MM-DD"
+                  bind:value={stepDates[job._id]}
+                />
+                <button class="ghost-btn" on:click={() => addJobStep(job._id)}>Log</button>
+              </div>
               <div class="chain-log-actions" style="margin-top:10px">
                 <button class="deploy-btn" disabled={deployingJobId === job._id} on:click={() => deployJob(job._id)}>
                   {deployingJobId === job._id ? 'Deploying…' : 'Deploy → Players'}
