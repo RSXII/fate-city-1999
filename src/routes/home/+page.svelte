@@ -6,7 +6,6 @@
   import { getCodename, setCodename, getDeviceId, visibilityAwareInterval } from '$lib/utils.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
-  const ONCE_LAST_SEEN_KEY = 'wire-once-last-seen';
 
   // ── Codename modal ─────────────────────────────────────────────────────────
   let showCodenameModal = false;
@@ -49,7 +48,6 @@
   let onceUnread = false;
   let showOnceAlert = false;
   let oncePollInterval;
-  let onceAlertShownFor = 0; // ts of the message we last showed the alert for
 
   function getLastSeenMap() {
     try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? '{}'); }
@@ -88,32 +86,22 @@
 
   async function pollOnce() {
     try {
-      const data = await dbGet('once-messages', { orderBy: '$key', limitToLast: 20 });
-      if (!data) { onceUnread = false; return; }
-      const msgs = Object.values(data).filter(m => m && m.staged === true);
-      if (!msgs.length) { onceUnread = false; return; }
-      const latestTs = Math.max(...msgs.map(m => m.ts || 0));
-      const lastSeen = Number(localStorage.getItem(ONCE_LAST_SEEN_KEY) ?? 0);
-      const hasNew = latestTs > lastSeen;
-      onceUnread = hasNew;
-      // Show the full overlay only when a genuinely new message arrives
-      // and we haven’t already shown the alert for this exact timestamp
-      if (hasNew && !isFirstOncePoll && latestTs !== onceAlertShownFor) {
+      const seen = await dbGet('once-settings/onceMessageSeen');
+      // null = flag never set → fallback to seen (no notification)
+      const hasUnread = seen === false;
+      onceUnread = hasUnread;
+      if (hasUnread && !isFirstOncePoll && !showOnceAlert) {
         showOnceAlert = true;
-        onceAlertShownFor = latestTs;
         try { new Audio(`${base}/sounds/once_sound.mp3`).play(); } catch { /* blocked */ }
       }
       isFirstOncePoll = false;
     } catch { /* network hiccup */ }
   }
 
-  function dismissOnceAlert() {
+  async function dismissOnceAlert() {
     showOnceAlert = false;
-    // Mark current messages as seen so the alert doesn’t re-appear
-    if (browser) {
-      localStorage.setItem(ONCE_LAST_SEEN_KEY, String(onceAlertShownFor));
-    }
     onceUnread = false;
+    try { await dbPut('once-settings/onceMessageSeen', true); } catch { /* network hiccup */ }
   }
 
   function goToPage(n) {
