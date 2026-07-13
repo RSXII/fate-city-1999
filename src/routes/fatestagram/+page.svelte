@@ -143,9 +143,8 @@
           </div>
           <div class="fsg-post-meta">
             <span class="fsg-username">{post.username ?? 'unknown'}</span>
-            {#if post.location}
-              <span class="fsg-location">{post.location}</span>
-            {/if}
+            {#if post.handle}<span class="fsg-meta-sub">{post.handle}</span>{/if}
+            {#if post.location}<span class="fsg-meta-location">{post.location}</span>{/if}
           </div>
           <button class="fsg-more-btn" aria-label="More options">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none" aria-hidden="true">
@@ -437,10 +436,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .fsg-location {
+  .fsg-meta-sub {
     font-size: 10px;
-    color: rgba(232,223,200,0.4);
-    letter-spacing: 0.5px;
+    color: rgba(201,162,39,0.65);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fsg-meta-location {
+    font-size: 10px;
+    color: rgba(232,223,200,0.35);
+    letter-spacing: 0.3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

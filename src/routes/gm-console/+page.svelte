@@ -853,6 +853,25 @@
   let fsgPosting = false;
   let fsgStatus = { text: '', type: '' };
   let fsgPosts = [];
+  let fsgKnownAuthors = []; // { username, handle } — persisted to localStorage
+
+  const FSG_AUTHORS_KEY = 'fsg-known-authors';
+
+  function loadFsgAuthors() {
+    try { fsgKnownAuthors = JSON.parse(localStorage.getItem(FSG_AUTHORS_KEY) ?? '[]'); }
+    catch { fsgKnownAuthors = []; }
+  }
+
+  function saveFsgAuthor(username, handle) {
+    const existing = fsgKnownAuthors.filter(a => a.username !== username);
+    fsgKnownAuthors = [{ username, handle: handle || '' }, ...existing];
+    localStorage.setItem(FSG_AUTHORS_KEY, JSON.stringify(fsgKnownAuthors));
+  }
+
+  function quickFillAuthor(author) {
+    fsgUsername = author.username;
+    fsgHandle = author.handle;
+  }
 
   let fsgPickerOpen = false;
   let fsgPickerLoading = false;
@@ -914,7 +933,9 @@
 
   async function postToFatestagram() {
     const username = fsgUsername.trim();
+    const handle = fsgHandle.trim();
     if (!username) { fsgStatus = { text: 'Username is required.', type: 'err' }; return; }
+    if (!handle) { fsgStatus = { text: 'Handle is required.', type: 'err' }; return; }
     if (!fsgImageUrl.trim()) { fsgStatus = { text: 'An image is required.', type: 'err' }; return; }
     fsgPosting = true;
     fsgStatus = { text: 'Posting…', type: '' };
@@ -923,7 +944,7 @@
       const topCommentText = fsgTopCommentText.trim();
       await dbPost('fatestagram', {
         username,
-        handle: fsgHandle.trim() || null,
+        handle,
         caption: fsgCaption.trim() || null,
         tags: fsgTags.trim() || null,
         location: fsgLocation.trim() || null,
@@ -949,6 +970,7 @@
       fsgPickerSelected = null;
       fsgPickerOpen = false;
       fsgAvatarPickerOpen = false;
+      saveFsgAuthor(username, handle);
       fsgStatus = { text: 'Posted to FateStaGram.', type: 'ok' };
       await loadFsgPosts();
     } catch (e) {
@@ -1008,6 +1030,7 @@
     refreshLiveRides();
     ridesPoll    = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
     loadFsgPosts();
+    loadFsgAuthors();
   });
 
   onDestroy(() => {
@@ -1915,6 +1938,17 @@
       <div class="section">
         <div class="section-label">New Post</div>
 
+        <!-- Known author quick-fill -->
+        {#if fsgKnownAuthors.length}
+          <div class="fsg-author-chips">
+            {#each fsgKnownAuthors as a (a.username)}
+              <button type="button" class="fsg-author-chip" class:selected={fsgUsername === a.username} on:click={() => quickFillAuthor(a)}>
+                {a.username}{a.handle ? ` · ${a.handle}` : ''}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
         <!-- Username + handle -->
         <input type="text" class="email-subject-input" placeholder="Username (display name)…" bind:value={fsgUsername} />
         <input type="text" class="email-subject-input" placeholder="@handle (optional)…" bind:value={fsgHandle} />
@@ -2001,7 +2035,7 @@
         <input type="number" class="email-subject-input" placeholder="Comment likes (optional, e.g. 312)…" bind:value={fsgTopCommentLikes} />
 
         <div style="height:12px"></div>
-        <button class="primary fsg-post-btn" disabled={fsgPosting || !fsgUsername.trim() || !fsgImageUrl.trim()} on:click={postToFatestagram}>
+        <button class="primary fsg-post-btn" disabled={fsgPosting || !fsgUsername.trim() || !fsgHandle.trim() || !fsgImageUrl.trim()} on:click={postToFatestagram}>
           {fsgPosting ? 'Posting…' : 'Post to FateStaGram'}
         </button>
         <div class="status-line" class:ok={fsgStatus.type === 'ok'} class:err={fsgStatus.type === 'err'}>
@@ -2669,6 +2703,27 @@
   .recall-btn:disabled { opacity: 0.4; cursor: default; }
 
   /* ── FateStaGram tab ── */
+  .fsg-author-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .fsg-author-chip {
+    background: rgba(201,162,39,0.07);
+    border: 1px solid rgba(201,162,39,0.3);
+    border-radius: 20px;
+    color: rgba(201,162,39,0.8);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .fsg-author-chip:hover { background: rgba(201,162,39,0.15); border-color: #c9a227; color: #c9a227; }
+  .fsg-author-chip.selected { background: rgba(201,162,39,0.18); border-color: #c9a227; color: #c9a227; }
+
   .fsg-post-btn {
     background: linear-gradient(90deg, #c9a227, #e05a3a);
     color: #fff;
