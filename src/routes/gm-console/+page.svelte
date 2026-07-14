@@ -48,10 +48,12 @@
   let pickerImages = [];
   let pickerLoading = false;
   let pickerError = '';
-  let msgLog = [];
+  let stagedMsgs = [];
+  let liveMsgs = [];
   let sendStatus = { text: '', type: '' };
   let sending = false;
-  let msgLogEl;
+  let liveMsgLogEl;
+  let liveThreadFilter = null; // null=all, 'broadcast'=no recipients, string=codename
 
   let devices = []; // codenames registered in Firebase
   let selectedRecipients = []; // empty = broadcast to all
@@ -77,47 +79,75 @@
 
   $: sendEnabled = !sending && !!selectedSender && (msgText.trim().length > 0 || !!selectedImage);
 
-  async function refreshLog() {
+  async function loadMsgs() {
     try {
-      const data = await dbGet('messages', { orderBy: '$key', limitToLast: 100 });
-      if (!data) { msgLog = []; return; }
-      msgLog = Object.keys(data).map(k => { const m = data[k]; m._id = k; return m; })
+      const data = await dbGet('messages', { orderBy: '$key', limitToLast: 200 });
+      if (!data) { stagedMsgs = []; liveMsgs = []; return; }
+      const all = Object.keys(data).map(k => { const m = data[k]; m._id = k; return m; })
         .sort((a, b) => a.ts - b.ts);
-    } catch { msgLog = []; }
-    // scroll to bottom after render
-    setTimeout(() => { if (msgLogEl) msgLogEl.scrollTop = msgLogEl.scrollHeight; }, 0);
+      stagedMsgs = all.filter(m => m.staged === false);
+      liveMsgs   = all.filter(m => m.staged !== false);
+    } catch { stagedMsgs = []; liveMsgs = []; }
+    setTimeout(() => { if (liveMsgLogEl) liveMsgLogEl.scrollTop = liveMsgLogEl.scrollHeight; }, 0);
   }
+
+  $: liveFilterOptions = (() => {
+    const codenames = new Set();
+    let hasBroadcast = false;
+    for (const m of liveMsgs) {
+      if (!m.recipients?.length) hasBroadcast = true;
+      else m.recipients.forEach(c => codenames.add(c));
+    }
+    return { hasBroadcast, codenames: [...codenames].sort() };
+  })();
+
+  $: filteredLiveMsgs = liveThreadFilter === null
+    ? liveMsgs
+    : liveThreadFilter === 'broadcast'
+      ? liveMsgs.filter(m => !m.recipients?.length)
+      : liveMsgs.filter(m => m.recipients?.includes(liveThreadFilter));
 
   async function sendMessage() {
     const text = msgText.trim();
     if (!selectedSender || (!text && !selectedImage)) return;
     sending = true;
-    sendStatus = { text: 'Sending…', type: '' };
+    sendStatus = { text: 'Staging…', type: '' };
     try {
-      const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now() };
+      const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now(), staged: false };
       if (selectedImage) payload.imageUrl = selectedImage.url;
       if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       await dbPost('messages', payload);
       msgText = '';
       selectedImage = null;
       pickerOpen = false;
-      sendStatus = { text: 'Sent.', type: 'ok' };
-      await refreshLog();
+      sendStatus = { text: 'Staged. Deploy when players are ready.', type: 'ok' };
+      await loadMsgs();
     } catch (e) {
-      sendStatus = { text: `Send failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+      sendStatus = { text: `Stage failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
     sending = false;
   }
 
-  async function clearMessages() {
-    if (!confirm('Clear the entire group thread for all players? This cannot be undone.')) return;
-    try {
-      await dbDelete('messages');
-      msgLog = [];
-      sendStatus = { text: 'Thread cleared.', type: 'ok' };
-    } catch (e) {
-      sendStatus = { text: `Clear failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
-    }
+  let deployingMsgId = null;
+  async function deployMessage(id) {
+    deployingMsgId = id;
+    try { await dbPut(`messages/${id}/staged`, true); await loadMsgs(); }
+    catch (e) { console.error('Deploy failed', e); }
+    deployingMsgId = null;
+  }
+
+  async function recallMessage(id) {
+    if (!confirm('Recall this message? It will disappear from player devices.')) return;
+    try { await dbPut(`messages/${id}/staged`, false); await loadMsgs(); }
+    catch (e) { console.error('Recall failed', e); }
+  }
+
+  async function deleteMessage(id) {
+    const m = [...stagedMsgs, ...liveMsgs].find(x => x._id === id);
+    const isLive = m?.staged !== false;
+    if (!confirm(isLive ? 'Delete this message from all player devices?' : 'Delete this staged message?')) return;
+    try { await dbDelete(`messages/${id}`); await loadMsgs(); }
+    catch (e) { console.error('Delete failed', e); }
   }
 
   async function togglePicker() {
@@ -1116,7 +1146,7 @@
 
   onMount(() => {
     addReply(); addReply();
-    refreshLog();
+    loadMsgs();
     refreshDevices();
     refreshStaged();
     refreshLive();
@@ -1125,7 +1155,7 @@
     refreshContacts();
     loadCurrentCalDate();
     refreshOnceLog();
-    msgPoll     = visibilityAwareInterval(refreshLog,  5000);
+    msgPoll     = visibilityAwareInterval(loadMsgs, 5000);
     emailPoll   = visibilityAwareInterval(() => { refreshStaged(); refreshLive(); }, 8000);
     casePoll    = visibilityAwareInterval(() => { refreshCaseStaged(); refreshCaseLive(); }, 8000);
     contactPoll = visibilityAwareInterval(refreshContacts, 10000);
@@ -1185,6 +1215,8 @@
     <!-- ══ WIRE MESSAGES ══════════════════════════════════════════════════ -->
     {#if activeTab === 'wire'}
 
+      <div class="two-col">
+      <div class="col-form">
       <div class="section">
         <div class="section-label">Sender</div>
         <div class="chip-grid">
@@ -1293,40 +1325,105 @@
 
         <div style="height:10px"></div>
         <button class="primary" disabled={!sendEnabled} on:click={sendMessage}>
-          {selectedRecipients.length > 0 ? `Send to ${selectedRecipients.length} player${selectedRecipients.length !== 1 ? 's' : ''}` : 'Send to all players'}
+          {selectedRecipients.length > 0 ? `Stage for ${selectedRecipients.length} player${selectedRecipients.length !== 1 ? 's' : ''}` : 'Stage for all players'}
         </button>
         <div class="status-line" class:ok={sendStatus.type === 'ok'} class:err={sendStatus.type === 'err'}>
           {sendStatus.text}
         </div>
       </div>
+      </div><!-- /col-form -->
+      <div class="col-list">
 
       <div class="section">
         <div class="section-label-row">
-          <div class="section-label" style="margin-bottom:0">Thread (live)</div>
-          <button class="ghost-btn" on:click={clearMessages}>Clear thread</button>
+          <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
+          <button class="ghost-btn" on:click={loadMsgs}>Refresh</button>
         </div>
-        <div class="log" bind:this={msgLogEl}>
-          {#if !msgLog.length}
-            <div class="log-empty">No messages sent yet.</div>
+        <div class="log">
+          {#if !stagedMsgs.length}
+            <div class="log-empty">No staged messages.</div>
           {:else}
-            {#each msgLog as m (m._id ?? m.ts)}
-              <div class="log-row">
-                <span class="log-name" style="color:{m.color}">{m.sender}:</span>
-                <span class="log-text">
-                  {#if m.imageUrl}📷 {/if}{m.text ?? ''}
-                  <span class="log-time">{relTime(m.ts)}</span>
-                </span>
+            {#each stagedMsgs as m (m._id)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="log-name" style="color:{m.color}">{m.sender}:</span>
+                  <span class="log-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{#if m.imageUrl}📷 {/if}{m.text ?? ''}</span>
+                  <span class="chain-log-meta">{relTime(m.ts)}</span>
+                </div>
+                {#if m.recipients?.length}
+                  <div class="chain-log-tags">
+                    {#each m.recipients as r (r)}<span class="tag-badge">{r}</span>{/each}
+                  </div>
+                {/if}
+                <div class="chain-log-actions">
+                  <button class="deploy-btn" disabled={deployingMsgId === m._id} on:click={() => deployMessage(m._id)}>
+                    {deployingMsgId === m._id ? 'Deploying…' : 'Deploy → Players'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteMessage(m._id)}>Delete</button>
+                </div>
               </div>
             {/each}
           {/if}
         </div>
       </div>
 
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
+          <button class="ghost-btn" on:click={loadMsgs}>Refresh</button>
+        </div>
+        {#if liveFilterOptions.hasBroadcast || liveFilterOptions.codenames.length}
+          <div class="tag-filter-bar">
+            <span class="tag-filter-label">Filter:</span>
+            <button type="button" class="tag-badge" class:filter-active={liveThreadFilter === null}
+              on:click={() => liveThreadFilter = null}>All</button>
+            {#if liveFilterOptions.hasBroadcast}
+              <button type="button" class="tag-badge" class:filter-active={liveThreadFilter === 'broadcast'}
+                on:click={() => { liveThreadFilter = liveThreadFilter === 'broadcast' ? null : 'broadcast'; }}>Broadcast</button>
+            {/if}
+            {#each liveFilterOptions.codenames as codename (codename)}
+              <button type="button" class="tag-badge" class:filter-active={liveThreadFilter === codename}
+                on:click={() => { liveThreadFilter = liveThreadFilter === codename ? null : codename; }}>{codename}</button>
+            {/each}
+          </div>
+        {/if}
+        <div class="log" bind:this={liveMsgLogEl}>
+          {#if !filteredLiveMsgs.length}
+            <div class="log-empty">{liveThreadFilter ? `No live messages for "${liveThreadFilter}".` : 'No live messages.'}</div>
+          {:else}
+            {#each filteredLiveMsgs as m (m._id ?? m.ts)}
+              <div class="chain-log-row">
+                <div class="chain-log-top">
+                  <span class="live-label">▶ &nbsp;</span>
+                  <span class="log-name" style="color:{m.color}">{m.sender}:</span>
+                  <span class="log-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{#if m.imageUrl}📷 {/if}{m.text ?? ''}</span>
+                  <span class="chain-log-meta">{relTime(m.ts)}</span>
+                </div>
+                {#if m.recipients?.length}
+                  <div class="chain-log-tags">
+                    {#each m.recipients as r (r)}<span class="tag-badge">{r}</span>{/each}
+                  </div>
+                {/if}
+                <div class="chain-log-actions" style="justify-content:flex-end">
+                  <button class="recall-btn" on:click={() => recallMessage(m._id)}>Recall</button>
+                  <button class="danger-btn" on:click={() => deleteMessage(m._id)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+      </div><!-- /col-list -->
+      </div><!-- /two-col -->
+
     <!-- ══ EMAIL / DATA PACKETS ═══════════════════════════════════════════ -->
     {:else if activeTab === 'email'}
 
       <p class="tab-sub">Author an intercepted email chain. Stage it silently, then deploy when players are ready.</p>
 
+      <div class="two-col">
+      <div class="col-form">
       <div class="section">
         <div class="section-label">New Chain</div>
         <input
@@ -1408,6 +1505,8 @@
           {emailStatus.text}
         </div>
       </div>
+      </div><!-- /col-form -->
+      <div class="col-list">
 
       <div class="section">
         <div class="section-label-row">
@@ -1511,11 +1610,16 @@
         </div>
       </div>
 
+      </div><!-- /col-list -->
+      </div><!-- /two-col -->
+
     <!-- ══ CASE FILES (persons / locations / intel) ══════════════════════════ -->
     {:else if activeTab === 'cases'}
 
       <p class="tab-sub">Author a new persons, locations, or intel case file. Stage it, then deploy when players are ready.</p>
 
+      <div class="two-col">
+      <div class="col-form">
       <div class="section">
         <div class="section-label">New Case File</div>
 
@@ -1583,6 +1687,8 @@
           {caseStatus.text}
         </div>
       </div>
+      </div><!-- /col-form -->
+      <div class="col-list">
 
       <div class="section">
         <div class="section-label-row">
@@ -1642,6 +1748,9 @@
           {/if}
         </div>
       </div>
+
+      </div><!-- /col-list -->
+      </div><!-- /two-col -->
 
     <!-- ══ PHONE CONTACTS ══════════════════════════════════════════════════ -->
     {:else if activeTab === 'contacts'}
@@ -1897,6 +2006,8 @@
 
       <p class="tab-sub">Author a job and stage it silently, then deploy when players are ready.</p>
 
+      <div class="two-col">
+      <div class="col-form">
       <div class="section">
         <div class="section-label">New Job</div>
 
@@ -1943,6 +2054,8 @@
           {jobCreateStatus.text}
         </div>
       </div>
+      </div><!-- /col-form -->
+      <div class="col-list">
 
       <div class="section">
         <div class="section-label-row">
@@ -2054,6 +2167,8 @@
           {/each}
         {/if}
       </div>
+      </div><!-- /col-list -->
+      </div><!-- /two-col -->
 
     {/if}
 
@@ -2366,7 +2481,7 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    max-width: 640px;
+    max-width: 1400px;
     margin: 0 auto;
     color: #e8dfc8;
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
@@ -2431,9 +2546,21 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 20px 16px 60px;
+    padding: 24px 28px 60px;
     scrollbar-width: thin;
     scrollbar-color: rgba(201, 162, 39, 0.2) transparent;
+  }
+
+  /* ── Two-column layout for compose + queue tabs ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+  .col-form, .col-list { min-width: 0; }
+  @media (max-width: 860px) {
+    .two-col { grid-template-columns: 1fr; gap: 0; }
   }
 
   .tab-sub { font-size: 11px; color: #3a4a5a; letter-spacing: 0.5px; margin: 0 0 20px; }
@@ -2492,7 +2619,7 @@
   .img-picker-status { grid-column: 1/-1; font-size: 12px; font-style: italic; color: #3a4a5a; text-align: center; padding: 10px 0; }
   .img-picker-status.err { color: #e24b4a; font-style: normal; }
 
-  .log { background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 12px 14px; max-height: 320px; overflow-y: auto; }
+  .log { background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 12px 14px; max-height: 520px; overflow-y: auto; }
   .log-empty { font-size: 12px; font-style: italic; color: #3a4a5a; text-align: center; padding: 10px 0; }
   .log-row { display: flex; gap: 8px; margin-bottom: 10px; font-size: 12.5px; line-height: 1.5; }
   .log-row:last-child { margin-bottom: 0; }

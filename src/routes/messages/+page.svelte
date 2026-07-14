@@ -84,6 +84,7 @@
     if (!data) return;
     const fetched = Object.entries(data)
       .map(([id, m]) => ({ ...m, id }))
+      .filter(m => m.staged !== false)
       .filter(m => !m.recipients || m.recipients.includes(myCodename))
       .sort((a, b) => a.ts - b.ts);
     const hadNew = fetched.length > messages.length;
