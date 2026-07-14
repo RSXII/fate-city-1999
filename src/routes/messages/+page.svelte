@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { dbGet } from '$lib/firebase-db.js';
-  import { relTime, visibilityAwareInterval } from '$lib/utils.js';
+  import { relTime, visibilityAwareInterval, getCodename } from '$lib/utils.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
   import SearchModal from '$lib/components/SearchModal.svelte';
@@ -15,6 +15,7 @@
   // Driven by ?sender=Name query param — null means list view
   $: activeSender = $page.url.searchParams.get('sender');
 
+  let myCodename = null;
   let messages = [];
   let lastSeenMap = {};
   let feedEl;
@@ -83,6 +84,7 @@
     if (!data) return;
     const fetched = Object.entries(data)
       .map(([id, m]) => ({ ...m, id }))
+      .filter(m => !m.recipients || m.recipients.includes(myCodename))
       .sort((a, b) => a.ts - b.ts);
     const hadNew = fetched.length > messages.length;
     messages = fetched;
@@ -100,6 +102,7 @@
   });
 
   onMount(() => {
+    myCodename = getCodename();
     lastSeenMap = loadLastSeen();
     loadContacts();
     poll();
@@ -201,6 +204,9 @@
               <span class="msg-name" style="color:{color}">{m.sender}</span>
               <span class="msg-time">{relTime(m.ts)}</span>
             </div>
+            {#if m.recipients && myCodename}
+              <div class="msg-to">To: {myCodename}</div>
+            {/if}
             <div class="msg-bubble" class:has-image={m.imageUrl} style="border-left-color:{color}">
               {#if m.imageUrl}
                 <img class="msg-image" src={m.imageUrl} alt="" loading="lazy"
@@ -385,6 +391,12 @@
   }
   .msg-name { font-size: 12.5px; font-weight: 600; }
   .msg-time { font-size: 9.5px; color: rgba(232, 223, 200, 0.4); }
+  .msg-to {
+    font-size: 9.5px;
+    letter-spacing: 0.4px;
+    color: rgba(201, 162, 39, 0.45);
+    margin-bottom: 5px;
+  }
   .msg-bubble {
     background: rgba(255, 255, 255, 0.04);
     border-left: 3px solid;
