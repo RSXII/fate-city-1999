@@ -53,6 +53,28 @@
   let sending = false;
   let msgLogEl;
 
+  let devices = []; // codenames registered in Firebase
+  let selectedRecipients = []; // empty = broadcast to all
+
+  async function refreshDevices() {
+    try {
+      const data = await dbGet('devices');
+      if (!data) { devices = []; return; }
+      const seen = new Set();
+      devices = Object.values(data)
+        .filter(d => d.codename)
+        .map(d => d.codename)
+        .filter(c => { if (seen.has(c)) return false; seen.add(c); return true; })
+        .sort();
+    } catch { devices = []; }
+  }
+
+  function toggleRecipient(codename) {
+    selectedRecipients = selectedRecipients.includes(codename)
+      ? selectedRecipients.filter(c => c !== codename)
+      : [...selectedRecipients, codename];
+  }
+
   $: sendEnabled = !sending && !!selectedSender && (msgText.trim().length > 0 || !!selectedImage);
 
   async function refreshLog() {
@@ -74,6 +96,7 @@
     try {
       const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now() };
       if (selectedImage) payload.imageUrl = selectedImage.url;
+      if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       await dbPost('messages', payload);
       msgText = '';
       selectedImage = null;
@@ -1089,10 +1112,12 @@
   let oncePoll;
   let jobPoll;
   let ridesPoll;
+  let devicesPoll;
 
   onMount(() => {
     addReply(); addReply();
     refreshLog();
+    refreshDevices();
     refreshStaged();
     refreshLive();
     refreshCaseStaged();
@@ -1113,6 +1138,7 @@
     ridesPoll    = visibilityAwareInterval(() => { refreshStagedRides(); refreshLiveRides(); }, 10000);
     loadFsgPosts();
     loadFsgAuthors();
+    devicesPoll = visibilityAwareInterval(refreshDevices, 15000);
   });
 
   onDestroy(() => {
@@ -1124,6 +1150,7 @@
     if (oncePoll) oncePoll();
     if (jobPoll) jobPoll();
     if (ridesPoll) ridesPoll();
+    if (devicesPoll) devicesPoll();
   });
 </script>
 
@@ -1189,10 +1216,44 @@
       </div>
 
       <div class="section">
+        <div class="section-label">Recipients</div>
+        <div class="chip-grid">
+          <button
+            type="button"
+            class="chip"
+            class:selected={selectedRecipients.length === 0}
+            style="color:#c9a227;border-color:#c9a227"
+            on:click={() => selectedRecipients = []}
+          >
+            <span class="chip-label"><span>All Players</span></span>
+          </button>
+          {#each devices as codename (codename)}
+            <button
+              type="button"
+              class="chip"
+              class:selected={selectedRecipients.includes(codename)}
+              style="color:#6ab0d4;border-color:#6ab0d4"
+              on:click={() => toggleRecipient(codename)}
+            >
+              <span class="chip-label"><span>{codename}</span></span>
+            </button>
+          {/each}
+        </div>
+        {#if !devices.length}
+          <div class="selected-line" style="opacity:0.45">No players registered yet.</div>
+        {/if}
+      </div>
+
+      <div class="section">
         <div class="section-label">Message</div>
         <div class="selected-line">
           {#if selectedSender}
             Sending as <strong style="color:{selectedSender.color}">{selectedSender.name}</strong>
+            {#if selectedRecipients.length > 0}
+              → <strong style="color:#6ab0d4">{selectedRecipients.join(', ')}</strong>
+            {:else}
+              → all players
+            {/if}
           {:else}
             No sender selected yet.
           {/if}
@@ -1232,7 +1293,7 @@
 
         <div style="height:10px"></div>
         <button class="primary" disabled={!sendEnabled} on:click={sendMessage}>
-          Send to group thread
+          {selectedRecipients.length > 0 ? `Send to ${selectedRecipients.length} player${selectedRecipients.length !== 1 ? 's' : ''}` : 'Send to all players'}
         </button>
         <div class="status-line" class:ok={sendStatus.type === 'ok'} class:err={sendStatus.type === 'err'}>
           {sendStatus.text}
