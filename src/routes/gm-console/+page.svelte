@@ -123,12 +123,24 @@
 
   // ── Section 2: Email / Data Packets ──────────────────────────────────────
   let emailSubject = '';
+  let emailTags = '';
   let replies = []; // { id, from, body, imageUrl }
   let replyCounter = 0;
   let emailStatus = { text: '', type: '' };
   let staging = false;
   let stagedChains = [];
   let liveChains = [];
+  let stagedTagFilter = null;
+  let liveTagFilter = null;
+
+  $: filteredStagedChains = stagedTagFilter
+    ? stagedChains.filter(c => (c.tags || []).includes(stagedTagFilter))
+    : stagedChains;
+  $: filteredLiveChains = liveTagFilter
+    ? liveChains.filter(c => (c.tags || []).includes(liveTagFilter))
+    : liveChains;
+  $: allStagedTags = [...new Set(stagedChains.flatMap(c => c.tags || []))].sort();
+  $: allLiveTags   = [...new Set(liveChains.flatMap(c => c.tags || []))].sort();
 
   // Per-reply picker state keyed by reply id
   let replyPickers = {}; // id → { open, loading, error, images }
@@ -190,11 +202,13 @@
       .filter(m => m.body || m.imageUrl || m.from !== 'Unknown');
 
     if (!msgs.length) { emailStatus = { text: 'Add at least one message to the chain.', type: 'err' }; return; }
+    const tags = emailTags.split(',').map(t => t.trim()).filter(Boolean);
     staging = true;
     emailStatus = { text: 'Staging…', type: '' };
     try {
-      await dbPost('emails', { subject, staged: false, createdAt: now, messages: msgs });
+      await dbPost('emails', { subject, staged: false, createdAt: now, messages: msgs, tags });
       emailSubject = '';
+      emailTags = '';
       replies = [];
       replyPickers = {};
       replyCounter = 0;
@@ -1260,6 +1274,13 @@
           placeholder="Subject line…"
           bind:value={emailSubject}
         />
+        <input
+          type="text"
+          class="email-subject-input"
+          placeholder="Tags (optional, comma-separated)…"
+          bind:value={emailTags}
+          style="margin-bottom:12px;font-size:12.5px;opacity:0.8"
+        />
 
         {#each replies as reply (reply.id)}
           <div class="reply-block">
@@ -1332,17 +1353,39 @@
           <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
           <button class="ghost-btn" on:click={refreshStaged}>Refresh</button>
         </div>
+        {#if allStagedTags.length}
+          <div class="tag-filter-bar">
+            <span class="tag-filter-label">Filter:</span>
+            {#each allStagedTags as tag (tag)}
+              <button
+                type="button"
+                class="tag-badge"
+                class:filter-active={stagedTagFilter === tag}
+                on:click={() => { stagedTagFilter = stagedTagFilter === tag ? null : tag; }}
+              >{tag}</button>
+            {/each}
+          </div>
+        {/if}
         <div class="log">
-          {#if !stagedChains.length}
-            <div class="log-empty">No staged chains.</div>
+          {#if !filteredStagedChains.length}
+            <div class="log-empty">
+              {stagedTagFilter ? `No staged chains tagged "${stagedTagFilter}".` : 'No staged chains.'}
+            </div>
           {:else}
-            {#each stagedChains as chain (chain._id)}
+            {#each filteredStagedChains as chain (chain._id)}
               {@const msgs = normMessages(chain.messages)}
               <div class="chain-log-row">
                 <div class="chain-log-top">
                   <span class="chain-log-subject" style="color:#c9a227">{chain.subject}</span>
                   <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
                 </div>
+                {#if chain.tags?.length}
+                  <div class="chain-log-tags">
+                    {#each chain.tags as tag (tag)}
+                      <span class="tag-badge">{tag}</span>
+                    {/each}
+                  </div>
+                {/if}
                 <div class="chain-log-actions">
                   <button class="deploy-btn" disabled={deployingId === chain._id} on:click={() => deployChain(chain._id)}>
                     {deployingId === chain._id ? 'Deploying…' : 'Deploy → Players'}
@@ -1360,11 +1403,26 @@
           <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
           <button class="ghost-btn" on:click={refreshLive}>Refresh</button>
         </div>
+        {#if allLiveTags.length}
+          <div class="tag-filter-bar">
+            <span class="tag-filter-label">Filter:</span>
+            {#each allLiveTags as tag (tag)}
+              <button
+                type="button"
+                class="tag-badge"
+                class:filter-active={liveTagFilter === tag}
+                on:click={() => { liveTagFilter = liveTagFilter === tag ? null : tag; }}
+              >{tag}</button>
+            {/each}
+          </div>
+        {/if}
         <div class="log">
-          {#if !liveChains.length}
-            <div class="log-empty">No live chains.</div>
+          {#if !filteredLiveChains.length}
+            <div class="log-empty">
+              {liveTagFilter ? `No live chains tagged "${liveTagFilter}".` : 'No live chains.'}
+            </div>
           {:else}
-            {#each liveChains as chain (chain._id)}
+            {#each filteredLiveChains as chain (chain._id)}
               {@const msgs = normMessages(chain.messages)}
               <div class="chain-log-row">
                 <div class="chain-log-top">
@@ -1373,6 +1431,13 @@
                   </span>
                   <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
                 </div>
+                {#if chain.tags?.length}
+                  <div class="chain-log-tags">
+                    {#each chain.tags as tag (tag)}
+                      <span class="tag-badge">{tag}</span>
+                    {/each}
+                  </div>
+                {/if}
                 <div class="chain-log-actions" style="justify-content:flex-end">
                   <button class="recall-btn" disabled={recallingId === chain._id} on:click={() => recallChain(chain._id)}>
                     {recallingId === chain._id ? 'Recalling…' : 'Recall'}
@@ -2424,6 +2489,20 @@
   .danger-btn:hover { background: rgba(226,75,74,0.08); }
 
   .live-label { color: #4ade80; font-size: 10px; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
+
+  .tag-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .tag-filter-label { font-size: 10px; color: #3a4a5a; letter-spacing: 0.5px; text-transform: uppercase; }
+  .tag-badge {
+    display: inline-flex; align-items: center;
+    background: rgba(201,162,39,0.1); border: 1px solid rgba(201,162,39,0.3);
+    color: #c9a227; border-radius: 12px; padding: 2px 9px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+    cursor: pointer; transition: background 0.12s, border-color 0.12s; user-select: none;
+  }
+  .tag-badge:hover { background: rgba(201,162,39,0.2); border-color: rgba(201,162,39,0.6); }
+  .tag-badge.filter-active { background: rgba(201,162,39,0.28); border-color: #c9a227; box-shadow: 0 0 0 1px rgba(201,162,39,0.4); }
+  .chain-log-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .chain-log-tags .tag-badge { cursor: default; }
 
   /* ── Case Files section ── */
   .case-select {
