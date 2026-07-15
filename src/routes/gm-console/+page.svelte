@@ -5,6 +5,7 @@
   import { visibilityAwareInterval } from '$lib/utils.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
+  import { NPCS } from '$lib/data/persons.js';
 
   let activeTab = 'wire';
 
@@ -1218,6 +1219,238 @@
     }
   }
 
+  // ── HouseKit ──────────────────────────────────────────────────────────────
+  const GITHUB_HOUSEKIT_API =
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/housekit';
+
+  let hkProperties = [];
+  let hkEditing = null;
+  let hkFormName = '';
+  let hkFormLocation = '';
+  let hkFormCost = '';
+  let hkFormRooms = '';
+  let hkFormTiles = '';
+  let hkFormOwner = '';
+  let hkFormAccess = [];
+  let hkFormImage = '';
+  let hkStatus = { text: '', type: '' };
+  let hkSaving = false;
+
+  // Floor plan grid editor
+  let hkGridCols = 8;
+  let hkGridRows = 7;
+  let hkGridCells = {}; // { "r,c": "filled" | "entrance" }
+  let hkGridWalls = {}; // { "r,c": string[] }
+  let hkSelectedCell = null;
+
+  function hkClearGrid() {
+    hkGridCells = {}; hkGridWalls = {}; hkSelectedCell = null;
+  }
+
+  function hkCellClick(r, c) {
+    const key = `${r},${c}`;
+    if (!hkGridCells[key]) {
+      hkGridCells = { ...hkGridCells, [key]: 'filled' };
+      hkSelectedCell = key;
+    } else if (hkSelectedCell === key) {
+      const cells = { ...hkGridCells }; delete cells[key];
+      const walls = { ...hkGridWalls }; delete walls[key];
+      hkGridCells = cells; hkGridWalls = walls; hkSelectedCell = null;
+    } else {
+      hkSelectedCell = key;
+    }
+  }
+
+  function hkCellRightClick(r, c) {
+    const key = `${r},${c}`;
+    const cur = hkGridCells[key];
+    hkGridCells = { ...hkGridCells, [key]: cur === 'entrance' ? 'filled' : 'entrance' };
+    hkSelectedCell = key;
+  }
+
+  function hkToggleWall(key, side) {
+    const cur = hkGridWalls[key] || [];
+    hkGridWalls = {
+      ...hkGridWalls,
+      [key]: cur.includes(side) ? cur.filter(s => s !== side) : [...cur, side],
+    };
+  }
+
+  function hkResizeGrid() {
+    const cells = {}, walls = {};
+    for (const [key, val] of Object.entries(hkGridCells)) {
+      const [r, c] = key.split(',').map(Number);
+      if (r < hkGridRows && c < hkGridCols) {
+        cells[key] = val;
+        if (hkGridWalls[key]) walls[key] = hkGridWalls[key];
+      }
+    }
+    hkGridCells = cells; hkGridWalls = walls;
+  }
+
+  function hkGridToFloorPlan() {
+    return { rows: hkGridRows, cols: hkGridCols, cells: { ...hkGridCells }, walls: { ...hkGridWalls } };
+  }
+
+  function hkFloorPlanToGrid(fp) {
+    if (!fp) { hkClearGrid(); hkGridCols = 8; hkGridRows = 7; return; }
+    hkGridRows = fp.rows || 7;
+    hkGridCols = fp.cols || 8;
+    hkGridCells = fp.cells || {};
+    hkGridWalls = fp.walls || {};
+    hkSelectedCell = null;
+  }
+
+  // Access picker
+  let hkPickerOpen = false;
+  let hkPeopleList = []; // combined codenames + contact names
+
+  // Image picker
+  let hkImgPickerOpen = false;
+  let hkImgPickerLoading = false;
+  let hkImgPickerError = '';
+  let hkImgPickerImages = [];
+
+  async function refreshHkProperties() {
+    try {
+      const data = await dbGet('housekit/properties');
+      if (!data) { hkProperties = []; return; }
+      hkProperties = Object.keys(data)
+        .map(k => ({ _id: k, ...data[k] }))
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    } catch { hkProperties = []; }
+  }
+
+  function decodeHtmlEntities(str) {
+    const el = document.createElement('textarea');
+    el.innerHTML = str;
+    return el.value;
+  }
+
+  function hkLoadPeople() {
+    const contactNames = contactList.map(c => c.name).filter(Boolean);
+    const codenameNames = devices.slice();
+    const npcNames = NPCS
+      .filter(n => n.category === 'person')
+      .map(n => decodeHtmlEntities(n.name))
+      .filter(Boolean);
+    const all = [...new Set([...codenameNames, ...contactNames, ...npcNames])].sort();
+    hkPeopleList = all.filter(n => !hkFormAccess.includes(n));
+  }
+
+  function hkStartCreate() {
+    hkEditing = null;
+    hkFormName = ''; hkFormLocation = ''; hkFormCost = '';
+    hkFormRooms = ''; hkFormTiles = ''; hkFormOwner = ''; hkFormAccess = [];
+    hkFormImage = '';
+    hkClearGrid(); hkGridCols = 8; hkGridRows = 7;
+    hkStatus = { text: '', type: '' };
+    hkPickerOpen = false; hkImgPickerOpen = false;
+  }
+
+  function hkStartEdit(p) {
+    hkEditing = p._id;
+    hkFormName = p.name || '';
+    hkFormLocation = p.location || '';
+    hkFormCost = p.cost || '';
+    hkFormRooms = p.rooms != null ? String(p.rooms) : '';
+    hkFormTiles = p.tiles != null ? String(p.tiles) : '';
+    hkFormOwner = p.owner || '';
+    hkFloorPlanToGrid(p.floorPlan ?? null);
+    hkFormAccess = hkParseAccess(p.access);
+    hkFormImage = p.image || '';
+    hkStatus = { text: '', type: '' };
+    hkPickerOpen = false; hkImgPickerOpen = false;
+  }
+
+  function hkCancelEdit() {
+    hkEditing = null;
+    hkStatus = { text: '', type: '' };
+    hkPickerOpen = false; hkImgPickerOpen = false;
+  }
+
+  function hkParseAccess(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    return Object.values(raw).filter(v => typeof v === 'string');
+  }
+
+  function hkAddAccess(name) {
+    if (!name || hkFormAccess.includes(name)) return;
+    hkFormAccess = [...hkFormAccess, name];
+    hkPickerOpen = false;
+  }
+
+  function hkRemoveAccess(name) {
+    hkFormAccess = hkFormAccess.filter(n => n !== name);
+  }
+
+  async function hkSaveProperty() {
+    const name = hkFormName.trim();
+    if (!name) { hkStatus = { text: 'Name is required.', type: 'err' }; return; }
+    hkSaving = true;
+    hkStatus = { text: 'Saving…', type: '' };
+    const payload = {
+      name,
+      location: hkFormLocation.trim() || null,
+      cost: hkFormCost.trim() || null,
+      rooms: hkFormRooms ? Number(hkFormRooms) : null,
+      tiles: hkFormTiles ? Number(hkFormTiles) : null,
+      floorPlan: hkGridToFloorPlan(),
+      owner: hkFormOwner.trim() || null,
+      access: hkFormAccess,
+      image: hkFormImage.trim() || null,
+    };
+    try {
+      if (hkEditing) {
+        payload.createdAt = hkProperties.find(p => p._id === hkEditing)?.createdAt ?? Date.now();
+        await dbPut(`housekit/properties/${hkEditing}`, payload);
+        hkStatus = { text: 'Property updated.', type: 'ok' };
+      } else {
+        payload.createdAt = Date.now();
+        await dbPost('housekit/properties', payload);
+        hkStatus = { text: 'Property created.', type: 'ok' };
+        hkStartCreate();
+      }
+      await refreshHkProperties();
+    } catch (e) {
+      hkStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
+    }
+    hkSaving = false;
+  }
+
+  async function hkDeleteProperty(id) {
+    if (!confirm('Delete this property? It will be removed from the player app.')) return;
+    try {
+      await dbDelete(`housekit/properties/${id}`);
+      if (hkEditing === id) hkCancelEdit();
+      await refreshHkProperties();
+    } catch (e) {
+      hkStatus = { text: `Delete failed: ${e?.message ?? 'unknown'}`, type: 'err' };
+    }
+  }
+
+  async function hkToggleImgPicker() {
+    if (hkImgPickerOpen) { hkImgPickerOpen = false; return; }
+    hkImgPickerOpen = true;
+    hkImgPickerLoading = true;
+    hkImgPickerError = '';
+    hkImgPickerImages = [];
+    try {
+      const res = await fetch(GITHUB_HOUSEKIT_API);
+      if (res.status === 404) { hkImgPickerLoading = false; hkImgPickerError = 'No images yet in static/images/housekit/.'; return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      hkImgPickerImages = data.filter(f => f.type === 'file' && /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      if (!hkImgPickerImages.length) hkImgPickerError = 'No images found in static/images/housekit/.';
+    } catch (e) {
+      hkImgPickerError = `Failed: ${e?.message ?? 'error'}`;
+    }
+    hkImgPickerLoading = false;
+  }
+
+  let hkPoll;
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let emailPoll;
@@ -1257,6 +1490,9 @@
     loadTimerState();
     timerConsolePoll  = visibilityAwareInterval(loadTimerState, 4000);
     timerDisplayTick  = setInterval(updateTimerDisplayStr, 500);
+    refreshHkProperties();
+    hkStartCreate();
+    hkPoll = visibilityAwareInterval(refreshHkProperties, 15000);
   });
 
   onDestroy(() => {
@@ -1270,6 +1506,7 @@
     if (ridesPoll) ridesPoll();
     if (devicesPoll) devicesPoll();
     if (timerConsolePoll) timerConsolePoll();
+    if (hkPoll) hkPoll();
     clearInterval(timerDisplayTick);
   });
 </script>
@@ -1296,8 +1533,9 @@
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
     <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
     <button class="tab" class:active={activeTab === 'rides'} role="tab" on:click={() => activeTab = 'rides'}>Rides</button>
-    <button class="tab tab--fsg"   class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
-    <button class="tab tab--timer" class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
+    <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
+    <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
+    <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -2638,6 +2876,216 @@
 
     {/if}
 
+    <!-- ══ HOUSEKIT ══════════════════════════════════════════════════════════ -->
+    {#if activeTab === 'housekit'}
+
+      <p class="tab-sub">Manage safe houses and properties. Properties appear in the HouseKit app on player devices.</p>
+
+      <!-- ── Property list ─────────────────────────────────────────────────── -->
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Properties ({hkProperties.length})</div>
+          <button class="ghost-btn" on:click={refreshHkProperties}>Refresh</button>
+        </div>
+
+        {#if !hkProperties.length}
+          <div class="log-empty" style="margin-top:8px">No properties yet. Create one below.</div>
+        {:else}
+          <div class="hk-prop-list">
+            {#each hkProperties as p (p._id)}
+              <div class="hk-prop-item" class:hk-prop-item--editing={hkEditing === p._id}>
+                <div class="hk-prop-item-info">
+                  <span class="hk-prop-item-name">{p.name}</span>
+                  {#if p.location}<span class="hk-prop-item-loc">{p.location}</span>{/if}
+                </div>
+                <div class="hk-prop-item-actions">
+                  <button class="ghost-btn" on:click={() => hkStartEdit(p)}>Edit</button>
+                  <button class="danger-btn" on:click={() => hkDeleteProperty(p._id)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      <!-- ── Create / Edit form ─────────────────────────────────────────────── -->
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">
+            {hkEditing ? 'Edit Property' : 'New Property'}
+          </div>
+          {#if hkEditing}
+            <button class="ghost-btn" on:click={hkCancelEdit}>Cancel</button>
+          {/if}
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Name</label>
+          <input class="form-input" type="text" placeholder="e.g. The Neon Loft" bind:value={hkFormName} />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Location</label>
+          <input class="form-input" type="text" placeholder="e.g. 4th District — Midtown" bind:value={hkFormLocation} />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Cost</label>
+          <input class="form-input" type="text" placeholder="e.g. 45,000 plat" bind:value={hkFormCost} />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Owner</label>
+          <input class="form-input" type="text" placeholder="Codename or NPC name" bind:value={hkFormOwner} />
+        </div>
+
+        <div class="hk-form-pair">
+          <div class="form-row" style="flex:1">
+            <label class="form-label">Rooms</label>
+            <input class="form-input" type="number" min="1" placeholder="0" bind:value={hkFormRooms} />
+          </div>
+          <div class="form-row" style="flex:1">
+            <label class="form-label">Tiles</label>
+            <input class="form-input" type="number" min="1" placeholder="0" bind:value={hkFormTiles} />
+          </div>
+        </div>
+
+        <!-- Image picker -->
+        <div class="form-row">
+          <label class="form-label">Image</label>
+          <div class="img-picker-row">
+            <span class="img-selected">{hkFormImage || 'None'}</span>
+            <button class="picker-btn" type="button" on:click={hkToggleImgPicker}>
+              {hkImgPickerOpen ? 'Close' : 'Pick'}
+            </button>
+          </div>
+        </div>
+        {#if hkImgPickerOpen}
+          <div class="img-picker-grid">
+            {#if hkImgPickerLoading}
+              <span class="picker-status">Loading…</span>
+            {:else if hkImgPickerError}
+              <span class="picker-status picker-err">{hkImgPickerError}</span>
+            {:else}
+              {#each hkImgPickerImages as img (img.name)}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="picker-thumb" class:selected={hkFormImage === img.name}
+                  on:click={() => { hkFormImage = img.name; hkImgPickerOpen = false; }}>
+                  <img src={img.download_url} alt={img.name} loading="lazy" />
+                  <span class="picker-name">{img.name}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Floor plan grid editor -->
+        <div class="section-label" style="margin-top:14px;margin-bottom:6px">Floor Plan</div>
+        <div class="hk-grid-size-row">
+          <label class="hk-size-label">Cols
+            <input class="form-input hk-size-input" type="number" min="4" max="16" bind:value={hkGridCols} on:change={hkResizeGrid} />
+          </label>
+          <label class="hk-size-label">Rows
+            <input class="form-input hk-size-input" type="number" min="3" max="12" bind:value={hkGridRows} on:change={hkResizeGrid} />
+          </label>
+          <button class="ghost-btn" type="button" on:click={hkClearGrid}>Clear</button>
+        </div>
+
+        <div class="hk-editor-wrap">
+          <div class="hk-editor-grid" style="grid-template-columns: repeat({hkGridCols}, 34px)">
+            {#each Array(hkGridRows * hkGridCols) as _, idx}
+              {@const r = Math.floor(idx / hkGridCols)}
+              {@const c = idx % hkGridCols}
+              {@const key = `${r},${c}`}
+              {@const cellType = hkGridCells[key]}
+              {@const walls = hkGridWalls[key] || []}
+              {@const selected = hkSelectedCell === key}
+              <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+              <div
+                class="hk-editor-cell"
+                class:hk-ec-filled={cellType === 'filled'}
+                class:hk-ec-entrance={cellType === 'entrance'}
+                class:hk-ec-selected={selected}
+                style="
+                  {walls.includes('top')    ? 'border-top:2px solid #b22;'    : ''}
+                  {walls.includes('right')  ? 'border-right:2px solid #b22;'  : ''}
+                  {walls.includes('bottom') ? 'border-bottom:2px solid #b22;' : ''}
+                  {walls.includes('left')   ? 'border-left:2px solid #b22;'   : ''}
+                "
+                on:click={() => hkCellClick(r, c)}
+                on:contextmenu|preventDefault={() => hkCellRightClick(r, c)}
+              ></div>
+            {/each}
+          </div>
+
+          {#if hkSelectedCell && hkGridCells[hkSelectedCell]}
+            <div class="hk-wall-panel">
+              <div class="hk-wall-label">Walls</div>
+              {#each ['top','right','bottom','left'] as side}
+                <button
+                  class="hk-wall-btn"
+                  class:hk-wall-btn--on={(hkGridWalls[hkSelectedCell] || []).includes(side)}
+                  type="button"
+                  on:click={() => hkToggleWall(hkSelectedCell, side)}
+                >{side[0].toUpperCase()}</button>
+              {/each}
+              <div class="hk-wall-hint">selected {hkSelectedCell}</div>
+            </div>
+          {/if}
+        </div>
+
+        <div class="hk-editor-legend">
+          <span class="hk-el-room"></span>Room (click)
+          <span class="hk-el-entrance"></span>Entrance (right-click)
+          <span class="hk-el-wall"></span>Wall (select → T/R/B/L)
+        </div>
+
+        <!-- Access list -->
+        <div class="section-label" style="margin-top:14px;margin-bottom:6px">Access List</div>
+
+        {#if hkFormAccess.length}
+          <div class="hk-access-chips">
+            {#each hkFormAccess as name}
+              <div class="hk-access-chip">
+                <span>{name}</span>
+                <button class="hk-chip-remove" type="button" on:click={() => hkRemoveAccess(name)}>✕</button>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div style="font-size:11px;color:rgba(232,223,200,0.3);margin-bottom:8px">No one added yet.</div>
+        {/if}
+
+        <!-- Person picker toggle -->
+        <button class="ghost-btn" style="margin-bottom:8px" type="button"
+          on:click={() => { hkPickerOpen = !hkPickerOpen; if (hkPickerOpen) hkLoadPeople(); }}>
+          {hkPickerOpen ? 'Close picker' : '+ Add person'}
+        </button>
+
+        {#if hkPickerOpen}
+          <div class="hk-person-picker">
+            {#if !hkPeopleList.length}
+              <div style="font-size:11px;color:rgba(232,223,200,0.3);padding:8px">
+                No more names available. Add contacts or have players register.
+              </div>
+            {:else}
+              {#each hkPeopleList as name}
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                <div class="hk-person-option" on:click={() => hkAddAccess(name)}>{name}</div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+
+        <button class="primary" style="margin-top:10px;width:100%"
+          disabled={hkSaving || !hkFormName.trim()}
+          on:click={hkSaveProperty}>
+          {hkSaving ? 'Saving…' : hkEditing ? 'Save Changes' : 'Create Property'}
+        </button>
+        <div class="status-line" class:ok={hkStatus.type === 'ok'} class:err={hkStatus.type === 'err'}>
+          {hkStatus.text}
+        </div>
+      </div>
+
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -3425,4 +3873,159 @@
     flex: 1;
   }
   .timer-active-str.timer-expired { color: #e05a3a; }
+
+  /* ── HouseKit tab ── */
+  .tab--housekit { border-color: rgba(45,212,191,0.4); }
+  .tab--housekit.active { background: rgba(45,212,191,0.12); color: #2dd4bf; border-color: #2dd4bf; }
+
+  .hk-prop-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .hk-prop-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .hk-prop-item--editing { border-color: rgba(45,212,191,0.45); }
+  .hk-prop-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hk-prop-item-name {
+    font-size: 13px; font-weight: 600; color: #e8dfc8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .hk-prop-item-loc {
+    font-size: 10px; color: rgba(45,212,191,0.5);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    letter-spacing: 0.3px;
+  }
+  .hk-prop-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .hk-form-pair { display: flex; gap: 10px; }
+
+  .hk-grid-size-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+  }
+  .hk-size-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: rgba(232,223,200,0.5); letter-spacing: 0.5px;
+  }
+  .hk-size-input { width: 58px !important; padding: 5px 8px !important; }
+
+  .hk-editor-wrap { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+
+  .hk-editor-grid {
+    display: grid;
+    gap: 1px;
+    background: #0a0c12;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 1px;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .hk-editor-cell {
+    width: 34px; height: 34px;
+    background: #0c0f16;
+    border: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .hk-editor-cell:hover { background: rgba(45,212,191,0.08); }
+  .hk-ec-filled { background: rgba(45,212,191,0.45); border-color: rgba(45,212,191,0.3); }
+  .hk-ec-filled:hover { background: rgba(45,212,191,0.6); }
+  .hk-ec-entrance { background: rgba(160,30,30,0.75); border-color: rgba(200,50,50,0.5); }
+  .hk-ec-entrance:hover { background: rgba(180,40,40,0.9); }
+  .hk-ec-selected { outline: 2px solid #c9a227; outline-offset: -2px; }
+
+  .hk-wall-panel {
+    display: flex; flex-direction: column; gap: 5px; align-items: center;
+    padding: 8px;
+    background: #0c0f16;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    min-width: 48px;
+  }
+  .hk-wall-label {
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+    color: rgba(232,223,200,0.35); margin-bottom: 2px;
+  }
+  .hk-wall-btn {
+    width: 34px; height: 28px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    color: rgba(232,223,200,0.5);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .hk-wall-btn:hover { background: rgba(180,30,30,0.2); border-color: rgba(180,30,30,0.4); color: #e05a3a; }
+  .hk-wall-btn--on { background: rgba(180,30,30,0.35); border-color: rgba(200,50,50,0.7); color: #e05a3a; }
+  .hk-wall-hint {
+    font-size: 8px; color: rgba(232,223,200,0.2);
+    letter-spacing: 0.3px; text-align: center; margin-top: 2px;
+  }
+
+  .hk-editor-legend {
+    display: flex; align-items: center; gap: 14px;
+    font-size: 10px; color: rgba(232,223,200,0.35);
+    margin-bottom: 10px;
+  }
+  .hk-el-room, .hk-el-entrance, .hk-el-wall {
+    display: inline-block; width: 12px; height: 12px;
+    border-radius: 2px; margin-right: 4px; vertical-align: middle;
+  }
+  .hk-el-room { background: rgba(45,212,191,0.45); }
+  .hk-el-entrance { background: rgba(160,30,30,0.75); }
+  .hk-el-wall { background: transparent; border: 2px solid #b22; }
+
+  .hk-access-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .hk-access-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(45,212,191,0.08);
+    border: 1px solid rgba(45,212,191,0.3);
+    border-radius: 20px;
+    padding: 4px 8px 4px 10px;
+    font-size: 11px;
+    color: #2dd4bf;
+  }
+  .hk-chip-remove {
+    background: none;
+    border: none;
+    color: rgba(45,212,191,0.5);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+    line-height: 1;
+  }
+  .hk-chip-remove:hover { color: #2dd4bf; }
+
+  .hk-person-picker {
+    background: #0c0f16;
+    border: 1px solid rgba(45,212,191,0.2);
+    border-radius: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(45,212,191,0.2) transparent;
+  }
+  .hk-person-option {
+    padding: 9px 12px;
+    font-size: 12px;
+    color: #e8dfc8;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+  }
+  .hk-person-option:last-child { border-bottom: none; }
+  .hk-person-option:hover { background: rgba(45,212,191,0.08); }
 </style>
