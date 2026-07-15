@@ -37,7 +37,7 @@ messaging.onBackgroundMessage((payload) => {
 
 // ── Caching strategy ──────────────────────────────────────────────────────────
 // Bump CACHE_NAME on significant deploys to purge stale assets from all clients.
-const CACHE_NAME = "wire-v2";
+const CACHE_NAME = "wire-v3";
 
 // Vite outputs content-hashed filenames here — safe to cache indefinitely.
 const IMMUTABLE_RE = /\/_app\/immutable\//;
