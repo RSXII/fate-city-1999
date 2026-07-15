@@ -51,7 +51,7 @@
       if (!data) { posts = []; loading = false; return; }
       posts = Object.keys(data)
         .map(k => { const p = data[k]; p._id = k; return p; })
-        .filter(p => p.imageUrl || p.caption)
+        .filter(p => (p.imageUrl || p.caption) && p.staged !== false)
         .sort((a, b) => b.ts - a.ts);
     } catch { posts = []; }
     loading = false;

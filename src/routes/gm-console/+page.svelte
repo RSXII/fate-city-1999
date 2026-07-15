@@ -987,7 +987,10 @@
   let fsgTopCommentLikes = '';
   let fsgPosting = false;
   let fsgStatus = { text: '', type: '' };
-  let fsgPosts = [];
+  let stagedFsgPosts = [];
+  let liveFsgPosts = [];
+  let deployingFsgId = null;
+  let recallingFsgId = null;
   let fsgKnownAuthors = []; // { username, handle } — persisted to localStorage
 
   const FSG_AUTHORS_KEY = 'fsg-known-authors';
@@ -1090,6 +1093,7 @@
           ? { username: topCommentUser, text: topCommentText, likes: parseInt(fsgTopCommentLikes) || 0 }
           : null,
         ts: Date.now(),
+        staged: false,
       });
       fsgUsername = '';
       fsgHandle = '';
@@ -1106,7 +1110,7 @@
       fsgPickerOpen = false;
       fsgAvatarPickerOpen = false;
       saveFsgAuthor(username, handle);
-      fsgStatus = { text: 'Posted to FateStaGram.', type: 'ok' };
+      fsgStatus = { text: 'Staged. Use Deploy when players are ready.', type: 'ok' };
       await loadFsgPosts();
     } catch (e) {
       fsgStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
@@ -1117,20 +1121,101 @@
   async function loadFsgPosts() {
     try {
       const data = await dbGet('fatestagram', { orderBy: '$key', limitToLast: 50 });
-      if (!data) { fsgPosts = []; return; }
-      fsgPosts = Object.keys(data)
+      if (!data) { stagedFsgPosts = []; liveFsgPosts = []; return; }
+      const all = Object.keys(data)
         .map(k => { const p = data[k]; p._id = k; return p; })
         .filter(p => p.imageUrl || p.caption)
         .sort((a, b) => b.ts - a.ts);
-    } catch { fsgPosts = []; }
+      stagedFsgPosts = all.filter(p => p.staged === false);
+      liveFsgPosts   = all.filter(p => p.staged !== false);
+    } catch { stagedFsgPosts = []; liveFsgPosts = []; }
+  }
+
+  async function deployFsgPost(id) {
+    deployingFsgId = id;
+    try { await dbPut(`fatestagram/${id}/staged`, true); await loadFsgPosts(); }
+    catch (e) { console.error('Deploy failed', e); }
+    deployingFsgId = null;
+  }
+
+  async function recallFsgPost(id) {
+    if (!confirm('Pull this post back to staged? Players will no longer see it.')) return;
+    recallingFsgId = id;
+    try { await dbPut(`fatestagram/${id}/staged`, false); await loadFsgPosts(); }
+    catch (e) { console.error('Recall failed', e); }
+    recallingFsgId = null;
   }
 
   async function deleteFsgPost(id) {
-    if (!confirm('Delete this post from FateStaGram?')) return;
+    const p = [...stagedFsgPosts, ...liveFsgPosts].find(x => x._id === id);
+    const isLive = p?.staged !== false;
+    if (!confirm(isLive ? 'Delete this post from all player devices?' : 'Delete this staged post?')) return;
     try {
       await dbDelete(`fatestagram/${id}`);
       await loadFsgPosts();
     } catch (e) { console.error('Delete failed', e); }
+  }
+
+  // ── Timer ─────────────────────────────────────────────────────────────────
+  let timerDuration = 0;          // seconds chosen via quick-add buttons
+  let timerActiveEndsAt = null;   // ms timestamp from Firebase, null if none
+  let timerSendStatus = null;     // { text, type }
+  let timerSending = false;
+  let timerConsolePoll;
+  let timerDisplayTick;
+  let timerDisplayStr = '';
+
+  $: timerSelectedDisplay = (() => {
+    if (!timerDuration) return '—';
+    const m = Math.floor(timerDuration / 60);
+    const s = timerDuration % 60;
+    return s ? `${m}m ${s}s` : `${m}m`;
+  })();
+
+  function updateTimerDisplayStr() {
+    if (!timerActiveEndsAt) { timerDisplayStr = ''; return; }
+    const rem = timerActiveEndsAt - Date.now();
+    if (rem <= 0) { timerDisplayStr = 'EXPIRED'; return; }
+    const totalSec = Math.floor(rem / 1000);
+    const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    timerDisplayStr = `${m}:${s}`;
+  }
+
+  async function loadTimerState() {
+    try {
+      const val = await dbGet('timer/endsAt');
+      timerActiveEndsAt = (typeof val === 'number') ? val : null;
+      updateTimerDisplayStr();
+    } catch {}
+  }
+
+  async function sendCountdown() {
+    if (!timerDuration) return;
+    timerSending = true;
+    timerSendStatus = null;
+    try {
+      const endsAt = Date.now() + timerDuration * 1000;
+      await dbPut('timer/endsAt', endsAt);
+      timerActiveEndsAt = endsAt;
+      updateTimerDisplayStr();
+      timerSendStatus = { text: 'Countdown started.', type: 'ok' };
+    } catch (e) {
+      timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
+    }
+    timerSending = false;
+  }
+
+  async function stopTimer() {
+    if (!confirm('Clear the active countdown? Players will see it stop.')) return;
+    try {
+      await dbDelete('timer/endsAt');
+      timerActiveEndsAt = null;
+      timerDisplayStr = '';
+      timerSendStatus = { text: 'Countdown cleared.', type: 'ok' };
+    } catch (e) {
+      timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
+    }
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -1169,6 +1254,9 @@
     loadFsgPosts();
     loadFsgAuthors();
     devicesPoll = visibilityAwareInterval(refreshDevices, 15000);
+    loadTimerState();
+    timerConsolePoll  = visibilityAwareInterval(loadTimerState, 4000);
+    timerDisplayTick  = setInterval(updateTimerDisplayStr, 500);
   });
 
   onDestroy(() => {
@@ -1181,6 +1269,8 @@
     if (jobPoll) jobPoll();
     if (ridesPoll) ridesPoll();
     if (devicesPoll) devicesPoll();
+    if (timerConsolePoll) timerConsolePoll();
+    clearInterval(timerDisplayTick);
   });
 </script>
 
@@ -1206,7 +1296,8 @@
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
     <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
     <button class="tab" class:active={activeTab === 'rides'} role="tab" on:click={() => activeTab = 'rides'}>Rides</button>
-    <button class="tab tab--fsg" class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
+    <button class="tab tab--fsg"   class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
+    <button class="tab tab--timer" class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -2331,7 +2422,7 @@
     <!-- ══ FATESTAGRAM ══════════════════════════════════════════════════════ -->
     {#if activeTab === 'fatestagram'}
 
-      <p class="tab-sub">Author FateStaGram posts. They appear on player devices immediately.</p>
+      <p class="tab-sub">Author FateStaGram posts. Use Deploy to make them visible on player devices.</p>
 
       <div class="section">
         <div class="section-label">New Post</div>
@@ -2434,24 +2525,24 @@
 
         <div style="height:12px"></div>
         <button class="primary fsg-post-btn" disabled={fsgPosting || !fsgUsername.trim() || !fsgHandle.trim() || !fsgImageUrl.trim()} on:click={postToFatestagram}>
-          {fsgPosting ? 'Posting…' : 'Post to FateStaGram'}
+          {fsgPosting ? 'Staging…' : 'Stage Post (hidden from players)'}
         </button>
         <div class="status-line" class:ok={fsgStatus.type === 'ok'} class:err={fsgStatus.type === 'err'}>
           {fsgStatus.text}
         </div>
       </div>
 
-      <!-- Live posts list -->
+      <!-- Staged posts -->
       <div class="section">
         <div class="section-label-row">
-          <div class="section-label" style="margin-bottom:0">Live Posts ({fsgPosts.length})</div>
+          <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy ({stagedFsgPosts.length})</div>
           <button class="ghost-btn" on:click={loadFsgPosts}>Refresh</button>
         </div>
         <div class="log">
-          {#if !fsgPosts.length}
-            <div class="log-empty">No posts yet.</div>
+          {#if !stagedFsgPosts.length}
+            <div class="log-empty">No staged posts.</div>
           {:else}
-            {#each fsgPosts as p (p._id)}
+            {#each stagedFsgPosts as p (p._id)}
               <div class="fsg-log-row">
                 {#if p.imageUrl}
                   <img class="fsg-log-thumb" src={p.imageUrl} alt="" loading="lazy" />
@@ -2463,12 +2554,87 @@
                   {/if}
                   <span class="log-time">{relTime(p.ts)}</span>
                 </div>
-                <button class="danger-btn" on:click={() => deleteFsgPost(p._id)}>Delete</button>
+                <div class="fsg-log-actions">
+                  <button class="deploy-btn" disabled={deployingFsgId === p._id} on:click={() => deployFsgPost(p._id)}>
+                    {deployingFsgId === p._id ? '…' : 'Deploy'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteFsgPost(p._id)}>Delete</button>
+                </div>
               </div>
             {/each}
           {/if}
         </div>
       </div>
+
+      <!-- Live posts -->
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Live — on player devices ({liveFsgPosts.length})</div>
+        </div>
+        <div class="log">
+          {#if !liveFsgPosts.length}
+            <div class="log-empty">No live posts.</div>
+          {:else}
+            {#each liveFsgPosts as p (p._id)}
+              <div class="fsg-log-row">
+                {#if p.imageUrl}
+                  <img class="fsg-log-thumb" src={p.imageUrl} alt="" loading="lazy" />
+                {/if}
+                <div class="fsg-log-info">
+                  <span class="fsg-log-user">{p.username ?? '—'}</span>
+                  {#if p.caption}
+                    <span class="fsg-log-caption">{p.caption.slice(0, 60)}{p.caption.length > 60 ? '…' : ''}</span>
+                  {/if}
+                  <span class="log-time">{relTime(p.ts)}</span>
+                </div>
+                <div class="fsg-log-actions">
+                  <button class="ghost-btn" disabled={recallingFsgId === p._id} on:click={() => recallFsgPost(p._id)}>
+                    {recallingFsgId === p._id ? '…' : 'Recall'}
+                  </button>
+                  <button class="danger-btn" on:click={() => deleteFsgPost(p._id)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+    {/if}
+
+    <!-- ══ TIMER ══════════════════════════════════════════════════════════════ -->
+    {#if activeTab === 'timer'}
+
+      <p class="tab-sub">Set and broadcast a countdown timer to all player devices.</p>
+
+      <div class="section">
+        <div class="section-label">Quick Add</div>
+        <div class="timer-quick-row">
+          <button class="timer-add-btn" on:click={() => timerDuration += 60}>+1m</button>
+          <button class="timer-add-btn" on:click={() => timerDuration += 180}>+3m</button>
+          <button class="timer-add-btn" on:click={() => timerDuration += 300}>+5m</button>
+          <button class="timer-add-btn" on:click={() => timerDuration += 600}>+10m</button>
+          <button class="timer-clear-btn" on:click={() => { timerDuration = 0; timerSendStatus = null; }}>Clear</button>
+        </div>
+        <div class="timer-duration-preview">{timerSelectedDisplay}</div>
+        <button class="primary" style="margin-top:12px;width:100%" disabled={!timerDuration || timerSending} on:click={sendCountdown}>
+          {timerSending ? 'Starting…' : 'Send Countdown'}
+        </button>
+        {#if timerSendStatus}
+          <div class="status-line" class:ok={timerSendStatus.type === 'ok'} class:err={timerSendStatus.type === 'err'}>
+            {timerSendStatus.text}
+          </div>
+        {/if}
+      </div>
+
+      {#if timerActiveEndsAt}
+        <div class="section">
+          <div class="section-label">Active Countdown</div>
+          <div class="timer-active-block">
+            <span class="timer-active-str" class:timer-expired={timerDisplayStr === 'EXPIRED'}>{timerDisplayStr || '—'}</span>
+            <button class="danger-btn" on:click={stopTimer}>Stop</button>
+          </div>
+        </div>
+      {/if}
 
     {/if}
 
@@ -3192,4 +3358,71 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .fsg-log-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  /* ── Timer tab ── */
+  .tab--timer { color: #1a4a2a; }
+  .tab--timer:hover { color: #4caf72; }
+  .tab--timer.active { color: #4caf72; border-bottom-color: #2d7a4a; }
+
+  .timer-quick-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .timer-add-btn {
+    background: rgba(44, 122, 74, 0.18);
+    border: 1px solid rgba(44, 122, 74, 0.45);
+    color: #4caf72;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .timer-add-btn:hover { background: rgba(44, 122, 74, 0.3); }
+  .timer-clear-btn {
+    background: rgba(224, 90, 58, 0.1);
+    border: 1px solid rgba(224, 90, 58, 0.35);
+    color: #e05a3a;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-left: auto;
+  }
+  .timer-clear-btn:hover { background: rgba(224, 90, 58, 0.22); }
+  .timer-duration-preview {
+    margin-top: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: #4caf72;
+    letter-spacing: 1px;
+  }
+  .timer-active-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0 4px;
+  }
+  .timer-active-str {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: #c9a227;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+    flex: 1;
+  }
+  .timer-active-str.timer-expired { color: #e05a3a; }
 </style>
