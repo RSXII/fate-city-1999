@@ -178,8 +178,11 @@
   // ── Section 2: Email / Data Packets ──────────────────────────────────────
   let emailSubject = '';
   let emailTags = '';
-  let replies = []; // { id, from, body, imageUrl }
+  let replies = []; // { id, from, body, imageUrl, size, bold, color }
   let replyCounter = 0;
+  let emailType = 'email';           // 'email' | 'log' | 'document' | 'transmission'
+  let emailSource = '';
+  let emailClassification = 'decrypted';
   let emailStatus = { text: '', type: '' };
   let staging = false;
   let stagedChains = [];
@@ -201,7 +204,7 @@
 
   function addReply(from = '', body = '') {
     const id = ++replyCounter;
-    replies = [...replies, { id, from, body, imageUrl: '' }];
+    replies = [...replies, { id, from, body, imageUrl: '', size: 'md', bold: false, color: '' }];
     replyPickers = { ...replyPickers, [id]: { open: false, loading: false, error: '', images: [] } };
   }
 
@@ -247,22 +250,43 @@
     const subject = emailSubject.trim();
     if (!subject) { emailStatus = { text: 'A subject line is required.', type: 'err' }; return; }
     const now = Date.now();
-    const msgs = replies
-      .map((r, i) => {
-        const m = { from: r.from.trim() || 'Unknown', body: r.body.trim(), ts: now + i * 60000 };
-        if (r.imageUrl) m.imageUrl = r.imageUrl;
-        return m;
-      })
-      .filter(m => m.body || m.imageUrl || m.from !== 'Unknown');
+
+    const allMsgs = replies.map((r, i) => {
+      const m = { body: r.body.trim(), ts: now + i * 60000 };
+      if (emailType === 'email') {
+        m.from = r.from.trim() || 'Unknown';
+      } else {
+        if (r.from.trim()) m.label = r.from.trim();
+        if (r.size && r.size !== 'md') m.size = r.size;
+        if (r.bold) m.bold = true;
+        if (r.color) m.color = r.color;
+      }
+      if (r.imageUrl) m.imageUrl = r.imageUrl;
+      return m;
+    }).filter(m => m.body || m.imageUrl);
+
+    const msgs = emailType === 'transmission' ? allMsgs.slice(0, 1) : allMsgs;
 
     if (!msgs.length) { emailStatus = { text: 'Add at least one message to the chain.', type: 'err' }; return; }
     const tags = emailTags.split(',').map(t => t.trim()).filter(Boolean);
     staging = true;
     emailStatus = { text: 'Staging…', type: '' };
     try {
-      await dbPost('emails', { subject, staged: false, createdAt: now, messages: msgs, tags });
+      await dbPost('emails', {
+        subject,
+        type: emailType,
+        source: emailSource.trim() || null,
+        classification: emailClassification,
+        staged: false,
+        createdAt: now,
+        messages: msgs,
+        tags,
+      });
       emailSubject = '';
       emailTags = '';
+      emailType = 'email';
+      emailSource = '';
+      emailClassification = 'decrypted';
       replies = [];
       replyPickers = {};
       replyCounter = 0;
@@ -1749,86 +1773,150 @@
     <!-- ══ EMAIL / DATA PACKETS ═══════════════════════════════════════════ -->
     {:else if activeTab === 'email'}
 
-      <p class="tab-sub">Author an intercepted email chain. Stage it silently, then deploy when players are ready.</p>
+      <p class="tab-sub">Author a data packet — email chain, access log, document, or transmission. Stage silently, deploy when ready.</p>
 
       <div class="two-col">
       <div class="col-form">
       <div class="section">
-        <div class="section-label">New Chain</div>
-        <input
-          type="text"
-          class="email-subject-input"
-          placeholder="Subject line…"
-          bind:value={emailSubject}
-        />
-        <input
-          type="text"
-          class="email-subject-input"
-          placeholder="Tags (optional, comma-separated)…"
-          bind:value={emailTags}
-          style="margin-bottom:12px;font-size:12.5px;opacity:0.8"
-        />
+        <div class="section-label">New Data Packet</div>
 
-        {#each replies as reply (reply.id)}
+        <!-- Type picker -->
+        <div class="type-picker">
+          {#each [['email','Email'],['log','Log'],['document','Document'],['transmission','Transmission']] as [t, label]}
+            <button type="button" class="type-btn" class:active={emailType === t} on:click={() => emailType = t}>{label}</button>
+          {/each}
+        </div>
+
+        <input
+          type="text"
+          class="email-subject-input"
+          placeholder="Subject / title…"
+          bind:value={emailSubject}
+          style="margin-top:8px"
+        />
+        <input
+          type="text"
+          class="email-subject-input"
+          placeholder="Source / acquisition context (optional)…"
+          bind:value={emailSource}
+          style="font-size:12.5px;opacity:0.8"
+        />
+        <div class="email-meta-row">
+          <select class="case-select" bind:value={emailClassification} style="flex:1;margin:0">
+            <option value="decrypted">Decrypted</option>
+            <option value="classified">Classified</option>
+            <option value="corrupted">Corrupted</option>
+            <option value="partial">Partial Decrypt</option>
+            <option value="archived">Archived</option>
+            <option value="verified">Verified</option>
+          </select>
+          <input
+            type="text"
+            class="email-subject-input"
+            placeholder="Tags (comma-separated)…"
+            bind:value={emailTags}
+            style="flex:1;margin:0;font-size:12px;opacity:0.75"
+          />
+        </div>
+
+        {#each (emailType === 'transmission' ? replies.slice(0, 1) : replies) as reply (reply.id)}
           <div class="reply-block">
             <div class="reply-block-header">
-              <input
-                type="text"
-                class="reply-from-input"
-                placeholder="From: display name…"
-                value={reply.from}
-                on:input={e => { reply.from = e.target.value; replies = replies; }}
-              />
-              {#if replies.length > 1}
+              {#if emailType === 'email'}
+                <input
+                  type="text"
+                  class="reply-from-input"
+                  placeholder="From: display name…"
+                  value={reply.from}
+                  on:input={e => { reply.from = e.target.value; replies = replies; }}
+                />
+              {:else if emailType === 'log' || emailType === 'document'}
+                <input
+                  type="text"
+                  class="reply-from-input"
+                  placeholder="Section label (optional)…"
+                  value={reply.from}
+                  on:input={e => { reply.from = e.target.value; replies = replies; }}
+                  style="opacity:0.65"
+                />
+              {/if}
+              {#if replies.length > 1 && emailType !== 'transmission'}
                 <button type="button" class="remove-reply-btn" on:click={() => removeReply(reply.id)}>&times;</button>
               {/if}
             </div>
+
             <textarea
               class="reply-body-input"
               rows="3"
-              placeholder="Message body…"
+              placeholder={emailType === 'transmission' ? 'Transcript / transmission text…' : emailType === 'log' ? 'Log content…' : 'Content…'}
               value={reply.body}
               on:input={e => { reply.body = e.target.value; replies = replies; }}
             ></textarea>
 
-            <div class="reply-attach-row">
-              {#if !reply.imageUrl}
-                <button type="button" class="ghost-btn reply-attach-btn" on:click={() => toggleReplyPicker(reply.id)}>
-                  {replyPickers[reply.id]?.open ? 'Close picker' : '+ Attach image'}
-                </button>
-              {:else}
-                <div class="reply-attach-preview">
-                  <span class="reply-attach-name">{reply.imageUrl.split('/').pop()}</span>
-                  <button type="button" class="reply-attach-remove" on:click={() => clearReplyImage(reply.id)}>&times;</button>
-                </div>
-              {/if}
-            </div>
-
-            {#if replyPickers[reply.id]?.open}
-              <div class="reply-image-picker">
-                {#if replyPickers[reply.id].loading}
-                  <div class="img-picker-status">Loading…</div>
-                {:else if replyPickers[reply.id].error}
-                  <div class="img-picker-status err">{replyPickers[reply.id].error}</div>
-                {:else}
-                  {#each replyPickers[reply.id].images as img (img.name)}
-                    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-                    <div class="img-thumb" on:click={() => selectReplyImage(reply.id, img)}>
-                      <img src={img.download_url} alt={img.name} loading="lazy" />
-                    </div>
+            {#if emailType === 'log' || emailType === 'document'}
+              <div class="block-format-row">
+                <div class="format-group">
+                  {#each [['sm','S'],['md','M'],['lg','L']] as [sz, lbl]}
+                    <button type="button" class="fmt-btn" class:active={reply.size === sz}
+                      on:click={() => { reply.size = sz; replies = replies; }}>{lbl}</button>
                   {/each}
+                </div>
+                <button type="button" class="fmt-btn fmt-bold" class:active={reply.bold}
+                  on:click={() => { reply.bold = !reply.bold; replies = replies; }}>B</button>
+                <div class="format-group">
+                  <input type="color" class="color-swatch" style="width:26px;height:22px;padding:1px 2px"
+                    value={reply.color || '#c8c0aa'}
+                    on:input={e => { reply.color = e.target.value; replies = replies; }} />
+                  {#if reply.color}
+                    <button type="button" class="fmt-btn" title="Reset color"
+                      on:click={() => { reply.color = ''; replies = replies; }}>✕</button>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
+            {#if emailType !== 'transmission'}
+              <div class="reply-attach-row">
+                {#if !reply.imageUrl}
+                  <button type="button" class="ghost-btn reply-attach-btn" on:click={() => toggleReplyPicker(reply.id)}>
+                    {replyPickers[reply.id]?.open ? 'Close picker' : '+ Attach image'}
+                  </button>
+                {:else}
+                  <div class="reply-attach-preview">
+                    <span class="reply-attach-name">{reply.imageUrl.split('/').pop()}</span>
+                    <button type="button" class="reply-attach-remove" on:click={() => clearReplyImage(reply.id)}>&times;</button>
+                  </div>
                 {/if}
               </div>
+
+              {#if replyPickers[reply.id]?.open}
+                <div class="reply-image-picker">
+                  {#if replyPickers[reply.id].loading}
+                    <div class="img-picker-status">Loading…</div>
+                  {:else if replyPickers[reply.id].error}
+                    <div class="img-picker-status err">{replyPickers[reply.id].error}</div>
+                  {:else}
+                    {#each replyPickers[reply.id].images as img (img.name)}
+                      <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                      <div class="img-thumb" on:click={() => selectReplyImage(reply.id, img)}>
+                        <img src={img.download_url} alt={img.name} loading="lazy" />
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
             {/if}
           </div>
         {/each}
 
-        <button class="ghost-btn" type="button" style="margin-top:4px" on:click={() => addReply()}>
-          + Add Reply
-        </button>
+        {#if emailType !== 'transmission'}
+          <button class="ghost-btn" type="button" style="margin-top:4px" on:click={() => addReply()}>
+            + Add Block
+          </button>
+        {/if}
         <div style="height:12px"></div>
         <button class="primary" disabled={staging} on:click={stageChain}>
-          {staging ? 'Staging…' : 'Stage Chain (hidden from players)'}
+          {staging ? 'Staging…' : 'Stage Packet (hidden from players)'}
         </button>
         <div class="status-line" class:ok={emailStatus.type === 'ok'} class:err={emailStatus.type === 'err'}>
           {emailStatus.text}
@@ -1865,8 +1953,11 @@
               {@const msgs = normMessages(chain.messages)}
               <div class="chain-log-row">
                 <div class="chain-log-top">
+                  {#if chain.type && chain.type !== 'email'}
+                    <span class="packet-type-badge">{chain.type}</span>
+                  {/if}
                   <span class="chain-log-subject" style="color:#c9a227">{chain.subject}</span>
-                  <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
+                  <span class="chain-log-meta">{msgs.length} · {relTime(chain.createdAt || 0)}</span>
                 </div>
                 {#if chain.tags?.length}
                   <div class="chain-log-tags">
@@ -1916,9 +2007,13 @@
               <div class="chain-log-row">
                 <div class="chain-log-top">
                   <span class="chain-log-subject">
-                    <span class="live-label">▶ LIVE &nbsp;</span>{chain.subject}
+                    <span class="live-label">▶ LIVE &nbsp;</span>
+                    {#if chain.type && chain.type !== 'email'}
+                      <span class="packet-type-badge">{chain.type}</span>
+                    {/if}
+                    {chain.subject}
                   </span>
-                  <span class="chain-log-meta">{msgs.length} msg{msgs.length !== 1 ? 's' : ''} · {relTime(chain.createdAt || 0)}</span>
+                  <span class="chain-log-meta">{msgs.length} · {relTime(chain.createdAt || 0)}</span>
                 </div>
                 {#if chain.tags?.length}
                   <div class="chain-log-tags">
@@ -3245,7 +3340,36 @@
   .status-line.ok { color: #639922; }
   .status-line.err { color: #e24b4a; }
 
-  /* ── Email section ── */
+  /* ── Email / data packet section ── */
+  .type-picker { display: flex; gap: 4px; margin-bottom: 4px; }
+  .type-btn {
+    flex: 1; background: #0d1118; border: 1px solid #1a2030; border-radius: 6px;
+    color: #6a7d90; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 6px 4px; cursor: pointer; transition: all 0.15s ease;
+  }
+  .type-btn:hover { border-color: #c9a227; color: #c9a227; }
+  .type-btn.active { background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.5); color: #c9a227; }
+
+  .email-meta-row { display: flex; gap: 8px; margin-bottom: 12px; }
+
+  .block-format-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .format-group { display: flex; align-items: center; gap: 3px; }
+  .fmt-btn {
+    background: #0d1118; border: 1px solid #1a2030; border-radius: 4px;
+    color: #6a7d90; font-size: 11px; font-weight: 600; padding: 3px 7px;
+    cursor: pointer; line-height: 1.4; transition: all 0.12s ease;
+  }
+  .fmt-btn:hover { border-color: #c9a227; color: #c9a227; }
+  .fmt-btn.active { background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.5); color: #c9a227; }
+  .fmt-bold { font-weight: 800; font-style: normal; }
+
+  .packet-type-badge {
+    font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 2px; margin-right: 4px;
+    color: #fbbf24; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25);
+    vertical-align: middle;
+  }
+
   .reply-block { background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
   .reply-block-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .reply-from-input {
