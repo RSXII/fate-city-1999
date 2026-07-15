@@ -1189,6 +1189,9 @@
   let timerConsolePoll;
   let timerDisplayTick;
   let timerDisplayStr = '';
+  let splitStartedAt = null;
+  let splitElapsedStr = '';
+  let splitInterval = null;
 
   $: timerSelectedDisplay = (() => {
     if (!timerDuration) return '—';
@@ -1229,6 +1232,36 @@
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
     timerSending = false;
+  }
+
+  function toggleSplit() {
+    if (!splitStartedAt) {
+      splitStartedAt = Date.now();
+      splitInterval = setInterval(() => {
+        const elapsed = Date.now() - splitStartedAt;
+        const s = Math.floor(elapsed / 1000);
+        splitElapsedStr = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      }, 100);
+    } else {
+      const secs = Math.round((Date.now() - splitStartedAt) / 1000);
+      clearInterval(splitInterval);
+      splitStartedAt = null;
+      splitElapsedStr = '';
+      splitInterval = null;
+      addTime(secs);
+    }
+  }
+
+  async function addTime(seconds) {
+    if (!timerActiveEndsAt) return;
+    try {
+      const newEndsAt = timerActiveEndsAt + seconds * 1000;
+      await dbPut('timer/endsAt', newEndsAt);
+      timerActiveEndsAt = newEndsAt;
+      timerSendStatus = { text: `+${seconds}s added.`, type: 'ok' };
+    } catch (e) {
+      timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
+    }
   }
 
   async function stopTimer() {
@@ -1532,6 +1565,7 @@
     if (timerConsolePoll) timerConsolePoll();
     if (hkPoll) hkPoll();
     clearInterval(timerDisplayTick);
+    clearInterval(splitInterval);
   });
 </script>
 
@@ -2964,7 +2998,14 @@
           <div class="section-label">Active Countdown</div>
           <div class="timer-active-block">
             <span class="timer-active-str" class:timer-expired={timerDisplayStr === 'EXPIRED'}>{timerDisplayStr || '—'}</span>
-            <button class="danger-btn" on:click={stopTimer}>Stop</button>
+            <div class="timer-active-actions">
+              <button class="timer-add-btn" on:click={() => addTime(10)}>+10s</button>
+              <button class="timer-add-btn" on:click={() => addTime(30)}>+30s</button>
+              <button class="timer-add-btn" class:timer-split-active={splitStartedAt} on:click={toggleSplit}>
+                {splitStartedAt ? splitElapsedStr || '0:00' : 'Split'}
+              </button>
+              <button class="danger-btn" on:click={stopTimer}>Stop</button>
+            </div>
           </div>
         </div>
       {/if}
@@ -3997,6 +4038,23 @@
     flex: 1;
   }
   .timer-active-str.timer-expired { color: #e05a3a; }
+  .timer-active-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .timer-add-btn.timer-split-active {
+    background: rgba(230, 175, 46, 0.12);
+    border-color: rgba(230, 175, 46, 0.5);
+    color: #e6af2e;
+    min-width: 52px;
+    animation: split-pulse 1s ease-in-out infinite;
+  }
+  @keyframes split-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+  }
 
   /* ── HouseKit tab ── */
   .tab--housekit { border-color: rgba(45,212,191,0.4); }
