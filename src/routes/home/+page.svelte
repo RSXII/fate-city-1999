@@ -49,6 +49,13 @@
   let showOnceAlert = false;
   let oncePollInterval;
 
+  // ── Operation Timer tile ──────────────────────────────────────────────────
+  let timerEndsAt = null;
+  let timerRunning = false;
+  let timerLabel = 'Timer';
+  let timerFetchPoll;
+  let timerDisplayTick;
+
   function getLastSeenMap() {
     try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? '{}'); }
     catch { return {}; }
@@ -98,6 +105,23 @@
     } catch { /* network hiccup */ }
   }
 
+  function updateTimerLabel() {
+    if (!timerEndsAt) { timerRunning = false; timerLabel = 'Timer'; return; }
+    const rem = timerEndsAt - Date.now();
+    if (rem <= 0) { timerRunning = false; timerLabel = 'Timer'; return; }
+    timerRunning = true;
+    const s = Math.floor(rem / 1000);
+    timerLabel = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  async function fetchTimerState() {
+    try {
+      const data = await dbGet('timer/endsAt');
+      timerEndsAt = (typeof data === 'number') ? data : null;
+      updateTimerLabel();
+    } catch {}
+  }
+
   async function dismissOnceAlert() {
     showOnceAlert = false;
     onceUnread = false;
@@ -133,11 +157,16 @@
     pollInterval = visibilityAwareInterval(pollUnread, 5000);
     pollOnce();
     oncePollInterval = visibilityAwareInterval(pollOnce, 7000);
+    fetchTimerState();
+    timerFetchPoll = visibilityAwareInterval(fetchTimerState, 5000);
+    timerDisplayTick = setInterval(updateTimerLabel, 500);
   });
 
   onDestroy(() => {
     if (pollInterval) pollInterval();
     if (oncePollInterval) oncePollInterval();
+    if (timerFetchPoll) timerFetchPoll();
+    clearInterval(timerDisplayTick);
     clearTimeout(toastTimer);
   });
 </script>
@@ -216,12 +245,19 @@
             </div>
             <span class="hs-icon-label">Jobs</span>
           </a>
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <div class="hs-plat-glyph">P</div>
+          <a class="hs-icon" href="{base}/timer">
+            <div class="hs-icon-tile timer-tile" class:timer-tile--active={timerRunning}>
+              {#if timerRunning}
+                <span class="hs-timer-digit">{timerLabel}</span>
+              {:else}
+                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              {/if}
             </div>
-            <span class="hs-icon-label">Plat</span>
-          </div>
+            <span class="hs-icon-label">Timer</span>
+          </a>
           <a class="hs-icon" href="{base}/once">
             <div class="hs-icon-tile once-tile" class:once-tile--unread={onceUnread}>
               {#if onceUnread}<span class="once-badge" aria-hidden="true"></span>{/if}
@@ -613,23 +649,23 @@
     box-shadow: 0 0 14px rgba(56, 189, 248, 0.2), inset 0 0 8px rgba(217, 70, 239, 0.1);
   }
 
-  /* Plat glyph */
-  .hs-plat-glyph {
-    position: relative;
-    font-family: 'Georgia', 'Times New Roman', serif;
-    font-size: 28px;
+  /* Timer tile */
+  .timer-tile--active {
+    border-color: rgba(201, 162, 39, 0.75);
+    box-shadow: 0 0 18px rgba(201, 162, 39, 0.35), inset 0 0 10px rgba(201, 162, 39, 0.1);
+    animation: timer-glow 1.5s ease-in-out infinite;
+  }
+  @keyframes timer-glow {
+    0%, 100% { box-shadow: 0 0 18px rgba(201, 162, 39, 0.35); }
+    50%       { box-shadow: 0 0 30px rgba(201, 162, 39, 0.65); }
+  }
+  .hs-timer-digit {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 17px;
     font-weight: 700;
     color: #c9a227;
-    line-height: 1;
-  }
-  .hs-plat-glyph::after {
-    content: '';
-    position: absolute;
-    left: -7px; right: -7px;
-    top: 50%;
-    height: 2px;
-    background: #c9a227;
-    transform: rotate(-30deg);
+    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
   }
 
   .hs-icon-label {
