@@ -322,7 +322,7 @@
           </a>
 
           <!-- HouseKit -->
-          <div class="hs-icon">
+          <a class="hs-icon" href="{base}/housekit">
             <div class="hs-icon-tile">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <!-- Roof -->
@@ -338,7 +338,7 @@
               </svg>
             </div>
             <span class="hs-icon-label">HouseKit</span>
-          </div>
+          </a>
 
           <!-- FateStaGram -->
           <a class="hs-icon" href="{base}/fatestagram">
