@@ -49,12 +49,15 @@
   let showOnceAlert = false;
   let oncePollInterval;
 
-  // ── Operation Timer tile ──────────────────────────────────────────────────
+  // ── Operation Timer ───────────────────────────────────────────────────────
   let timerEndsAt = null;
   let timerRunning = false;
   let timerLabel = 'Timer';
+  let timerMins = '--';
+  let timerSecs = '--';
+  let timerMs  = '---';
   let timerFetchPoll;
-  let timerDisplayTick;
+  let rafId;
 
   function getLastSeenMap() {
     try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? '{}'); }
@@ -105,20 +108,34 @@
     } catch { /* network hiccup */ }
   }
 
-  function updateTimerLabel() {
-    if (!timerEndsAt) { timerRunning = false; timerLabel = 'Timer'; return; }
+  function timerTick() {
+    if (!timerEndsAt) { timerRunning = false; rafId = null; return; }
     const rem = timerEndsAt - Date.now();
-    if (rem <= 0) { timerRunning = false; timerLabel = 'Timer'; return; }
+    if (rem <= 0) {
+      timerRunning = false; rafId = null;
+      timerMins = '00'; timerSecs = '00'; timerMs = '000'; timerLabel = 'Timer';
+      return;
+    }
     timerRunning = true;
-    const s = Math.floor(rem / 1000);
-    timerLabel = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    const totalSec = Math.floor(rem / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    timerMins  = String(m).padStart(2, '0');
+    timerSecs  = String(s).padStart(2, '0');
+    timerMs    = String(Math.floor(rem % 1000)).padStart(3, '0');
+    timerLabel = `${m}:${String(s).padStart(2, '0')}`;
+    rafId = requestAnimationFrame(timerTick);
   }
 
   async function fetchTimerState() {
     try {
       const data = await dbGet('timer/endsAt');
-      timerEndsAt = (typeof data === 'number') ? data : null;
-      updateTimerLabel();
+      const val = (typeof data === 'number') ? data : null;
+      if (val !== timerEndsAt) {
+        timerEndsAt = val;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(timerTick);
+      }
     } catch {}
   }
 
@@ -159,14 +176,13 @@
     oncePollInterval = visibilityAwareInterval(pollOnce, 7000);
     fetchTimerState();
     timerFetchPoll = visibilityAwareInterval(fetchTimerState, 5000);
-    timerDisplayTick = setInterval(updateTimerLabel, 500);
   });
 
   onDestroy(() => {
     if (pollInterval) pollInterval();
     if (oncePollInterval) oncePollInterval();
     if (timerFetchPoll) timerFetchPoll();
-    clearInterval(timerDisplayTick);
+    if (rafId) cancelAnimationFrame(rafId);
     clearTimeout(toastTimer);
   });
 </script>
@@ -187,6 +203,23 @@
 </a>
 
 <h1 class="sr-only">Fate City: 1999 Wire home screen</h1>
+
+{#if timerRunning}
+<a class="hs-takeover" href="{base}/timer" aria-label="Operation timer: {timerMins}:{timerSecs}">
+  <div class="hs-takeover-left">
+    <div class="hs-takeover-eyebrow">
+      <span class="hs-takeover-dot" aria-hidden="true"></span>
+      // OPERATION TIMER
+    </div>
+    <div class="hs-takeover-clock">
+      <span class="hs-takeover-main">{timerMins}:{timerSecs}</span><span class="hs-takeover-ms">.{timerMs}</span>
+    </div>
+  </div>
+  <svg class="hs-takeover-arrow" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M9 6l6 6-6 6"/>
+  </svg>
+</a>
+{/if}
 
 <div class="hs-wrap">
   <!-- Swipeable carousel -->
@@ -972,5 +1005,80 @@
     padding: 4px 0;
   }
   .once-alert-dismiss:hover { color: rgba(124, 58, 237, 0.7); }
+
+  /* ── Operation Timer takeover ───────────────────────────────────────────── */
+  .hs-takeover {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 22px 12px;
+    background: #0d0a07;
+    border-bottom: 1px solid rgba(224, 90, 58, 0.28);
+    text-decoration: none;
+    animation: takeover-in 0.25s ease;
+  }
+  @keyframes takeover-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hs-takeover-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .hs-takeover-eyebrow {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 8px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(224, 90, 58, 0.45);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hs-takeover-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #e05a3a;
+    flex-shrink: 0;
+    animation: takeover-dot-blink 0.85s ease-in-out infinite;
+  }
+  @keyframes takeover-dot-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.12; }
+  }
+  .hs-takeover-clock {
+    display: flex;
+    align-items: baseline;
+    gap: 1px;
+    line-height: 1;
+  }
+  .hs-takeover-main {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 52px;
+    font-weight: 700;
+    color: #e05a3a;
+    letter-spacing: -3px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .hs-takeover-ms {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: rgba(224, 90, 58, 0.32);
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+    padding-bottom: 6px;
+  }
+  .hs-takeover-arrow {
+    width: 18px;
+    height: 18px;
+    stroke: rgba(224, 90, 58, 0.3);
+    fill: none;
+    flex-shrink: 0;
+  }
 </style>
 
