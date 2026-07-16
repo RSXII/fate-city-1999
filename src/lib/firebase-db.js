@@ -78,6 +78,20 @@ export async function dbPut(path, data) {
 }
 
 /**
+ * PATCH  /path.json  with JSON body — merges fields without overwriting siblings.
+ * Returns parsed response JSON.  Throws on non-2xx.
+ */
+export async function dbPatch(path, data) {
+  const res = await fetch(`${FIREBASE_URL}/${path}.json`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
  * DELETE  /path.json
  * Throws on non-2xx.
  */
