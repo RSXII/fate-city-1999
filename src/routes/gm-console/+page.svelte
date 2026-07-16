@@ -6,6 +6,7 @@
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
   import { NPCS } from '$lib/data/persons.js';
+  import { CHARACTERS, normActions, formatDelta } from '$lib/data/downtime.js';
 
   let activeTab = 'wire';
 
@@ -1519,6 +1520,140 @@
   let ridesPoll;
   let devicesPoll;
 
+  // ── Section: Downtime ────────────────────────────────────────────────────
+  let dtActive = null;   // { enabled, index, period }
+  let dtSession = null;  // current session node
+  let dtAllSessions = []; // all sessions for history view
+  let dtHistoryExpanded = {}; // { index: bool }
+  let dtPoll;
+  let dtPeriodFrom = '';
+  let dtPeriodTo = '';
+  let dtOpenStatus = { text: '', type: '' };
+  let dtNarrativeSaveStates = {}; // { "CODENAME_idx": 'saving'|'saved'|'error'|'' }
+  let dtPastNarrativeStates = {}; // { "sessionIdx_CODENAME_actionIdx": 'saving'|'saved'|'error'|'' }
+
+  // Computed list of characters with completion status
+  $: dtCharStatus = Object.values(CHARACTERS).map(char => ({
+    char,
+    completed: !!(dtSession?.completedBy?.[char.codename]),
+    result: (() => {
+      const r = dtSession?.results?.[char.codename];
+      if (!r) return null;
+      return { ...r, actions: normActions(r.actions) };
+    })(),
+  }));
+
+  async function loadDowntimeState() {
+    try {
+      const activeData = await dbGet('downtime/active');
+      dtActive = activeData;
+      if (activeData?.enabled && activeData.index != null) {
+        const session = await dbGet(`downtime/sessions/${activeData.index}`);
+        dtSession = session;
+      } else {
+        dtSession = null;
+      }
+      await loadDtHistory();
+    } catch { /* network hiccup */ }
+  }
+
+  async function loadDtHistory() {
+    try {
+      const all = await dbGet('downtime/sessions');
+      if (!all) { dtAllSessions = []; return; }
+      const activeIdx = dtActive?.index ?? null;
+      const list = Object.entries(all)
+        .map(([idx, session]) => {
+          const results = {};
+          for (const [codename, r] of Object.entries(session?.results ?? {})) {
+            results[codename] = { ...r, actions: normActions(r.actions) };
+          }
+          return { index: +idx, period: session?.period, completedBy: session?.completedBy ?? {}, results };
+        })
+        .filter(s => s.index !== activeIdx || !dtActive?.enabled)
+        .sort((a, b) => b.index - a.index);
+      dtAllSessions = list;
+    } catch { /* network hiccup */ }
+  }
+
+  async function deleteSession(index) {
+    if (!confirm(`Delete session #${index}? This removes all player submissions for that period. Stats are not reverted.`)) return;
+    try {
+      await dbDelete(`downtime/sessions/${index}`);
+      dtAllSessions = dtAllSessions.filter(s => s.index !== index);
+      dtOpenStatus = { text: `Session #${index} deleted.`, type: 'ok' };
+    } catch (e) {
+      dtOpenStatus = { text: `Delete failed: ${e?.message ?? 'unknown'}`, type: 'err' };
+    }
+  }
+
+  async function savePastNarrative(sessionIndex, codename, actionIndex, text) {
+    const key = `${sessionIndex}_${codename}_${actionIndex}`;
+    dtPastNarrativeStates = { ...dtPastNarrativeStates, [key]: 'saving' };
+    try {
+      await dbPut(
+        `downtime/sessions/${sessionIndex}/results/${codename}/actions/${actionIndex}/text`,
+        text,
+      );
+      dtPastNarrativeStates = { ...dtPastNarrativeStates, [key]: 'saved' };
+      setTimeout(() => {
+        dtPastNarrativeStates = { ...dtPastNarrativeStates, [key]: '' };
+      }, 2000);
+    } catch {
+      dtPastNarrativeStates = { ...dtPastNarrativeStates, [key]: 'error' };
+    }
+  }
+
+  async function openDowntime() {
+    const from = dtPeriodFrom.trim();
+    const to = dtPeriodTo.trim();
+    if (!from || !to) {
+      dtOpenStatus = { text: 'Period from and to are required.', type: 'err' };
+      return;
+    }
+    dtOpenStatus = { text: 'Opening…', type: '' };
+    try {
+      const currentActive = await dbGet('downtime/active');
+      const newIndex = (currentActive?.index ?? 0) + 1;
+      await dbPut(`downtime/sessions/${newIndex}`, { period: { from, to } });
+      await dbPut('downtime/active', { enabled: true, index: newIndex, period: { from, to } });
+      dtPeriodFrom = '';
+      dtPeriodTo = '';
+      dtOpenStatus = { text: `Downtime period opened (session #${newIndex}).`, type: 'ok' };
+      await loadDowntimeState();
+    } catch (e) {
+      dtOpenStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+  }
+
+  async function closeDowntime() {
+    if (!confirm('Close the downtime period? Players will exit the downtime screen.')) return;
+    try {
+      await dbPut('downtime/active/enabled', false);
+      dtActive = { ...dtActive, enabled: false };
+      dtOpenStatus = { text: 'Downtime period closed.', type: 'ok' };
+    } catch (e) {
+      dtOpenStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+  }
+
+  async function saveDtNarrative(codename, actionIndex, text) {
+    const key = `${codename}_${actionIndex}`;
+    dtNarrativeSaveStates = { ...dtNarrativeSaveStates, [key]: 'saving' };
+    try {
+      await dbPut(
+        `downtime/sessions/${dtActive.index}/results/${codename}/actions/${actionIndex}/text`,
+        text,
+      );
+      dtNarrativeSaveStates = { ...dtNarrativeSaveStates, [key]: 'saved' };
+      setTimeout(() => {
+        dtNarrativeSaveStates = { ...dtNarrativeSaveStates, [key]: '' };
+      }, 2000);
+    } catch {
+      dtNarrativeSaveStates = { ...dtNarrativeSaveStates, [key]: 'error' };
+    }
+  }
+
   onMount(() => {
     addReply(); addReply();
     loadMsgs();
@@ -1550,6 +1685,8 @@
     refreshHkProperties();
     hkStartCreate();
     hkPoll = visibilityAwareInterval(refreshHkProperties, 15000);
+    loadDowntimeState();
+    dtPoll = visibilityAwareInterval(loadDowntimeState, 8000);
   });
 
   onDestroy(() => {
@@ -1564,6 +1701,7 @@
     if (devicesPoll) devicesPoll();
     if (timerConsolePoll) timerConsolePoll();
     if (hkPoll) hkPoll();
+    if (dtPoll) dtPoll();
     clearInterval(timerDisplayTick);
     clearInterval(splitInterval);
   });
@@ -1594,6 +1732,7 @@
     <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
+    <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -3222,6 +3361,181 @@
 
     {/if}
 
+    <!-- ══ DOWNTIME ═════════════════════════════════════════════════════════ -->
+    {#if activeTab === 'downtime'}
+
+      <p class="tab-sub">Manage downtime periods. Open a period to let players submit their actions, then add narrative after they resolve.</p>
+
+      {#if dtOpenStatus.text}
+        <div class="status-line" class:ok={dtOpenStatus.type === 'ok'} class:err={dtOpenStatus.type === 'err'} style="margin-bottom:16px">
+          {dtOpenStatus.text}
+        </div>
+      {/if}
+
+      {#if !dtActive?.enabled}
+        <!-- ── Open downtime form ────────────────────────────────────────── -->
+        <div class="section">
+          <div class="section-label">Open Downtime Period</div>
+          <div class="dt-period-row">
+            <div class="form-row" style="flex:1;margin-bottom:0">
+              <label class="form-label">From</label>
+              <input class="form-input" type="text" placeholder="e.g. Feb 3" bind:value={dtPeriodFrom} />
+            </div>
+            <div class="dt-period-arrow">→</div>
+            <div class="form-row" style="flex:1;margin-bottom:0">
+              <label class="form-label">To</label>
+              <input class="form-input" type="text" placeholder="e.g. Feb 8" bind:value={dtPeriodTo} />
+            </div>
+          </div>
+          <button class="primary" style="margin-top:14px;width:100%" on:click={openDowntime}>
+            Open Downtime Period
+          </button>
+        </div>
+
+      {:else}
+        <!-- ── Active downtime ───────────────────────────────────────────── -->
+        <div class="dt-active-header">
+          <div>
+            <div class="dt-active-label">ACTIVE PERIOD</div>
+            <div class="dt-active-dates">{dtActive.period?.from ?? '?'} → {dtActive.period?.to ?? '?'}</div>
+            <div class="dt-active-index">Session #{dtActive.index}</div>
+          </div>
+          <button class="danger-btn" on:click={closeDowntime}>Close Downtime</button>
+        </div>
+
+        <div class="section-label" style="margin-top:22px">Character Status</div>
+
+        {#each dtCharStatus as { char, completed, result }}
+          <div class="dt-char-block">
+            <div class="dt-char-header">
+              <div>
+                <span class="dt-char-name">{char.name}</span>
+                <span class="dt-char-role">{char.role}</span>
+              </div>
+              <span class="dt-status-chip" class:dt-status-chip--done={completed}>
+                {completed ? 'COMPLETED' : 'PENDING'}
+              </span>
+            </div>
+
+            {#if completed && result?.actions?.length}
+              <div class="dt-actions-review">
+                {#each result.actions as action, i}
+                  {@const saveKey = `${char.codename}_${i}`}
+                  <div class="dt-action-row">
+                    <div class="dt-action-meta">
+                      <span class="dt-action-label">{action.label}</span>
+                      <span class="dt-type-chip dt-type-{action.type?.toLowerCase()}">{action.type}</span>
+                      {#if action.roll != null}
+                        <span class="dt-roll-chip">{action.roll}</span>
+                      {/if}
+                      <span class="dt-level-chip dt-level-{action.level}">{action.level?.toUpperCase()}</span>
+                    </div>
+                    {#if Object.keys(action.deltas ?? {}).length > 0}
+                      <div class="dt-delta-row">
+                        {#each Object.entries(action.deltas) as [k, v]}
+                          <span class="dt-delta" class:negative={v < 0}>{formatDelta(char.codename, k, v)}</span>
+                        {/each}
+                      </div>
+                    {/if}
+                    <div class="dt-narrative-row">
+                      <textarea
+                        class="dt-narrative"
+                        rows="2"
+                        placeholder="Add narrative text…"
+                        value={action.text || ''}
+                        on:blur={e => saveDtNarrative(char.codename, i, e.currentTarget.value)}
+                      ></textarea>
+                      {#if dtNarrativeSaveStates[saveKey] === 'saving'}
+                        <span class="dt-save-state">saving…</span>
+                      {:else if dtNarrativeSaveStates[saveKey] === 'saved'}
+                        <span class="dt-save-state dt-save-state--ok">saved</span>
+                      {:else if dtNarrativeSaveStates[saveKey] === 'error'}
+                        <span class="dt-save-state dt-save-state--err">error</span>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/each}
+
+      {/if}
+
+      <!-- ── Session History ───────────────────────────────────────────────── -->
+      {#if dtAllSessions.length > 0}
+        <div class="section-label" style="margin-top:28px">Session History</div>
+        {#each dtAllSessions as session}
+          {@const isExpanded = dtHistoryExpanded[session.index]}
+          <div class="dt-hist-entry">
+            <div class="dt-hist-header" on:click={() => dtHistoryExpanded = { ...dtHistoryExpanded, [session.index]: !isExpanded }} role="button" tabindex="0" on:keydown={e => e.key === 'Enter' && (dtHistoryExpanded = { ...dtHistoryExpanded, [session.index]: !isExpanded })}>
+              <div>
+                <span class="dt-hist-period">{session.period?.from ?? '?'} → {session.period?.to ?? '?'}</span>
+                <span class="dt-hist-index">Session #{session.index}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="dt-hist-count">{Object.keys(session.completedBy).length}/{Object.keys(CHARACTERS).length} submitted</span>
+                <button class="danger-btn dt-hist-delete" on:click|stopPropagation={() => deleteSession(session.index)}>Delete</button>
+                <span class="dt-hist-chevron" class:expanded={isExpanded}>›</span>
+              </div>
+            </div>
+            {#if isExpanded}
+              <div class="dt-hist-body">
+                {#each Object.values(CHARACTERS) as char}
+                  {@const result = session.results?.[char.codename]}
+                  {#if result}
+                    <div class="dt-hist-char">
+                      <div class="dt-hist-char-name">{char.name} <span class="dt-char-role">{char.role}</span></div>
+                      {#each result.actions as action, ai}
+                        {@const pKey = `${session.index}_${char.codename}_${ai}`}
+                        <div class="dt-action-row">
+                          <div class="dt-action-meta">
+                            <span class="dt-action-label">{action.label}</span>
+                            <span class="dt-type-chip dt-type-{action.type?.toLowerCase()}">{action.type}</span>
+                            {#if action.roll != null}
+                              <span class="dt-roll-chip">{action.roll}</span>
+                            {/if}
+                            <span class="dt-level-chip dt-level-{action.level}">{action.level?.toUpperCase()}</span>
+                          </div>
+                          {#if Object.keys(action.deltas ?? {}).length > 0}
+                            <div class="dt-delta-row">
+                              {#each Object.entries(action.deltas) as [k, v]}
+                                <span class="dt-delta" class:negative={v < 0}>{formatDelta(char.codename, k, v)}</span>
+                              {/each}
+                            </div>
+                          {/if}
+                          <div class="dt-narrative-row">
+                            <textarea
+                              class="dt-narrative"
+                              rows="2"
+                              placeholder="Add narrative text…"
+                              value={action.text || ''}
+                              on:blur={e => savePastNarrative(session.index, char.codename, ai, e.currentTarget.value)}
+                            ></textarea>
+                            {#if dtPastNarrativeStates[pKey] === 'saving'}
+                              <span class="dt-save-state">saving…</span>
+                            {:else if dtPastNarrativeStates[pKey] === 'saved'}
+                              <span class="dt-save-state dt-save-state--ok">saved</span>
+                            {:else if dtPastNarrativeStates[pKey] === 'error'}
+                              <span class="dt-save-state dt-save-state--err">error</span>
+                            {/if}
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                {/each}
+                {#if Object.keys(session.completedBy).length === 0}
+                  <p class="dt-hist-empty">No submissions for this session.</p>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/each}
+      {/if}
+
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -4210,4 +4524,263 @@
   }
   .hk-person-option:last-child { border-bottom: none; }
   .hk-person-option:hover { background: rgba(45,212,191,0.08); }
+
+  /* ── Downtime tab ── */
+  .tab--downtime { color: #3a6070; }
+  .tab--downtime:hover { color: #38b482; }
+  .tab--downtime.active { color: #38b482; border-bottom-color: #38b482; }
+
+  .dt-period-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+  .dt-period-arrow {
+    font-size: 16px;
+    color: #4a5a6a;
+    padding-bottom: 10px;
+    flex-shrink: 0;
+  }
+
+  .dt-active-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border: 1px solid rgba(56, 180, 130, 0.35);
+    border-radius: 6px;
+    background: rgba(56, 180, 130, 0.06);
+  }
+  .dt-active-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #38b482;
+    margin-bottom: 4px;
+  }
+  .dt-active-dates {
+    font-size: 17px;
+    font-weight: 800;
+    color: #e8dfc8;
+  }
+  .dt-active-index {
+    font-size: 10px;
+    color: #3a4a5a;
+    margin-top: 3px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .dt-char-block {
+    border: 1px solid rgba(201, 162, 39, 0.15);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .dt-char-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.02);
+  }
+  .dt-char-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e8dfc8;
+    margin-right: 8px;
+  }
+  .dt-char-role {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #4a5a6a;
+  }
+  .dt-status-chip {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 3px;
+    background: rgba(201, 162, 39, 0.1);
+    color: #4a5a6a;
+    border: 1px solid rgba(201, 162, 39, 0.2);
+  }
+  .dt-status-chip--done {
+    background: rgba(56, 180, 130, 0.12);
+    color: #38b482;
+    border-color: rgba(56, 180, 130, 0.35);
+  }
+
+  .dt-actions-review {
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .dt-action-row {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dt-action-row:last-child { border-bottom: none; }
+
+  .dt-action-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .dt-action-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e8dfc8;
+  }
+  .dt-type-chip {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .dt-type-routine { background: rgba(56,180,130,0.15); color: #38b482; }
+  .dt-type-push    { background: rgba(124,58,237,0.15);  color: #9b6dff; }
+  .dt-type-swing   { background: rgba(224,90,58,0.15);   color: #e05a3a; }
+  .dt-roll-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid rgba(201,162,39,0.5);
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'Courier New', Courier, monospace;
+    color: #c9a227;
+  }
+  .dt-level-chip {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+  .dt-level-success { background: rgba(56,180,130,0.18); color: #38b482; }
+  .dt-level-partial { background: rgba(201,162,39,0.18); color: #c9a227; }
+  .dt-level-fail    { background: rgba(224,90,58,0.18);  color: #e05a3a; }
+
+  .dt-delta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .dt-delta {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: rgba(201,162,39,0.12);
+    color: #c9a227;
+  }
+  .dt-delta.negative { background: rgba(224,90,58,0.12); color: #e05a3a; }
+
+  .dt-narrative-row { position: relative; }
+  .dt-narrative {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(201,162,39,0.2);
+    border-radius: 4px;
+    color: #e8dfc8;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1.5;
+    padding: 8px 10px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .dt-narrative:focus { outline: none; border-color: rgba(201,162,39,0.5); }
+  .dt-narrative::placeholder { color: rgba(232,223,200,0.2); }
+  .dt-save-state {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #4a5a6a;
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  .dt-save-state--ok  { color: #38b482; }
+  .dt-save-state--err { color: #e05a3a; }
+
+  /* ── Session History ── */
+  .dt-hist-entry {
+    border: 1px solid rgba(201,162,39,0.15);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .dt-hist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(255,255,255,0.02);
+    gap: 10px;
+  }
+  .dt-hist-header:hover { background: rgba(255,255,255,0.04); }
+  .dt-hist-period {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e8dfc8;
+    margin-right: 8px;
+  }
+  .dt-hist-index {
+    font-size: 10px;
+    color: #4a5a6a;
+    letter-spacing: 0.5px;
+  }
+  .dt-hist-count {
+    font-size: 10px;
+    color: #4a5a6a;
+  }
+  .dt-hist-chevron {
+    font-size: 16px;
+    color: #4a5a6a;
+    transition: transform 0.2s;
+    display: inline-block;
+    line-height: 1;
+  }
+  .dt-hist-chevron.expanded { transform: rotate(90deg); }
+  .dt-hist-delete { font-size: 11px; padding: 3px 8px; }
+  .dt-hist-body {
+    border-top: 1px solid rgba(201,162,39,0.1);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dt-hist-char {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dt-hist-char-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e8dfc8;
+    margin-bottom: 4px;
+  }
+  .dt-hist-empty {
+    font-size: 11px;
+    color: #4a5a6a;
+    margin: 0;
+    font-style: italic;
+  }
 </style>

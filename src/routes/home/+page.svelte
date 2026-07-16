@@ -278,18 +278,13 @@
             </div>
             <span class="hs-icon-label">Jobs</span>
           </a>
-          <a class="hs-icon" href="{base}/timer">
-            <div class="hs-icon-tile timer-tile" class:timer-tile--active={timerRunning}>
-              {#if timerRunning}
-                <span class="hs-timer-digit">{timerLabel}</span>
-              {:else}
-                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9"/>
-                  <polyline points="12 6 12 12 16 14"/>
-                </svg>
-              {/if}
+          <a class="hs-icon" href="{base}/downtime">
+            <div class="hs-icon-tile">
+              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 3h14M5 21h14M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4"/>
+              </svg>
             </div>
-            <span class="hs-icon-label">Timer</span>
+            <span class="hs-icon-label">Downtime</span>
           </a>
           <a class="hs-icon" href="{base}/once">
             <div class="hs-icon-tile once-tile" class:once-tile--unread={onceUnread}>
@@ -396,11 +391,39 @@
 
       <!-- ── Page 2 ── -->
       <div class="hs-page">
-        <div class="hs-row" aria-hidden="true" style="visibility:hidden">
-          <div class="hs-icon"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
-          <div class="hs-icon"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
-          <div class="hs-icon"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
+        <!-- Row 1: Calculator, Timer, [empty] -->
+        <div class="hs-row">
+          <div class="hs-icon">
+            <div class="hs-icon-tile">
+              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
+                <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
+                <circle cx="8.4" cy="13" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="13" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="15.6" cy="13" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="8.4" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+                <circle cx="15.6" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <span class="hs-icon-label">Calculator</span>
+          </div>
+          <a class="hs-icon" href="{base}/timer">
+            <div class="hs-icon-tile timer-tile" class:timer-tile--active={timerRunning}>
+              {#if timerRunning}
+                <span class="hs-timer-digit">{timerLabel}</span>
+              {:else}
+                <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              {/if}
+            </div>
+            <span class="hs-icon-label">Timer</span>
+          </a>
+          <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
         </div>
+        <!-- Row 2: EverNear, [empty], [empty] -->
         <div class="hs-row">
           <a class="hs-icon" href="{base}/evernear">
             <div class="hs-icon-tile evernear-tile">
@@ -419,23 +442,10 @@
             </div>
             <span class="hs-icon-label">EverNear</span>
           </a>
-          <div class="hs-icon">
-            <div class="hs-icon-tile">
-              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="5.5" y="3" width="13" height="18" rx="1.5" />
-                <rect x="7.5" y="5.3" width="9" height="3.4" rx="0.5" />
-                <circle cx="8.4" cy="13" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="13" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="15.6" cy="13" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="8.4" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
-                <circle cx="15.6" cy="16.2" r="0.85" fill="currentColor" stroke="none" />
-              </svg>
-            </div>
-            <span class="hs-icon-label">Calculator</span>
-          </div>
+          <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
           <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
         </div>
+        <!-- Rows 3–4: all empty -->
         <div class="hs-row" aria-hidden="true" style="visibility:hidden">
           <div class="hs-icon"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
           <div class="hs-icon"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
@@ -603,6 +613,13 @@
     justify-content: space-between;
     gap: 12px;
     padding: 0 22px;
+  }
+  .hs-row--2up {
+    justify-content: center;
+    gap: 24px;
+  }
+  .hs-row--center {
+    justify-content: center;
   }
   @media (max-width: 420px) {
     .hs-row { padding: 0 16px; }
