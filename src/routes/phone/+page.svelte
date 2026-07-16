@@ -7,7 +7,7 @@
   let activeTab = 'keypad';
 
   // ── Keypad ───────────────────────────────────────────────────────────────
-  let dialDisplay = '';
+  let dialDigits = ''; // raw digits only
 
   const KEYS = [
     { digit: '1', sub: '' },
@@ -25,31 +25,46 @@
   ];
 
   function pressKey(digit) {
-    if (dialDisplay.length >= 15) return;
-    dialDisplay += digit;
+    if (dialDigits.length >= 9) return;
+    dialDigits += digit;
   }
 
   function backspace() {
-    dialDisplay = dialDisplay.slice(0, -1);
+    dialDigits = dialDigits.slice(0, -1);
   }
 
+  // Format raw digits as Fate City number (00-000-0000 or short service)
+  function formatNumber(digits) {
+    if (!digits) return '';
+    const d = digits.replace(/\D/g, '');
+    if (d.length <= 3) return d;
+    const p1 = d.slice(0, 2);
+    const p2 = d.slice(2, 5);
+    const p3 = d.slice(5, 9);
+    return [p1, p2, p3].filter(Boolean).join('-');
+  }
+
+  $: formattedDial = formatNumber(dialDigits);
+
   // ── Contacts ─────────────────────────────────────────────────────────────
-  let contacts = [];
+  let contacts = [];        // enabled-only, shown in contacts tab
+  let allContacts = [];     // all contacts, used for number lookup
   let contactsLoading = true;
 
   async function loadContacts() {
     contactsLoading = true;
     try {
       const data = await dbGet('contacts');
-      if (!data) { contacts = []; }
+      if (!data) { contacts = []; allContacts = []; }
       else {
-        contacts = Object.keys(data)
-          .map(k => ({ ...data[k], _id: k }))
+        const all = Object.keys(data).map(k => ({ ...data[k], _id: k }));
+        allContacts = all;
+        contacts = all
           .filter(c => c.enabled === true)
           .sort((a, b) => a.name.localeCompare(b.name));
       }
     } catch {
-      contacts = [];
+      contacts = []; allContacts = [];
     }
     contactsLoading = false;
   }
@@ -73,7 +88,47 @@
     return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
   }
 
-  onMount(() => { loadContacts(); });
+  // Strip non-digits for comparison
+  function digitsOnly(str) {
+    return (str ?? '').replace(/\D/g, '');
+  }
+
+  function lookupContact(rawDigits) {
+    return allContacts.find(c => digitsOnly(c.number) === rawDigits) ?? null;
+  }
+
+  // ── Call screen ───────────────────────────────────────────────────────────
+  // null = not in a call; object = showing call screen
+  let callScreen = null;
+  // { displayNumber, contact: null | {...} }
+
+  let callDotCount = 0;
+  let callInterval = null;
+
+  function startCall(rawDigits) {
+    if (!rawDigits) return;
+    const contact = lookupContact(rawDigits);
+    callScreen = {
+      displayNumber: formatNumber(rawDigits),
+      contact,
+    };
+    callDotCount = 0;
+    callInterval = setInterval(() => {
+      callDotCount = (callDotCount + 1) % 4;
+    }, 600);
+  }
+
+  function endCall() {
+    callScreen = null;
+    if (callInterval) { clearInterval(callInterval); callInterval = null; }
+  }
+
+  $: callingDots = '.'.repeat(callDotCount);
+
+  onMount(() => {
+    loadContacts();
+    return () => { if (callInterval) clearInterval(callInterval); };
+  });
 </script>
 
 <svelte:head>
@@ -90,8 +145,8 @@
     <div class="keypad-view">
 
       <div class="dial-display">
-        <span class="dial-number" class:small={dialDisplay.length > 10}>
-          {dialDisplay || ''}
+        <span class="dial-number" class:small={formattedDial.length > 10}>
+          {formattedDial}
         </span>
       </div>
 
@@ -106,21 +161,24 @@
       </div>
 
       <div class="action-row">
-        <!-- empty left -->
         <div class="action-slot"></div>
 
-        <!-- call button (cosmetic, disabled) -->
         <div class="action-slot center">
-          <div class="call-btn" aria-label="Call" aria-disabled="true">
+          <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+          <div
+            class="call-btn"
+            class:call-btn--active={dialDigits.length > 0}
+            aria-label="Call"
+            on:click={() => dialDigits.length > 0 && startCall(dialDigits)}
+          >
             <svg viewBox="0 0 24 24" width="28" height="28" fill="white" aria-hidden="true">
               <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z" />
             </svg>
           </div>
         </div>
 
-        <!-- backspace -->
         <div class="action-slot right">
-          {#if dialDisplay}
+          {#if dialDigits}
             <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
             <div class="backspace-btn" on:click={backspace} aria-label="Backspace">
               <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -147,15 +205,31 @@
         {#each contactGroups as group}
           <div class="alpha-header">{group.letter}</div>
           {#each group.items as contact}
-            <div class="contact-row">
-              <div class="contact-avatar" style="background:{avatarColor(contact.name)}">
-                {contact.name?.[0]?.toUpperCase() ?? '?'}
+            <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+            <div
+              class="contact-row"
+              class:contact-row--callable={!!contact.number}
+              on:click={() => contact.number && startCall(digitsOnly(contact.number))}
+            >
+              <div class="contact-avatar" style="background:{contact.color || avatarColor(contact.name)}">
+                {#if contact.avatar}
+                  <img src={contact.avatar} alt={contact.name} class="avatar-img" />
+                {:else}
+                  {contact.name?.[0]?.toUpperCase() ?? '?'}
+                {/if}
               </div>
               <div class="contact-info">
                 <span class="contact-name">{contact.name}</span>
                 {#if contact.subtitle}<span class="contact-sub">{contact.subtitle}</span>{/if}
-                <span class="contact-number">{contact.number}</span>
+                {#if contact.number}<span class="contact-number">{contact.number}</span>{/if}
               </div>
+              {#if contact.number}
+                <div class="contact-call-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z" />
+                  </svg>
+                </div>
+              {/if}
             </div>
           {/each}
         {/each}
@@ -190,6 +264,53 @@
   </nav>
 
 </div>
+
+<!-- ── CALL SCREEN OVERLAY ──────────────────────────────────────────────── -->
+{#if callScreen}
+  <div class="call-overlay">
+    <div class="call-top">
+      <div class="calling-label">Calling{callingDots}</div>
+    </div>
+
+    <div class="call-identity">
+      {#if callScreen.contact?.avatar}
+        <div class="call-avatar call-avatar--photo">
+          <img src={callScreen.contact.avatar} alt={callScreen.contact.name} />
+        </div>
+      {:else if callScreen.contact}
+        <div
+          class="call-avatar call-avatar--initial"
+          style="background:{callScreen.contact.color || avatarColor(callScreen.contact.name)}"
+        >
+          {callScreen.contact.name?.[0]?.toUpperCase() ?? '?'}
+        </div>
+      {:else}
+        <div class="call-avatar call-avatar--unknown">
+          <svg viewBox="0 0 24 24" width="52" height="52" fill="rgba(255,255,255,0.5)" aria-hidden="true">
+            <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z" />
+          </svg>
+        </div>
+      {/if}
+
+      <div class="call-name">
+        {callScreen.contact?.name ?? 'Unknown Number'}
+      </div>
+      {#if callScreen.contact?.subtitle}
+        <div class="call-subtitle">{callScreen.contact.subtitle}</div>
+      {/if}
+      <div class="call-number">{callScreen.displayNumber}</div>
+    </div>
+
+    <div class="call-bottom">
+      <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+      <div class="hangup-btn" on:click={endCall} aria-label="End call">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="white" aria-hidden="true">
+          <path d="M17.3 20h-2.7l-1.4-3.8 2-1.6a12.3 12.3 0 0 0-5.8-5.8L7.8 11 4 9.7V7a2 2 0 0 1 2-2C12.9 5 19 11.1 19 18a2 2 0 0 1-2 2z" transform="rotate(135 12 12)" />
+        </svg>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   /* ── Shell ───────────────────────────────────────────────────────────── */
@@ -229,7 +350,7 @@
   }
   .dial-number.small { font-size: 28px; letter-spacing: 2px; }
 
-  /* 3×4 key grid — constrained so buttons stay phone-sized on wide viewports */
+  /* 3×4 key grid */
   .key-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -268,7 +389,7 @@
     line-height: 1;
   }
 
-  /* Action row — matches key-grid width so call btn centers under middle column */
+  /* Action row */
   .action-row {
     display: flex;
     align-items: center;
@@ -289,14 +410,21 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: #c9a227;
+    background: #333;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: default;
-    opacity: 0.9;
+    opacity: 0.4;
+    transition: background 0.2s ease, opacity 0.2s ease, transform 0.08s ease, box-shadow 0.2s ease;
+  }
+  .call-btn--active {
+    background: #c9a227;
+    opacity: 1;
+    cursor: pointer;
     box-shadow: 0 4px 16px rgba(201,162,39,0.4);
   }
+  .call-btn--active:active { transform: scale(0.93); }
 
   .backspace-btn {
     width: 44px;
@@ -350,7 +478,13 @@
     gap: 14px;
     padding: 10px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
+    transition: background 0.1s ease;
   }
+  .contact-row--callable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .contact-row--callable:active { background: rgba(255,255,255,0.06); }
 
   .contact-avatar {
     width: 42px;
@@ -364,6 +498,13 @@
     font-weight: 600;
     color: #fff;
     flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
   }
 
   .contact-info {
@@ -371,6 +512,7 @@
     flex-direction: column;
     gap: 1px;
     min-width: 0;
+    flex: 1;
   }
   .contact-name {
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
@@ -396,6 +538,12 @@
     letter-spacing: 0.5px;
   }
 
+  .contact-call-icon {
+    color: #c9a227;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
   /* ── Tab bar ─────────────────────────────────────────────────────────── */
   .phone-tabs {
     flex: none;
@@ -404,7 +552,6 @@
     border-top: 1px solid rgba(255,255,255,0.08);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    /* push tab items above the fixed wire-home-bar (32px) */
     padding-bottom: 32px;
   }
 
@@ -427,4 +574,115 @@
   }
   .tab.active { color: #c9a227; }
   .tab:active { opacity: 0.7; }
+
+  /* ── Call screen overlay ─────────────────────────────────────────────── */
+  .call-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 60%, #111 100%);
+  }
+
+  .call-top {
+    padding: 64px 24px 0;
+    text-align: center;
+  }
+
+  .calling-label {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.5px;
+    min-width: 80px; /* prevent layout shift from dots */
+    text-align: left;
+    display: inline-block;
+  }
+
+  .call-identity {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 32px;
+  }
+
+  .call-avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .call-avatar--initial {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 48px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .call-avatar--unknown {
+    background: rgba(255,255,255,0.1);
+  }
+  .call-avatar--photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .call-name {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 30px;
+    font-weight: 300;
+    color: #fff;
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
+  .call-subtitle {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+    text-align: center;
+    letter-spacing: 0.3px;
+    margin-top: -6px;
+  }
+  .call-number {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 3px;
+    margin-top: 2px;
+  }
+
+  .call-bottom {
+    padding: 0 24px 72px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .hangup-btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: #e03e3e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(224,62,62,0.45);
+    transition: transform 0.08s ease, box-shadow 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hangup-btn:active {
+    transform: scale(0.92);
+    box-shadow: 0 3px 12px rgba(224,62,62,0.3);
+  }
 </style>
