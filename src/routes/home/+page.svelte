@@ -68,11 +68,13 @@
     try {
       const data = await dbGet('messages', { orderBy: '$key', limitToLast: 50 });
       const map = getLastSeenMap();
+      const myCodename = getCodename();
       let unread = 0;
       if (data) {
         Object.keys(data).forEach(k => {
           const m = data[k];
           if (!m) return;
+          if (m.recipients && (!myCodename || !m.recipients.includes(myCodename))) return;
           const seen = map[m.sender] || 0;
           if (m.ts > seen) unread++;
         });
