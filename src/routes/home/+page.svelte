@@ -3,12 +3,13 @@
   import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { dbGet, dbPut } from '$lib/firebase-db.js';
-  import { getCodename, setCodename, getDeviceId, visibilityAwareInterval } from '$lib/utils.js';
+  import { getCodename, setCodename, getDeviceId, setDeviceId, visibilityAwareInterval } from '$lib/utils.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
 
   // ── Codename modal ─────────────────────────────────────────────────────────
   let showCodenameModal = false;
+  let cnMode = 'choice'; // 'choice' | 'new' | 'jackin-select' | 'jackin-key'
   let codenameInput = '';
   let codenameError = '';
   let codenameInputEl;
@@ -29,6 +30,70 @@
   function onCodenameKey(e) {
     if (e.key === 'Enter') submitCodename();
     else codenameError = '';
+  }
+
+  // ── Jack In flow ───────────────────────────────────────────────────────────
+  let jackInCandidates = [];
+  let jackInSelected = null;
+  let jackInKeyInput = '';
+  let jackInError = '';
+  let jackInLoading = false;
+  let jackInAttempting = false;
+  let jackInKeyInputEl;
+
+  async function openJackIn() {
+    cnMode = 'jackin-select';
+    jackInLoading = true;
+    jackInError = '';
+    jackInCandidates = [];
+    try {
+      const data = await dbGet('devices');
+      if (!data) { jackInError = 'NO OPERATIVES FOUND'; jackInLoading = false; return; }
+      const seen = new Set();
+      jackInCandidates = Object.keys(data)
+        .map(k => ({ _id: k, ...data[k] }))
+        .filter(d => d.codename && d.accessKey)
+        .filter(d => { if (seen.has(d.codename)) return false; seen.add(d.codename); return true; })
+        .sort((a, b) => a.codename.localeCompare(b.codename));
+      if (!jackInCandidates.length) jackInError = 'NO OPERATIVES WITH ACCESS KEYS FOUND';
+    } catch {
+      jackInError = 'CONNECTION FAILED — TRY AGAIN';
+    }
+    jackInLoading = false;
+  }
+
+  function selectJackInCodename(candidate) {
+    jackInSelected = candidate;
+    jackInKeyInput = '';
+    jackInError = '';
+    cnMode = 'jackin-key';
+    setTimeout(() => jackInKeyInputEl?.focus(), 80);
+  }
+
+  async function attemptJackIn() {
+    const key = jackInKeyInput.trim();
+    if (!key) { jackInError = 'ACCESS KEY REQUIRED'; return; }
+    if (key.toUpperCase() !== jackInSelected.accessKey.toUpperCase()) {
+      jackInError = 'INVALID ACCESS KEY';
+      return;
+    }
+    jackInAttempting = true;
+    setDeviceId(jackInSelected._id);
+    setCodename(jackInSelected.codename);
+    try {
+      await dbPut(`devices/${jackInSelected._id}`, {
+        codename: jackInSelected.codename,
+        ts: Date.now(),
+        accessKey: jackInSelected.accessKey,
+      });
+    } catch { /* local restore succeeded even if Firebase update failed */ }
+    jackInAttempting = false;
+    showCodenameModal = false;
+  }
+
+  function onJackInKeyDown(e) {
+    if (e.key === 'Enter') attemptJackIn();
+    else jackInError = '';
   }
   const TOTAL_PAGES = 2;
 
@@ -168,9 +233,8 @@
   onMount(() => {
     if (!browser) return;
     if (!getCodename()) {
+      cnMode = 'choice';
       showCodenameModal = true;
-      // focus input after DOM settles
-      setTimeout(() => codenameInputEl?.focus(), 80);
     }
     pollUnread();
     pollInterval = visibilityAwareInterval(pollUnread, 5000);
@@ -496,39 +560,91 @@
 {/if}
 <!-- ── Codename registration modal ────────────────────────────────────────── -->
 {#if showCodenameModal}
-<div class="cn-overlay" role="dialog" aria-modal="true" aria-label="Codename registration">
+<div class="cn-overlay" role="dialog" aria-modal="true" aria-label="Operative authentication">
   <div class="cn-panel">
     <div class="cn-scanline" aria-hidden="true"></div>
-
     <p class="cn-sys">// SIGNAL ORIGIN: UNKNOWN — CHANNEL ENCRYPTED</p>
     <div class="cn-divider" aria-hidden="true"></div>
 
-    <h2 class="cn-title">ASSIGN OPERATIVE CODENAME</h2>
-    <p class="cn-sub">This device has been hardened and is routing outside monitored infrastructure. Assign a codename. It will be used to identify you across encrypted channels.<br><br>Choose carefully.</p>
+    {#if cnMode === 'choice'}
+      <h2 class="cn-title">AUTHENTICATE</h2>
+      <p class="cn-sub">First time connecting? Register a new operative identity. Returning operative who lost their session? Jack In to restore access.</p>
+      <button class="cn-confirm" on:click={() => { cnMode = 'new'; setTimeout(() => codenameInputEl?.focus(), 80); }}>NEW OPERATIVE</button>
+      <button class="cn-confirm cn-confirm--jackin" on:click={openJackIn}>JACK IN</button>
+      <p class="cn-legal">This device is not registered. Traffic is obfuscated. No logs. No carrier. You are not here.</p>
 
-    <div class="cn-field-wrap">
-      <span class="cn-prompt" aria-hidden="true">&gt;_</span>
-      <input
-        class="cn-input"
-        type="text"
-        maxlength="24"
-        placeholder="ENTER CODENAME"
-        bind:value={codenameInput}
-        bind:this={codenameInputEl}
-        on:keydown={onCodenameKey}
-        autocomplete="off"
-        autocorrect="off"
-        spellcheck="false"
-      />
-    </div>
+    {:else if cnMode === 'new'}
+      <h2 class="cn-title">ASSIGN OPERATIVE CODENAME</h2>
+      <p class="cn-sub">This device has been hardened and is routing outside monitored infrastructure. Assign a codename. It will be used to identify you across encrypted channels.<br><br>Choose carefully.</p>
+      <div class="cn-field-wrap">
+        <span class="cn-prompt" aria-hidden="true">&gt;_</span>
+        <input
+          class="cn-input"
+          type="text"
+          maxlength="24"
+          placeholder="ENTER CODENAME"
+          bind:value={codenameInput}
+          bind:this={codenameInputEl}
+          on:keydown={onCodenameKey}
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      {#if codenameError}
+        <p class="cn-error" role="alert">{codenameError}</p>
+      {/if}
+      <button class="cn-confirm" on:click={submitCodename}>CONFIRM IDENTITY</button>
+      <button class="cn-back" on:click={() => cnMode = 'choice'}>← BACK</button>
+      <p class="cn-legal">This device is not registered. Traffic is obfuscated. No logs. No carrier. You are not here.</p>
 
-    {#if codenameError}
-      <p class="cn-error" role="alert">{codenameError}</p>
+    {:else if cnMode === 'jackin-select'}
+      <h2 class="cn-title cn-title--jackin">JACK IN</h2>
+      <p class="cn-sub">Select your operative identity to restore your session.</p>
+      {#if jackInLoading}
+        <p class="cn-loading">SCANNING NETWORK…</p>
+      {:else if jackInError && !jackInCandidates.length}
+        <p class="cn-error" role="alert">{jackInError}</p>
+        <button class="cn-back" on:click={() => cnMode = 'choice'}>← BACK</button>
+      {:else}
+        <div class="cn-operative-list">
+          {#each jackInCandidates as candidate (candidate._id)}
+            <button class="cn-operative-row" on:click={() => selectJackInCodename(candidate)}>
+              <span class="cn-op-name">{candidate.codename}</span>
+              <span class="cn-op-arrow">›</span>
+            </button>
+          {/each}
+        </div>
+        <button class="cn-back" on:click={() => cnMode = 'choice'}>← BACK</button>
+      {/if}
+
+    {:else if cnMode === 'jackin-key'}
+      <h2 class="cn-title cn-title--jackin">JACK IN</h2>
+      <p class="cn-sub">Authenticating as <strong class="cn-selected-name">{jackInSelected?.codename}</strong>. Enter your access key to restore your session.</p>
+      <div class="cn-field-wrap cn-field-wrap--jackin">
+        <span class="cn-prompt cn-prompt--jackin" aria-hidden="true">&gt;_</span>
+        <input
+          class="cn-input"
+          type="text"
+          maxlength="32"
+          placeholder="ENTER ACCESS KEY"
+          bind:value={jackInKeyInput}
+          bind:this={jackInKeyInputEl}
+          on:keydown={onJackInKeyDown}
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      {#if jackInError}
+        <p class="cn-error" role="alert">{jackInError}</p>
+      {/if}
+      <button class="cn-confirm cn-confirm--jackin" on:click={attemptJackIn} disabled={jackInAttempting}>
+        {jackInAttempting ? 'AUTHENTICATING…' : 'AUTHENTICATE'}
+      </button>
+      <button class="cn-back" on:click={() => { cnMode = 'jackin-select'; jackInError = ''; }}>← BACK</button>
     {/if}
 
-    <button class="cn-confirm" on:click={submitCodename}>CONFIRM IDENTITY</button>
-
-    <p class="cn-legal">This device is not registered. Traffic is obfuscated. No logs. No carrier. You are not here.</p>
   </div>
 </div>
 {/if}
@@ -880,6 +996,80 @@
     margin: 0;
     text-align: center;
     letter-spacing: 0.3px;
+  }
+
+  /* Jack In variant styles */
+  .cn-title--jackin { color: #4dd9ff; }
+  .cn-confirm--jackin {
+    background: linear-gradient(135deg, rgba(77,217,255,0.12), rgba(77,217,255,0.04));
+    border-color: rgba(77,217,255,0.5);
+    color: #4dd9ff;
+    margin-top: 8px;
+  }
+  .cn-confirm--jackin:active { background: rgba(77,217,255,0.2); box-shadow: 0 0 16px rgba(77,217,255,0.25); }
+  .cn-confirm--jackin:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cn-field-wrap--jackin { border-color: rgba(77,217,255,0.4); background: rgba(77,217,255,0.04); }
+  .cn-prompt--jackin { color: #4dd9ff; }
+  .cn-back {
+    width: 100%;
+    padding: 8px;
+    background: none;
+    border: none;
+    color: rgba(232,223,200,0.3);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 4px;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    transition: color 0.15s;
+  }
+  .cn-back:hover { color: rgba(232,223,200,0.6); }
+  .cn-loading {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #4dd9ff;
+    text-align: center;
+    padding: 20px 0;
+    animation: cn-blink 1.2s ease-in-out infinite;
+  }
+  @keyframes cn-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .cn-operative-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 14px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .cn-operative-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(77,217,255,0.04);
+    border: 1px solid rgba(77,217,255,0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .cn-operative-row:hover { background: rgba(77,217,255,0.1); border-color: rgba(77,217,255,0.5); }
+  .cn-op-name {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #4dd9ff;
+    text-transform: uppercase;
+  }
+  .cn-op-arrow { font-size: 18px; color: rgba(77,217,255,0.5); }
+  .cn-selected-name {
+    color: #4dd9ff;
+    font-style: normal;
+    letter-spacing: 1px;
   }
 
   /* ── O.N.C.E. alert overlay ────────────────────────────────────────── */

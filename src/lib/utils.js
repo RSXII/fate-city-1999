@@ -39,6 +39,15 @@ export function setCodename(name) {
   }
 }
 
+/** Overwrites the stored device ID — used by the Jack In recovery flow. */
+export function setDeviceId(id) {
+  try {
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 /**
  * Safely HTML-escape a value for use inside element text content.
  */

@@ -57,20 +57,76 @@
   let liveMsgLogEl;
   let liveThreadFilter = null; // null=all, 'broadcast'=no recipients, string=codename
 
-  let devices = []; // codenames registered in Firebase
+  let deviceRecords = []; // full device records from Firebase
   let selectedRecipients = []; // empty = broadcast to all
+
+  $: devices = deviceRecords.map(d => d.codename); // codenames-only view for existing pickers
 
   async function refreshDevices() {
     try {
       const data = await dbGet('devices');
-      if (!data) { devices = []; return; }
+      if (!data) { deviceRecords = []; return; }
       const seen = new Set();
-      devices = Object.values(data)
+      deviceRecords = Object.keys(data)
+        .map(k => ({ _id: k, ...data[k] }))
         .filter(d => d.codename)
-        .map(d => d.codename)
-        .filter(c => { if (seen.has(c)) return false; seen.add(c); return true; })
-        .sort();
-    } catch { devices = []; }
+        .filter(d => { if (seen.has(d.codename)) return false; seen.add(d.codename); return true; })
+        .sort((a, b) => a.codename.localeCompare(b.codename));
+    } catch { deviceRecords = []; }
+  }
+
+  // ── Users management ──────────────────────────────────────────────────────
+  let editingDeviceId = null;
+  let editDeviceCodename = '';
+  let editDeviceCodenamePrev = ''; // to detect renames
+  let editDeviceAccessKey = '';
+  let savingDevice = false;
+  let deviceStatus = { text: '', type: '' };
+
+  function startEditDevice(rec) {
+    editingDeviceId = rec._id;
+    editDeviceCodename = rec.codename;
+    editDeviceCodenamePrev = rec.codename;
+    editDeviceAccessKey = rec.accessKey ?? '';
+    deviceStatus = { text: '', type: '' };
+  }
+
+  function cancelEditDevice() {
+    editingDeviceId = null;
+    deviceStatus = { text: '', type: '' };
+  }
+
+  async function saveDevice() {
+    const codename = editDeviceCodename.trim().toUpperCase();
+    if (!codename) { deviceStatus = { text: 'Codename is required.', type: 'err' }; return; }
+    savingDevice = true;
+    deviceStatus = { text: 'Saving…', type: '' };
+    try {
+      const existing = deviceRecords.find(d => d._id === editingDeviceId);
+      await dbPut(`devices/${editingDeviceId}`, {
+        codename,
+        ts: existing?.ts ?? Date.now(),
+        ...(editDeviceAccessKey.trim() ? { accessKey: editDeviceAccessKey.trim() } : {}),
+      });
+      editingDeviceId = null;
+      deviceStatus = { text: 'Saved.', type: 'ok' };
+      await refreshDevices();
+    } catch (e) {
+      deviceStatus = { text: `Save failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+    savingDevice = false;
+  }
+
+  async function deleteDevice(id) {
+    const rec = deviceRecords.find(d => d._id === id);
+    if (!confirm(`Remove ${rec?.codename ?? 'this operative'}? Their app will keep working but they will no longer appear in recipient pickers.`)) return;
+    try {
+      await dbDelete(`devices/${id}`);
+      if (editingDeviceId === id) editingDeviceId = null;
+      await refreshDevices();
+    } catch (e) {
+      deviceStatus = { text: `Delete failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
   }
 
   function toggleRecipient(codename) {
@@ -1733,6 +1789,7 @@
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
+    <button class="tab tab--users"    class:active={activeTab === 'users'}      role="tab" on:click={() => { activeTab = 'users'; refreshDevices(); }}>Users</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -3536,6 +3593,73 @@
 
     {/if}
 
+    {#if activeTab === 'users'}
+      <h2 class="tab-title">USERS</h2>
+      <p class="tab-sub">Manage operative records. Set an access key so players can recover their session via Jack In after reinstalling the app.</p>
+
+      <div class="users-note">
+        Access keys are stored in plaintext in Firebase. Since no personal information is collected, this is intentional.
+        Renaming a codename here only updates Firebase — the player's app won't reflect the change until they Jack In.
+      </div>
+
+      {#if deviceStatus.text && !editingDeviceId}
+        <p class="status-line" class:ok={deviceStatus.type === 'ok'} class:err={deviceStatus.type === 'err'}>{deviceStatus.text}</p>
+      {/if}
+
+      {#if deviceRecords.length === 0}
+        <p class="empty-note">No operatives registered yet.</p>
+      {:else}
+        <div class="users-table">
+          <div class="users-thead">
+            <span>Codename</span>
+            <span>Access Key</span>
+            <span>Registered</span>
+            <span></span>
+          </div>
+          {#each deviceRecords as rec (rec._id)}
+            {#if editingDeviceId === rec._id}
+              <div class="user-edit-row">
+                <div class="user-edit-fields">
+                  <div class="user-edit-field">
+                    <label class="field-label">CODENAME</label>
+                    <input class="gm-input" bind:value={editDeviceCodename} maxlength={24}
+                      on:input={() => { editDeviceCodename = editDeviceCodename.toUpperCase(); }} />
+                    {#if editDeviceCodename.trim().toUpperCase() !== editDeviceCodenamePrev}
+                      <p class="rename-warn">⚠ Rename only updates Firebase. Player's app syncs on Jack In.</p>
+                    {/if}
+                  </div>
+                  <div class="user-edit-field">
+                    <label class="field-label">ACCESS KEY</label>
+                    <input class="gm-input" bind:value={editDeviceAccessKey} maxlength={32}
+                      placeholder="Short word or phrase player will use to Jack In" />
+                  </div>
+                </div>
+                <div class="user-edit-actions">
+                  <button class="btn-sm btn-ok" on:click={saveDevice} disabled={savingDevice}>
+                    {savingDevice ? 'Saving…' : 'Save'}
+                  </button>
+                  <button class="btn-sm" on:click={cancelEditDevice}>Cancel</button>
+                </div>
+                {#if deviceStatus.text}
+                  <p class="status-line" class:ok={deviceStatus.type === 'ok'} class:err={deviceStatus.type === 'err'}>{deviceStatus.text}</p>
+                {/if}
+              </div>
+            {:else}
+              <div class="user-row">
+                <span class="user-codename">{rec.codename}</span>
+                <span class="user-key">{#if rec.accessKey}{rec.accessKey}{:else}<em class="no-key">not set</em>{/if}</span>
+                <span class="user-ts">{new Date(rec.ts).toLocaleDateString()}</span>
+                <span class="user-row-actions">
+                  <button class="btn-sm" on:click={() => startEditDevice(rec)}>Edit</button>
+                  <button class="btn-sm btn-danger" on:click={() => deleteDevice(rec._id)}>Delete</button>
+                </span>
+              </div>
+            {/if}
+          {/each}
+        </div>
+      {/if}
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -4783,4 +4907,109 @@
     margin: 0;
     font-style: italic;
   }
+
+  /* ── Users tab ── */
+  .tab--users { color: #3a4a5a; }
+  .tab--users:hover { color: #a0b8d0; }
+  .tab--users.active { color: #a0b8d0; border-bottom-color: #a0b8d0; }
+
+  .users-note {
+    font-size: 11px;
+    color: #4a5a6a;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #1a2030;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .users-table {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border: 1px solid #1a2030;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .users-thead {
+    display: grid;
+    grid-template-columns: 1fr 1fr 120px 140px;
+    gap: 0;
+    padding: 8px 14px;
+    background: #0d1520;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #3a4a5a;
+    text-transform: uppercase;
+  }
+  .user-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 120px 140px;
+    align-items: center;
+    padding: 10px 14px;
+    background: #0a1018;
+    border-top: 1px solid #1a2030;
+    gap: 0;
+  }
+  .user-row:hover { background: #0d1520; }
+  .user-codename {
+    font-size: 13px;
+    font-weight: 700;
+    color: #c9a227;
+    letter-spacing: 0.5px;
+  }
+  .user-key {
+    font-size: 12px;
+    color: #e8dfc8;
+    font-family: monospace;
+  }
+  .no-key {
+    color: #3a4a5a;
+    font-style: italic;
+    font-family: inherit;
+  }
+  .user-ts {
+    font-size: 11px;
+    color: #4a5a6a;
+  }
+  .user-row-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .user-edit-row {
+    background: #0d1a28;
+    border-top: 1px solid #1a2030;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .user-edit-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .user-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .user-edit-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .rename-warn {
+    font-size: 10px;
+    color: #c9a227;
+    margin: 2px 0 0;
+  }
+  .btn-danger {
+    color: #e05a3a;
+    border-color: rgba(224,90,58,0.4);
+  }
+  .btn-danger:hover { color: #ff7755; border-color: #e05a3a; background: rgba(224,90,58,0.08); }
 </style>
