@@ -49,10 +49,21 @@ exports.notifyOnNewMessage = onValueCreated(
         seenTokens.add(val.token);
         return true;
       })
-      .map(([pushId, val]) => ({ pushId, token: val.token }));
+      .map(([pushId, val]) => ({ pushId, token: val.token, codename: val.codename || null }));
 
     if (!entries.length) {
       console.log("No valid tokens found — skipping push.");
+      return null;
+    }
+
+    // If the message targets specific recipients, only notify those players.
+    const recipients = Array.isArray(message.recipients) ? message.recipients : null;
+    const targets = recipients
+      ? entries.filter((e) => e.codename && recipients.includes(e.codename))
+      : entries;
+
+    if (!targets.length) {
+      console.log("No matching subscriber tokens for recipients — skipping push.");
       return null;
     }
 
@@ -61,7 +72,7 @@ exports.notifyOnNewMessage = onValueCreated(
     // which is required for iOS Safari 16.4+ and more reliable on Android.
     // data is kept alongside so onMessage/onBackgroundMessage still receive it.
     const response = await admin.messaging().sendEachForMulticast({
-      tokens: entries.map((e) => e.token),
+      tokens: targets.map((e) => e.token),
       webpush: {
         headers: { Urgency: "high" },
         notification: {
@@ -75,7 +86,7 @@ exports.notifyOnNewMessage = onValueCreated(
 
     console.log(
       `FCM: ${response.successCount} delivered, ${response.failureCount} failed` +
-        ` (${entries.length} total subscriptions).`,
+        ` (${targets.length} targeted, ${entries.length} total subscriptions).`,
     );
 
     // Remove tokens that are no longer registered. Check every response
@@ -84,12 +95,12 @@ exports.notifyOnNewMessage = onValueCreated(
     response.responses.forEach((result, i) => {
       if (!result.success) {
         const code = result.error && result.error.code;
-        console.warn(`Token[${i}] pushId=${entries[i].pushId} failed: ${code}`);
+        console.warn(`Token[${i}] pushId=${targets[i].pushId} failed: ${code}`);
         if (code === "messaging/registration-token-not-registered") {
           staleDeletes.push(
             admin
               .database()
-              .ref(`/subscriptions/${entries[i].pushId}`)
+              .ref(`/subscriptions/${targets[i].pushId}`)
               .remove(),
           );
         }

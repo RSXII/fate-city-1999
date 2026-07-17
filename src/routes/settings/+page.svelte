@@ -3,6 +3,7 @@
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import { FIREBASE_CONFIG, FIREBASE_URL, VAPID_KEY } from '$lib/firebase-db.js';
+  import { getCodename } from '$lib/utils.js';
 
   const LS_KEY = 'wire-notif-sub'; // { pushId, token }
 
@@ -68,10 +69,11 @@
       if (perm !== 'granted') { notifState = perm === 'denied' ? 'denied' : 'idle'; return; }
       const swReg = await navigator.serviceWorker.ready;
       const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+      const codename = getCodename();
       const res = await fetch(`${FIREBASE_URL}/subscriptions.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, ts: Date.now() }),
+        body: JSON.stringify({ token, ts: Date.now(), ...(codename ? { codename } : {}) }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
