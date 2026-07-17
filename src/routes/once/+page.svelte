@@ -7,7 +7,6 @@
 
 
   let liveMessages = [];
-  let loading = true;
 
   function relTime(ts) {
     const diff = Math.max(0, Date.now() - ts);
@@ -35,7 +34,6 @@
         dbPut('once-settings/onceMessageSeen', true);
       }
     } catch { liveMessages = []; }
-    loading = false;
     initDecode(liveMessages);
   }
 
@@ -115,9 +113,10 @@
 <div class="once-scroll">
   <div class="once-header">Encrypted &mdash; Sender Unverified</div>
 
-  {#if loading}
-    <div class="once-loading">Decrypting channel…</div>
-  {:else if liveMessages.length > 0}
+  {#if liveMessages.length > 0}
+    {#if decodeTimer}
+      <div class="once-loading">Decrypting channel…</div>
+    {/if}
     {#each liveMessages as msg (msg._id ?? msg.ts)}
       {@const id = msg._id ?? String(msg.ts)}
       {@const rev = decodeProgress[id] ?? 0}
