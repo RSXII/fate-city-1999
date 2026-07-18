@@ -613,8 +613,8 @@
   }
 
   .call-avatar {
-    width: 110px;
-    height: 110px;
+    width: 180px;
+    height: 180px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -624,7 +624,7 @@
   }
   .call-avatar--initial {
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 48px;
+    font-size: 72px;
     font-weight: 600;
     color: #fff;
   }
