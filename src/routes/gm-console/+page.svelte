@@ -1627,8 +1627,63 @@
 
   let hkPoll;
 
+  // ── Player Responses ──────────────────────────────────────────────────────
+  let playerResponses = [];
+  let responsesConvFilter = null;
+
+  async function loadPlayerResponses() {
+    try {
+      const data = await dbGet('player-responses', { orderBy: '$key', limitToLast: 300 });
+      if (!data) { playerResponses = []; return; }
+      playerResponses = Object.entries(data)
+        .map(([id, r]) => ({ ...r, id }))
+        .sort((a, b) => b.ts - a.ts);
+    } catch { playerResponses = []; }
+  }
+
+  async function deletePlayerResponse(id) {
+    if (!confirm('Delete this player response?')) return;
+    try {
+      await dbDelete(`player-responses/${id}`);
+      await loadPlayerResponses();
+    } catch (e) { console.error('Delete response failed', e); }
+  }
+
+  async function setResponseStatus(id, status) {
+    try {
+      if (status === null) {
+        await dbDelete(`player-responses/${id}/status`);
+      } else {
+        await dbPut(`player-responses/${id}/status`, status);
+      }
+      // Optimistically update local state for instant feedback
+      playerResponses = playerResponses.map(r => r.id === id ? { ...r, status: status ?? undefined } : r);
+    } catch (e) { console.error('Status update failed', e); }
+  }
+
+  $: responseConvs = (() => {
+    const seen = new Set();
+    const out = [];
+    for (const r of playerResponses) {
+      const key = r.groupId ? `group:${r.groupId}` : `sender:${r.context}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ key, label: r.groupId ? (r.groupName || 'Group') : (r.context || 'Unknown') });
+      }
+    }
+    return out;
+  })();
+
+  $: filteredPlayerResponses = responsesConvFilter
+    ? playerResponses.filter(r => {
+        const key = r.groupId ? `group:${r.groupId}` : `sender:${r.context}`;
+        return key === responsesConvFilter;
+      })
+    : playerResponses;
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
+  let responsesPoll;
   let emailPoll;
   let casePoll;
   let contactPoll;
@@ -1806,6 +1861,8 @@
     hkPoll = visibilityAwareInterval(refreshHkProperties, 15000);
     loadDowntimeState();
     dtPoll = visibilityAwareInterval(loadDowntimeState, 8000);
+    loadPlayerResponses();
+    responsesPoll = visibilityAwareInterval(loadPlayerResponses, 5000);
   });
 
   onDestroy(() => {
@@ -1821,6 +1878,7 @@
     if (timerConsolePoll) timerConsolePoll();
     if (hkPoll) hkPoll();
     if (dtPoll) dtPoll();
+    if (responsesPoll) responsesPoll();
     clearInterval(timerDisplayTick);
     clearInterval(splitInterval);
   });
@@ -1853,6 +1911,7 @@
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
     <button class="tab tab--users"    class:active={activeTab === 'users'}      role="tab" on:click={() => { activeTab = 'users'; refreshDevices(); }}>Users</button>
+    <button class="tab tab--responses" class:active={activeTab === 'responses'} role="tab" on:click={() => { activeTab = 'responses'; loadPlayerResponses(); }}>Responses{#if playerResponses.length}&thinsp;<span class="resp-count">{playerResponses.length}</span>{/if}</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -3784,6 +3843,65 @@
       {/if}
     {/if}
 
+    <!-- ══ PLAYER RESPONSES ═════════════════════════════════════════════════ -->
+    {#if activeTab === 'responses'}
+
+      <p class="tab-sub">Incoming player replies to wire messages. Updates every 5 seconds.</p>
+
+      {#if !playerResponses.length}
+        <p class="tab-empty">No player responses yet.</p>
+      {:else}
+        {#if responseConvs.length > 1}
+          <div class="section">
+            <div class="section-label">Filter by conversation</div>
+            <div class="chip-grid">
+              <button type="button" class="chip" class:selected={responsesConvFilter === null}
+                style="color:#6ab0d4;border-color:#6ab0d4"
+                on:click={() => responsesConvFilter = null}>
+                <span class="chip-label"><span>All</span></span>
+              </button>
+              {#each responseConvs as conv (conv.key)}
+                <button type="button" class="chip" class:selected={responsesConvFilter === conv.key}
+                  style="color:#6ab0d4;border-color:#6ab0d4"
+                  on:click={() => responsesConvFilter = conv.key}>
+                  <span class="chip-label"><span>{conv.label}</span></span>
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <div class="response-list">
+          {#each filteredPlayerResponses as r (r.id)}
+            <div class="response-row" class:response-row--seen={r.status === 'seen'} class:response-row--failed={r.status === 'not_delivered'}>
+              <div class="response-meta">
+                <span class="response-codename">{r.codename}</span>
+                <span class="response-arrow">→</span>
+                <span class="response-context">{r.groupName || r.context || '—'}</span>
+                <span class="response-time">{relTime(r.ts)}</span>
+              </div>
+              <div class="response-text">{r.text}</div>
+              <div class="response-actions">
+                <button class="resp-status-btn"
+                  class:resp-status-btn--active={r.status === 'seen'}
+                  on:click={() => setResponseStatus(r.id, r.status === 'seen' ? null : 'seen')}>
+                  {r.status === 'seen' ? '✓ Seen' : 'Seen'}
+                </button>
+                <button class="resp-status-btn resp-status-btn--fail"
+                  class:resp-status-btn--active={r.status === 'not_delivered'}
+                  on:click={() => setResponseStatus(r.id, r.status === 'not_delivered' ? null : 'not_delivered')}>
+                  {r.status === 'not_delivered' ? '✕ Not Delivered' : 'Not Delivered'}
+                </button>
+                <button class="danger-btn" style="margin-left:auto;font-size:10px;padding:2px 8px"
+                  on:click={() => deletePlayerResponse(r.id)}>Delete</button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -5062,6 +5180,21 @@
   .tab--users:hover { color: #a0b8d0; }
   .tab--users.active { color: #a0b8d0; border-bottom-color: #a0b8d0; }
 
+  .tab--responses { color: #3a4a5a; }
+  .tab--responses:hover { color: #6ab0d4; }
+  .tab--responses.active { color: #6ab0d4; border-bottom-color: #6ab0d4; }
+  .resp-count {
+    display: inline-block;
+    background: rgba(106,176,212,0.18);
+    color: #6ab0d4;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 0 5px;
+    line-height: 1.6;
+    vertical-align: middle;
+  }
+
   .users-note {
     font-size: 11px;
     color: #4a5a6a;
@@ -5161,4 +5294,86 @@
     border-color: rgba(224,90,58,0.4);
   }
   .btn-danger:hover { color: #ff7755; border-color: #e05a3a; background: rgba(224,90,58,0.08); }
+
+  /* ── Responses tab ── */
+  .tab-empty {
+    font-size: 13px;
+    color: #3a4a5a;
+    font-style: italic;
+    margin: 40px auto;
+    text-align: center;
+  }
+  .response-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+  }
+  .response-row {
+    background: rgba(106,176,212,0.04);
+    border: 1px solid rgba(106,176,212,0.12);
+    border-radius: 6px;
+    padding: 10px 14px;
+  }
+  .response-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+  }
+  .response-codename {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6ab0d4;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .response-arrow {
+    font-size: 11px;
+    color: #3a4a5a;
+  }
+  .response-context {
+    font-size: 11px;
+    color: #c9a227;
+    font-weight: 600;
+  }
+  .response-time {
+    font-size: 10px;
+    color: #3a4a5a;
+    margin-left: auto;
+  }
+  .response-text {
+    font-size: 13px;
+    color: rgba(232,223,200,0.88);
+    line-height: 1.5;
+    white-space: pre-line;
+    word-wrap: break-word;
+  }
+  .response-row--seen { border-color: rgba(91,158,143,0.25); }
+  .response-row--failed { border-color: rgba(192,80,74,0.25); }
+  .response-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .resp-status-btn {
+    background: none;
+    border: 1px solid rgba(106,176,212,0.25);
+    border-radius: 4px;
+    color: #4a6070;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .resp-status-btn:hover { border-color: #6ab0d4; color: #6ab0d4; }
+  .resp-status-btn--active { border-color: #5b9e8f; color: #5b9e8f; background: rgba(91,158,143,0.08); }
+  .resp-status-btn--fail { border-color: rgba(192,80,74,0.25); }
+  .resp-status-btn--fail:hover { border-color: #c0504a; color: #c0504a; }
+  .resp-status-btn--fail.resp-status-btn--active { border-color: #c0504a; color: #c0504a; background: rgba(192,80,74,0.08); }
 </style>
