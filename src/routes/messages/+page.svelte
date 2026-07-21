@@ -3,7 +3,7 @@
   import { fly } from 'svelte/transition';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
-  import { dbGet } from '$lib/firebase-db.js';
+  import { dbGet, dbPost } from '$lib/firebase-db.js';
   import { relTime, visibilityAwareInterval, getCodename } from '$lib/utils.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
@@ -26,6 +26,21 @@
   let searchOpen = false;
 
   let isFirstPoll = true;
+
+  let responses = [];
+  let responseText = '';
+  let sendingResponse = false;
+  let playerProfiles = {}; // codename → { imageUrl }
+
+  // Clear stale responses when navigating between threads
+  let _lastThreadKey = null;
+  $: {
+    const _key = activeThread || activeSender || '';
+    if (_key !== _lastThreadKey) {
+      responses = [];
+      _lastThreadKey = _key;
+    }
+  }
 
   function playTextChime() {
     try {
@@ -80,6 +95,47 @@
 
   // ── data ─────────────────────────────────────────────────────────────────────
 
+  async function loadPlayerProfiles() {
+    try {
+      const data = await dbGet('player-profiles');
+      if (data) playerProfiles = data;
+    } catch {}
+  }
+
+  async function pollResponses() {
+    if (!myCodename || (!activeSender && !activeThread)) return;
+    try {
+      const data = await dbGet('player-responses', { orderBy: '$key', limitToLast: 200 });
+      if (!data) { responses = []; return; }
+      const all = Object.entries(data).map(([id, r]) => ({ ...r, id, _isResponse: true }));
+      if (activeThread) {
+        responses = all.filter(r => r.groupId === activeThread).sort((a, b) => a.ts - b.ts);
+      } else if (activeSender) {
+        responses = all.filter(r => r.context === activeSender && !r.groupId).sort((a, b) => a.ts - b.ts);
+      }
+    } catch { responses = []; }
+  }
+
+  async function sendResponse() {
+    const text = responseText.trim();
+    if (!text || sendingResponse || !myCodename) return;
+    sendingResponse = true;
+    try {
+      const payload = { codename: myCodename, text, ts: Date.now() };
+      if (activeThread) {
+        payload.groupId = activeThread;
+        payload.groupName = activeGroupName;
+      } else if (activeSender) {
+        payload.context = activeSender;
+      }
+      await dbPost('player-responses', payload);
+      responseText = '';
+      await pollResponses();
+      needsScroll = true;
+    } catch { /* swallow; retry on next poll */ }
+    sendingResponse = false;
+  }
+
   async function poll() {
     const data = await dbGet('messages', { orderBy: '$key', limitToLast: 100 });
     if (!data) return;
@@ -92,8 +148,9 @@
     messages = fetched;
     messagesCache.set(fetched);
     if (hadNew && !isFirstPoll) playTextChime();
-    if (activeSender && hadNew) needsScroll = true;
+    if ((activeSender || activeThread) && hadNew) needsScroll = true;
     isFirstPoll = false;
+    if (activeSender || activeThread) await pollResponses();
   }
 
   afterUpdate(() => {
@@ -108,6 +165,8 @@
     lastSeenMap = loadLastSeen();
     loadContacts();
     poll();
+    pollResponses(); // parallel with poll so responses appear immediately
+    loadPlayerProfiles();
     pollTimer = visibilityAwareInterval(poll, 5000);
     contactsPollTimer = visibilityAwareInterval(loadContacts, 30000);
   });
@@ -126,6 +185,11 @@
       : [];
 
   $: isGroupThread = new Set(threadMessages.map(m => m.sender)).size > 1;
+
+  $: mergedThread = [
+      ...threadMessages.map(m => ({ ...m, _isResponse: false })),
+      ...responses,
+    ].sort((a, b) => a.ts - b.ts);
 
   // Derive group display info from embedded message fields — no extra Firebase fetch
   $: activeGroupName = activeThread
@@ -230,78 +294,106 @@
 <div class="msg-feed" bind:this={feedEl}>
   {#if activeSender || activeThread}
     <!-- Thread view -->
-    {#if !threadMessages.length}
+    {#if !mergedThread.length}
       <p class="msg-empty">Nothing here yet.</p>
     {:else}
-      {#each threadMessages as m, i (m.id)}
-        {@const meta = contactsByName[m.sender] ?? { color: '#b8902f', avatar: null }}
-        {@const color = m.color || meta.color}
-        {@const isFirstInRun = i === 0 || threadMessages[i - 1].sender !== m.sender}
-        {@const isLastInRun = i === threadMessages.length - 1 || threadMessages[i + 1].sender !== m.sender}
-
-        {#if isGroupThread}
-          <!-- Group thread: avatar + name only on first message of each sender run -->
-          <div class="msg-row" class:msg-row-continued={!isFirstInRun} in:fly={{ y: 10, duration: 400 }}>
-            <div class="msg-avatar-col">
-              {#if isFirstInRun}
-                <div class="msg-avatar"
-                  style="background:{hexToRgba(color, 0.16)};border-color:{color};color:{color}">
-                  {initials(m.sender)}
-                  {#if meta.avatar}
-                    <img src="{base}/{meta.avatar}" alt="" loading="lazy" class="avatar-img"
-                      on:error={e => e.currentTarget.style.display = 'none'}>
-                  {/if}
-                </div>
-              {:else}
-                <div class="msg-avatar-spacer"></div>
+      {#each mergedThread as item, i (item.id)}
+        {#if item._isResponse}
+          <!-- Player response: right-aligned with avatar -->
+          {@const profImg = playerProfiles[item.codename]?.imageUrl}
+          <div class="msg-row-mine" in:fly={{ y: 10, duration: 400 }}>
+            <div class="msg-mine-content">
+              {#if isGroupThread || item.codename !== myCodename}
+                <div class="msg-mine-label">{item.codename}</div>
+              {/if}
+              <div class="msg-bubble-mine">
+                <div class="msg-bubble-text">{item.text}</div>
+              </div>
+              <span class="msg-mine-time">{relTime(item.ts)}</span>
+              {#if item.status === 'seen'}
+                <span class="msg-mine-status msg-mine-status--seen">Seen</span>
+              {:else if item.status === 'not_delivered'}
+                <span class="msg-mine-status msg-mine-status--failed">Not delivered</span>
               {/if}
             </div>
-            <div class="msg-content">
-              {#if isFirstInRun}
-                <div class="msg-sender-name" style="color:{color}">{m.sender}</div>
-              {/if}
-              {#if isFirstInRun && m.recipients && myCodename}
-                <div class="msg-to">To: {myCodename}</div>
-              {/if}
-              <div class="msg-bubble" class:has-image={m.imageUrl} style="border-left-color:{color}">
-                {#if m.imageUrl}
-                  <img class="msg-image" src={m.imageUrl} alt="" loading="lazy"
-                    on:error={e => e.currentTarget.style.display = 'none'}>
-                {/if}
-                {#if m.text}
-                  <div class="msg-bubble-text">{m.text}</div>
-                {/if}
-                {#if m.attachmentUrl}
-                  <Attachment url={m.attachmentUrl} />
-                {/if}
-              </div>
-              {#if isLastInRun}
-                <span class="msg-time msg-time-group">{relTime(m.ts)}</span>
+            <div class="msg-mine-avatar">
+              {#if profImg}
+                <img src={profImg} alt={item.codename} class="msg-mine-avatar-img" />
+              {:else}
+                {(item.codename || '?')[0].toUpperCase()}
               {/if}
             </div>
           </div>
         {:else}
-          <!-- Single sender thread: just the bubble, no repeated avatar/name -->
-          <div class="msg-row-simple" class:msg-row-simple-continued={!isFirstInRun} in:fly={{ y: 10, duration: 400 }}>
-            {#if isFirstInRun && m.recipients && myCodename}
-              <div class="msg-to">To: {myCodename}</div>
-            {/if}
-            <div class="msg-bubble-wrap">
-              <div class="msg-bubble" class:has-image={m.imageUrl} style="border-left-color:{color}">
-                {#if m.imageUrl}
-                  <img class="msg-image" src={m.imageUrl} alt="" loading="lazy"
-                    on:error={e => e.currentTarget.style.display = 'none'}>
-                {/if}
-                {#if m.text}
-                  <div class="msg-bubble-text">{m.text}</div>
-                {/if}
-                {#if m.attachmentUrl}
-                  <Attachment url={m.attachmentUrl} />
+          {@const meta = contactsByName[item.sender] ?? { color: '#b8902f', avatar: null }}
+          {@const color = item.color || meta.color}
+          {@const isFirstInRun = i === 0 || mergedThread[i - 1]._isResponse || mergedThread[i - 1].sender !== item.sender}
+          {@const isLastInRun = i === mergedThread.length - 1 || mergedThread[i + 1]._isResponse || mergedThread[i + 1].sender !== item.sender}
+
+          {#if isGroupThread}
+            <!-- Group thread: avatar + name only on first message of each sender run -->
+            <div class="msg-row" class:msg-row-continued={!isFirstInRun} in:fly={{ y: 10, duration: 400 }}>
+              <div class="msg-avatar-col">
+                {#if isFirstInRun}
+                  <div class="msg-avatar"
+                    style="background:{hexToRgba(color, 0.16)};border-color:{color};color:{color}">
+                    {initials(item.sender)}
+                    {#if meta.avatar}
+                      <img src="{base}/{meta.avatar}" alt="" loading="lazy" class="avatar-img"
+                        on:error={e => e.currentTarget.style.display = 'none'}>
+                    {/if}
+                  </div>
+                {:else}
+                  <div class="msg-avatar-spacer"></div>
                 {/if}
               </div>
-              <span class="msg-time">{relTime(m.ts)}</span>
+              <div class="msg-content">
+                {#if isFirstInRun}
+                  <div class="msg-sender-name" style="color:{color}">{item.sender}</div>
+                {/if}
+                {#if isFirstInRun && item.recipients && myCodename}
+                  <div class="msg-to">To: {myCodename}</div>
+                {/if}
+                <div class="msg-bubble" class:has-image={item.imageUrl} style="border-left-color:{color}">
+                  {#if item.imageUrl}
+                    <img class="msg-image" src={item.imageUrl} alt="" loading="lazy"
+                      on:error={e => e.currentTarget.style.display = 'none'}>
+                  {/if}
+                  {#if item.text}
+                    <div class="msg-bubble-text">{item.text}</div>
+                  {/if}
+                  {#if item.attachmentUrl}
+                    <Attachment url={item.attachmentUrl} />
+                  {/if}
+                </div>
+                {#if isLastInRun}
+                  <span class="msg-time msg-time-group">{relTime(item.ts)}</span>
+                {/if}
+              </div>
             </div>
-          </div>
+          {:else}
+            <!-- Single sender thread: just the bubble, no repeated avatar/name -->
+            <div class="msg-row-simple" class:msg-row-simple-continued={!isFirstInRun} in:fly={{ y: 10, duration: 400 }}>
+              {#if isFirstInRun && item.recipients && myCodename}
+                <div class="msg-to">To: {myCodename}</div>
+              {/if}
+              <div class="msg-bubble-wrap">
+                <div class="msg-bubble" class:has-image={item.imageUrl} style="border-left-color:{color}">
+                  {#if item.imageUrl}
+                    <img class="msg-image" src={item.imageUrl} alt="" loading="lazy"
+                      on:error={e => e.currentTarget.style.display = 'none'}>
+                  {/if}
+                  {#if item.text}
+                    <div class="msg-bubble-text">{item.text}</div>
+                  {/if}
+                  {#if item.attachmentUrl}
+                    <Attachment url={item.attachmentUrl} />
+                  {/if}
+                </div>
+                <span class="msg-time">{relTime(item.ts)}</span>
+              </div>
+            </div>
+          {/if}
         {/if}
       {/each}
     {/if}
@@ -351,7 +443,27 @@
   {/if}
 </div>
 
-<div class="msg-footer-note">Read only &middot; updates live</div>
+{#if activeSender || activeThread}
+  {#if myCodename}
+    <div class="msg-compose">
+      <textarea
+        class="msg-compose-input"
+        bind:value={responseText}
+        placeholder="Reply…"
+        rows="2"
+        on:keydown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendResponse(); } }}
+      ></textarea>
+      <button class="msg-compose-send" disabled={!responseText.trim() || sendingResponse}
+        on:click={sendResponse}>
+        {sendingResponse ? '…' : 'Send'}
+      </button>
+    </div>
+  {:else}
+    <div class="msg-footer-note">Set your codename to reply.</div>
+  {/if}
+{:else}
+  <div class="msg-footer-note">Read only &middot; updates live</div>
+{/if}
 
 <SearchModal open={searchOpen} on:close={() => searchOpen = false} />
 
@@ -659,6 +771,122 @@
     stroke-width: 2;
     stroke-linecap: round;
   }
+
+  /* ── player response bubbles (right-aligned) ──────────────────────────── */
+  .msg-row-mine {
+    max-width: 480px;
+    margin: 0 auto 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .msg-mine-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .msg-mine-avatar {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(106, 176, 212, 0.1);
+    border: 1.5px solid rgba(106, 176, 212, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(106, 176, 212, 0.6);
+    overflow: hidden;
+    margin-bottom: 2px;
+  }
+  .msg-mine-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+  }
+  .msg-mine-label {
+    font-size: 10px;
+    color: rgba(106, 176, 212, 0.6);
+    margin-bottom: 3px;
+    letter-spacing: 0.3px;
+  }
+  .msg-bubble-mine {
+    background: rgba(106, 176, 212, 0.09);
+    border-right: 3px solid #6ab0d4;
+    border-radius: 10px 4px 4px 10px;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: rgba(232, 223, 200, 0.92);
+    word-wrap: break-word;
+    white-space: pre-line;
+    max-width: 85%;
+  }
+  .msg-mine-time {
+    font-size: 9.5px;
+    color: rgba(232, 223, 200, 0.4);
+    margin-top: 3px;
+  }
+  .msg-mine-status {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+  .msg-mine-status--seen { color: rgba(91, 158, 143, 0.75); }
+  .msg-mine-status--failed { color: rgba(192, 80, 74, 0.8); }
+
+  /* ── compose area ──────────────────────────────────────────────────────── */
+  .msg-compose {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    padding: 10px 14px 12px;
+    border-top: 1px solid #1a2030;
+    background: #0c0f16;
+  }
+  .msg-compose-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid #1e2d40;
+    border-radius: 8px;
+    color: #e8dfc8;
+    font-size: 13.5px;
+    padding: 9px 12px;
+    resize: none;
+    line-height: 1.45;
+    font-family: inherit;
+    min-height: 40px;
+    max-height: 120px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .msg-compose-input:focus {
+    outline: none;
+    border-color: #6ab0d4;
+  }
+  .msg-compose-input::placeholder { color: #3a4a5a; }
+  .msg-compose-send {
+    background: #6ab0d4;
+    color: #0c0f16;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+    align-self: flex-end;
+  }
+  .msg-compose-send:disabled { opacity: 0.35; cursor: default; }
+  .msg-compose-send:not(:disabled):hover { opacity: 0.85; }
 
   .msg-footer-note {
     flex-shrink: 0;
