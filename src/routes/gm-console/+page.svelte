@@ -141,6 +141,7 @@
   let groupCreateOpen = false;
   let newGroupName = '';
   let newGroupMembers = [];
+  let newGroupTarget = ''; // codename this group is scoped to
   let groupStatus = { text: '', type: '' };
 
   async function loadGroups() {
@@ -166,9 +167,12 @@
       return;
     }
     try {
-      await dbPost('groups', { name, members: [...newGroupMembers], createdAt: Date.now() });
+      const groupData = { name, members: [...newGroupMembers], createdAt: Date.now() };
+      if (newGroupTarget) groupData.targetCodename = newGroupTarget;
+      await dbPost('groups', groupData);
       newGroupName = '';
       newGroupMembers = [];
+      newGroupTarget = '';
       groupCreateOpen = false;
       groupStatus = { text: '', type: '' };
       await loadGroups();
@@ -194,6 +198,11 @@
   // Clear sender if it's not a member of the newly selected group
   $: if (selectedGroup && selectedSender && !selectedGroup.members.includes(selectedSender.name)) {
     selectedSender = null;
+  }
+
+  // Auto-fill recipients when a group with a target player is selected
+  $: if (selectedGroup?.targetCodename) {
+    selectedRecipients = [selectedGroup.targetCodename];
   }
 
   $: sendEnabled = !sending && !!selectedSender && (msgText.trim().length > 0 || !!selectedImage);
@@ -1966,7 +1975,7 @@
               on:click={() => { selectedGroup = g; }}>
               <span class="chip-label">
                 <span>{g.name}</span>
-                <span class="chip-number">{g.members.join(' · ')}</span>
+                <span class="chip-number">{g.members.join(' · ')}{g.targetCodename ? ` → ${g.targetCodename}` : ''}</span>
               </span>
             </button>
           {/each}
@@ -1991,6 +2000,20 @@
                   <span class="chip-label"><span>{c.name}</span></span>
                 </button>
               {/each}
+            </div>
+            <div class="group-member-hint" style="margin-top:10px">For player <span style="opacity:0.45;font-weight:400">(optional)</span>:</div>
+            <div class="chip-grid">
+              {#each devices as codename (codename)}
+                <button type="button" class="chip chip--sm"
+                  class:selected={newGroupTarget === codename}
+                  style="color:#6ab0d4;border-color:#6ab0d4"
+                  on:click={() => { newGroupTarget = newGroupTarget === codename ? '' : codename; }}>
+                  <span class="chip-label"><span>{codename}</span></span>
+                </button>
+              {/each}
+              {#if !devices.length}
+                <span style="font-size:10px;opacity:0.4">No players registered.</span>
+              {/if}
             </div>
             <button class="primary" style="margin-top:8px"
               disabled={!newGroupName.trim() || newGroupMembers.length < 2}
