@@ -135,6 +135,67 @@
       : [...selectedRecipients, codename];
   }
 
+  // ── Group threads ─────────────────────────────────────────────────────────
+  let groups = [];
+  let selectedGroup = null;
+  let groupCreateOpen = false;
+  let newGroupName = '';
+  let newGroupMembers = [];
+  let groupStatus = { text: '', type: '' };
+
+  async function loadGroups() {
+    try {
+      const data = await dbGet('groups');
+      if (!data) { groups = []; return; }
+      groups = Object.keys(data)
+        .map(k => ({ _id: k, ...data[k] }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch { groups = []; }
+  }
+
+  function toggleGroupMember(name) {
+    newGroupMembers = newGroupMembers.includes(name)
+      ? newGroupMembers.filter(n => n !== name)
+      : [...newGroupMembers, name];
+  }
+
+  async function createGroup() {
+    const name = newGroupName.trim();
+    if (!name || newGroupMembers.length < 2) {
+      groupStatus = { text: 'A name and at least 2 members are required.', type: 'err' };
+      return;
+    }
+    try {
+      await dbPost('groups', { name, members: [...newGroupMembers], createdAt: Date.now() });
+      newGroupName = '';
+      newGroupMembers = [];
+      groupCreateOpen = false;
+      groupStatus = { text: '', type: '' };
+      await loadGroups();
+    } catch (e) {
+      groupStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+  }
+
+  async function deleteGroup(id) {
+    if (!confirm('Delete this group thread? Existing messages will not be affected.')) return;
+    try {
+      await dbDelete(`groups/${id}`);
+      if (selectedGroup?._id === id) selectedGroup = null;
+      await loadGroups();
+    } catch (e) { console.error('Delete group failed', e); }
+  }
+
+  // Limit sender chips to group members when a group is selected
+  $: senderContacts = selectedGroup
+    ? contactList.filter(c => selectedGroup.members.includes(c.name))
+    : contactList;
+
+  // Clear sender if it's not a member of the newly selected group
+  $: if (selectedGroup && selectedSender && !selectedGroup.members.includes(selectedSender.name)) {
+    selectedSender = null;
+  }
+
   $: sendEnabled = !sending && !!selectedSender && (msgText.trim().length > 0 || !!selectedImage);
 
   async function loadMsgs() {
@@ -174,6 +235,7 @@
       const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now(), staged: false };
       if (selectedImage) payload.imageUrl = selectedImage.url;
       if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
+      if (selectedGroup) { payload.groupId = selectedGroup._id; payload.groupName = selectedGroup.name; }
       await dbPost('messages', payload);
       msgText = '';
       selectedImage = null;
@@ -1713,6 +1775,7 @@
   onMount(() => {
     addReply(); addReply();
     loadMsgs();
+    loadGroups();
     refreshDevices();
     refreshStaged();
     refreshLive();
@@ -1803,7 +1866,7 @@
       <div class="section">
         <div class="section-label">Sender</div>
         <div class="chip-grid">
-          {#each contactList as c (c._id)}
+          {#each senderContacts as c (c._id)}
             {@const chipColor = c.color || '#c9a227'}
             <button
               type="button"
@@ -1828,6 +1891,64 @@
             </button>
           {/each}
         </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Group Thread <span style="font-weight:400;opacity:0.5;font-size:10px;letter-spacing:0">(optional)</span></div>
+        <div class="chip-grid">
+          <button type="button" class="chip" class:selected={!selectedGroup}
+            style="color:#c9a227;border-color:#c9a227"
+            on:click={() => { selectedGroup = null; }}>
+            <span class="chip-label"><span>None</span></span>
+          </button>
+          {#each groups as g (g._id)}
+            <button type="button" class="chip" class:selected={selectedGroup?._id === g._id}
+              style="color:#5b9e8f;border-color:#5b9e8f"
+              on:click={() => { selectedGroup = g; }}>
+              <span class="chip-label">
+                <span>{g.name}</span>
+                <span class="chip-number">{g.members.join(' · ')}</span>
+              </span>
+            </button>
+          {/each}
+          <button type="button" class="chip"
+            style="color:#6a7d90;border-color:#6a7d90;border-style:dashed"
+            on:click={() => { groupCreateOpen = !groupCreateOpen; groupStatus = { text: '', type: '' }; }}>
+            <span class="chip-label"><span>{groupCreateOpen ? '✕ Cancel' : '+ New group'}</span></span>
+          </button>
+        </div>
+
+        {#if groupCreateOpen}
+          <div class="group-create-form">
+            <input class="group-name-input" bind:value={newGroupName} placeholder="Group name (e.g. Ivara &amp; Casven)" />
+            <div class="group-member-hint">Pick members:</div>
+            <div class="chip-grid">
+              {#each contactList as c (c._id)}
+                {@const chipColor = c.color || '#c9a227'}
+                <button type="button" class="chip chip--sm"
+                  class:selected={newGroupMembers.includes(c.name)}
+                  style="color:{chipColor};border-color:{chipColor}"
+                  on:click={() => toggleGroupMember(c.name)}>
+                  <span class="chip-label"><span>{c.name}</span></span>
+                </button>
+              {/each}
+            </div>
+            <button class="primary" style="margin-top:8px"
+              disabled={!newGroupName.trim() || newGroupMembers.length < 2}
+              on:click={createGroup}>
+              Create group
+            </button>
+            <div class="status-line" class:err={groupStatus.type === 'err'}>{groupStatus.text}</div>
+          </div>
+        {/if}
+
+        {#if selectedGroup}
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:11px;color:#5b9e8f;opacity:0.8">Group active.</span>
+            <button class="ghost-btn" style="font-size:10px;padding:2px 6px;color:#c0504a"
+              on:click={() => deleteGroup(selectedGroup._id)}>Delete group</button>
+          </div>
+        {/if}
       </div>
 
       <div class="section">
@@ -1864,6 +1985,9 @@
         <div class="selected-line">
           {#if selectedSender}
             Sending as <strong style="color:{selectedSender.color}">{selectedSender.name}</strong>
+            {#if selectedGroup}
+              in <strong style="color:#5b9e8f">{selectedGroup.name}</strong>
+            {/if}
             {#if selectedRecipients.length > 0}
               → <strong style="color:#6ab0d4">{selectedRecipients.join(', ')}</strong>
             {:else}
@@ -3767,8 +3891,33 @@
   .chip:active { transform: scale(0.96); }
   .chip-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; border: 1px solid rgba(255,255,255,0.15); flex-shrink: 0; }
   .chip.selected { box-shadow: inset 0 0 0 1px currentColor; }
+  .chip--sm { padding: 3px 10px 3px 6px; font-size: 11px; }
   .chip-label { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
   .chip-number { font-family: 'Courier New', monospace; font-size: 8px; letter-spacing: 0.3px; opacity: 0.55; }
+
+  .group-create-form {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .group-name-input {
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 6px;
+    color: #e8dfc8;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    width: 100%;
+  }
+  .group-name-input:focus { border-color: #5b9e8f; }
+  .group-member-hint { font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: #3a4a5a; }
 
   textarea {
     width: 100%; min-height: 70px; background: #0c0f16;

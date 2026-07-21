@@ -12,8 +12,9 @@
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
 
-  // Driven by ?sender=Name query param — null means list view
+  // Driven by ?sender=Name or ?thread=groupId — null on both means list view
   $: activeSender = $page.url.searchParams.get('sender');
+  $: activeThread = $page.url.searchParams.get('thread'); // groupId
 
   let myCodename = null;
   let messages = [];
@@ -118,31 +119,59 @@
 
   // ── derived views ─────────────────────────────────────────────────────────────
 
-  $: threadMessages = activeSender
-    ? messages.filter(m => m.sender === activeSender)
+  $: threadMessages = activeThread
+    ? messages.filter(m => m.groupId === activeThread)
+    : activeSender
+      ? messages.filter(m => m.sender === activeSender && !m.groupId)
+      : [];
+
+  $: isGroupThread = new Set(threadMessages.map(m => m.sender)).size > 1;
+
+  // Derive group display info from embedded message fields — no extra Firebase fetch
+  $: activeGroupName = activeThread
+    ? (threadMessages.find(m => m.groupName)?.groupName ?? 'Group Chat')
+    : null;
+  $: activeGroupMembers = activeThread
+    ? [...new Set(threadMessages.map(m => m.sender))]
     : [];
 
-  // Mark thread read whenever it updates
-  $: if (activeSender && threadMessages.length) {
+  // Mark thread read; use prefixed key for groups to avoid collisions with sender names
+  $: if ((activeSender || activeThread) && threadMessages.length) {
+    const seenKey = activeThread ? `group:${activeThread}` : activeSender;
     const maxTs = Math.max(...threadMessages.map(m => m.ts));
-    markSeen(activeSender, maxTs);
+    markSeen(seenKey, maxTs);
   }
 
   $: conversations = (() => {
-    if (activeSender) return [];
-    const groups = {};
+    if (activeSender || activeThread) return [];
+    const convMap = {};
     for (const m of messages) {
-      if (!groups[m.sender]) {
-        const meta = senderMeta(m.sender);
-        groups[m.sender] = { name: m.sender, color: meta.color, avatar: meta.avatar, lastTs: 0, lastText: '' };
+      const key = m.groupId ? `group:${m.groupId}` : `sender:${m.sender}`;
+      if (!convMap[key]) {
+        if (m.groupId) {
+          convMap[key] = {
+            key, groupId: m.groupId,
+            name: m.groupName || 'Group Chat',
+            isGroup: true, color: '#5b9e8f', avatar: null,
+            lastTs: 0, lastText: '', lastSender: ''
+          };
+        } else {
+          const meta = senderMeta(m.sender);
+          convMap[key] = {
+            key, name: m.sender,
+            isGroup: false, color: meta.color, avatar: meta.avatar,
+            lastTs: 0, lastText: ''
+          };
+        }
       }
-      if (m.ts >= groups[m.sender].lastTs) {
-        groups[m.sender].lastTs = m.ts;
-        groups[m.sender].lastText = m.imageUrl ? `📷 ${m.text || 'Photo'}` : (m.text || '');
+      if (m.ts >= convMap[key].lastTs) {
+        convMap[key].lastTs = m.ts;
+        convMap[key].lastText = m.imageUrl ? `📷 ${m.text || 'Photo'}` : (m.text || '');
+        if (m.groupId) convMap[key].lastSender = m.sender;
       }
     }
-    return Object.values(groups)
-      .map(g => ({ ...g, unread: g.lastTs > (lastSeenMap[g.name] ?? 0) }))
+    return Object.values(convMap)
+      .map(g => ({ ...g, unread: g.lastTs > (lastSeenMap[g.key] ?? 0) }))
       .sort((a, b) => b.lastTs - a.lastTs);
   })();
 </script>
@@ -157,7 +186,23 @@
 
 <!-- Per-page header — custom markup, not wire-header web component -->
 <header class="msg-header">
-  {#if activeSender}
+  {#if activeThread}
+    <!-- Group thread header -->
+    <a class="msg-back" href="{base}/messages" aria-label="Back to all conversations">&lsaquo;</a>
+    <div class="msg-header-group-avatars">
+      {#each activeGroupMembers.slice(0, 2) as name, i}
+        {@const meta = contactsByName[name] ?? { color: '#5b9e8f' }}
+        {@const color = meta.color}
+        <div class="msg-header-group-avatar" style="background:{hexToRgba(color, 0.18)};border-color:{color};color:{color};z-index:{2-i}">
+          {initials(name)}
+        </div>
+      {/each}
+    </div>
+    <div>
+      <div class="msg-header-title" style="color:#5b9e8f">{activeGroupName}</div>
+      <div class="msg-header-sub">{activeGroupMembers.join(' · ')}</div>
+    </div>
+  {:else if activeSender}
     {@const meta = contactsByName[activeSender] ?? { color: '#b8902f', avatar: null }}
     <a class="msg-back" href="{base}/messages" aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-avatar"
@@ -183,45 +228,81 @@
 </header>
 
 <div class="msg-feed" bind:this={feedEl}>
-  {#if activeSender}
+  {#if activeSender || activeThread}
     <!-- Thread view -->
     {#if !threadMessages.length}
-      <p class="msg-empty">Nothing from {activeSender} yet.</p>
+      <p class="msg-empty">Nothing here yet.</p>
     {:else}
-      {#each threadMessages as m (m.id)}
+      {#each threadMessages as m, i (m.id)}
         {@const meta = contactsByName[m.sender] ?? { color: '#b8902f', avatar: null }}
         {@const color = m.color || meta.color}
-        <div class="msg-row" in:fly={{ y: 10, duration: 400 }}>
-          <div class="msg-avatar"
-            style="background:{hexToRgba(color, 0.16)};border-color:{color};color:{color}">
-            {initials(m.sender)}
-            {#if meta.avatar}
-              <img src="{base}/{meta.avatar}" alt="" loading="lazy" class="avatar-img"
-                on:error={e => e.currentTarget.style.display = 'none'}>
-            {/if}
-          </div>
-          <div class="msg-content">
-            <div class="msg-top">
-              <span class="msg-name" style="color:{color}">{m.sender}</span>
-              <span class="msg-time">{relTime(m.ts)}</span>
+        {@const isFirstInRun = i === 0 || threadMessages[i - 1].sender !== m.sender}
+        {@const isLastInRun = i === threadMessages.length - 1 || threadMessages[i + 1].sender !== m.sender}
+
+        {#if isGroupThread}
+          <!-- Group thread: avatar + name only on first message of each sender run -->
+          <div class="msg-row" class:msg-row-continued={!isFirstInRun} in:fly={{ y: 10, duration: 400 }}>
+            <div class="msg-avatar-col">
+              {#if isFirstInRun}
+                <div class="msg-avatar"
+                  style="background:{hexToRgba(color, 0.16)};border-color:{color};color:{color}">
+                  {initials(m.sender)}
+                  {#if meta.avatar}
+                    <img src="{base}/{meta.avatar}" alt="" loading="lazy" class="avatar-img"
+                      on:error={e => e.currentTarget.style.display = 'none'}>
+                  {/if}
+                </div>
+              {:else}
+                <div class="msg-avatar-spacer"></div>
+              {/if}
             </div>
-            {#if m.recipients && myCodename}
+            <div class="msg-content">
+              {#if isFirstInRun}
+                <div class="msg-sender-name" style="color:{color}">{m.sender}</div>
+              {/if}
+              {#if isFirstInRun && m.recipients && myCodename}
+                <div class="msg-to">To: {myCodename}</div>
+              {/if}
+              <div class="msg-bubble" class:has-image={m.imageUrl} style="border-left-color:{color}">
+                {#if m.imageUrl}
+                  <img class="msg-image" src={m.imageUrl} alt="" loading="lazy"
+                    on:error={e => e.currentTarget.style.display = 'none'}>
+                {/if}
+                {#if m.text}
+                  <div class="msg-bubble-text">{m.text}</div>
+                {/if}
+                {#if m.attachmentUrl}
+                  <Attachment url={m.attachmentUrl} />
+                {/if}
+              </div>
+              {#if isLastInRun}
+                <span class="msg-time msg-time-group">{relTime(m.ts)}</span>
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <!-- Single sender thread: just the bubble, no repeated avatar/name -->
+          <div class="msg-row-simple" class:msg-row-simple-continued={!isFirstInRun} in:fly={{ y: 10, duration: 400 }}>
+            {#if isFirstInRun && m.recipients && myCodename}
               <div class="msg-to">To: {myCodename}</div>
             {/if}
-            <div class="msg-bubble" class:has-image={m.imageUrl} style="border-left-color:{color}">
-              {#if m.imageUrl}
-                <img class="msg-image" src={m.imageUrl} alt="" loading="lazy"
-                  on:error={e => e.currentTarget.style.display = 'none'}>
-              {/if}
-              {#if m.text}
-                <div class="msg-bubble-text">{m.text}</div>
-              {/if}
-              {#if m.attachmentUrl}
-                <Attachment url={m.attachmentUrl} />
-              {/if}
+            <div class="msg-bubble-wrap">
+              <div class="msg-bubble" class:has-image={m.imageUrl} style="border-left-color:{color}">
+                {#if m.imageUrl}
+                  <img class="msg-image" src={m.imageUrl} alt="" loading="lazy"
+                    on:error={e => e.currentTarget.style.display = 'none'}>
+                {/if}
+                {#if m.text}
+                  <div class="msg-bubble-text">{m.text}</div>
+                {/if}
+                {#if m.attachmentUrl}
+                  <Attachment url={m.attachmentUrl} />
+                {/if}
+              </div>
+              <span class="msg-time">{relTime(m.ts)}</span>
             </div>
           </div>
-        </div>
+        {/if}
       {/each}
     {/if}
   {:else}
@@ -231,23 +312,35 @@
     {:else}
       <PaginatedList items={conversations} pageSize={20} let:item>
         {@const g = item}
-        <a class="conv-row" href="{base}/messages?sender={encodeURIComponent(g.name)}"
+        <a class="conv-row"
+          href={g.isGroup
+            ? `${base}/messages?thread=${encodeURIComponent(g.groupId)}`
+            : `${base}/messages?sender=${encodeURIComponent(g.name)}`}
           in:fly={{ y: 8, duration: 350 }}>
-          <div class="conv-avatar"
-            style="background:{hexToRgba(g.color, 0.16)};border-color:{g.color};color:{g.color}">
-            {initials(g.name)}
-            {#if g.avatar}
-              <img src="{base}/{g.avatar}" alt="" loading="lazy" class="avatar-img"
-                on:error={e => e.currentTarget.style.display = 'none'}>
-            {/if}
-          </div>
+          {#if g.isGroup}
+            <div class="conv-avatar conv-avatar--group"
+              style="background:{hexToRgba(g.color, 0.16)};border-color:{g.color};color:{g.color}">
+              &#x2234;
+            </div>
+          {:else}
+            <div class="conv-avatar"
+              style="background:{hexToRgba(g.color, 0.16)};border-color:{g.color};color:{g.color}">
+              {initials(g.name)}
+              {#if g.avatar}
+                <img src="{base}/{g.avatar}" alt="" loading="lazy" class="avatar-img"
+                  on:error={e => e.currentTarget.style.display = 'none'}>
+              {/if}
+            </div>
+          {/if}
           <div class="conv-content">
             <div class="conv-top">
               <span class="conv-name" class:unread={g.unread}
                 style={g.unread ? '' : `color:${g.color}`}>{g.name}</span>
               <span class="conv-time">{relTime(g.lastTs)}</span>
             </div>
-            <div class="conv-preview" class:unread={g.unread}>{g.lastText}</div>
+            <div class="conv-preview" class:unread={g.unread}>
+              {#if g.isGroup && g.lastSender}{g.lastSender}: {/if}{g.lastText}
+            </div>
           </div>
           {#if g.unread}
             <span class="conv-unread-dot" aria-hidden="true"></span>
@@ -325,6 +418,25 @@
     position: relative;
     overflow: hidden;
   }
+  .msg-header-group-avatars {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .msg-header-group-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8.5px;
+    font-weight: 700;
+    position: relative;
+    overflow: hidden;
+  }
+  .msg-header-group-avatar:not(:first-child) { margin-left: -6px; }
+  .conv-avatar--group { font-size: 15px; letter-spacing: 0; }
   .msg-header-title {
     font-size: 14px;
     font-weight: 600;
@@ -354,26 +466,62 @@
   }
 
   /* ── thread messages ─────────────────────────────────────────────────────── */
+
+  /* Single-sender layout: no avatar, just bubble + time */
+  .msg-row-simple {
+    max-width: 480px;
+    margin: 0 auto 10px;
+  }
+  .msg-row-simple.msg-row-simple-continued { margin-bottom: 4px; }
+
+  .msg-bubble-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .msg-bubble-wrap .msg-bubble { flex: 1; min-width: 0; }
+  .msg-bubble-wrap .msg-time {
+    flex-shrink: 0;
+    align-self: flex-end;
+    padding-bottom: 2px;
+  }
+
+  /* Group-sender layout: avatar col + content */
   .msg-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     max-width: 480px;
-    margin: 0 auto 16px;
+    margin: 0 auto 10px;
   }
+  .msg-row.msg-row-continued { margin-bottom: 4px; }
+
+  .msg-avatar-col { flex-shrink: 0; width: 28px; }
+  .msg-avatar-spacer { width: 28px; height: 1px; }
+
   .msg-avatar {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     border: 1px solid;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11.5px;
+    font-size: 10px;
     font-weight: 700;
     position: relative;
     overflow: hidden;
   }
+  .msg-sender-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    margin-bottom: 3px;
+  }
+  .msg-time-group {
+    display: block;
+    margin-top: 3px;
+  }
+
   .avatar-img {
     position: absolute;
     inset: 0;
@@ -384,13 +532,7 @@
     border-radius: 50%;
   }
   .msg-content { flex: 1; min-width: 0; }
-  .msg-top {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-  .msg-name { font-size: 12.5px; font-weight: 600; }
+
   .msg-time { font-size: 9.5px; color: rgba(232, 223, 200, 0.4); }
   .msg-to {
     font-size: 9.5px;
