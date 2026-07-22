@@ -9,10 +9,12 @@
       return url;
     }
   })();
+
+  $: isPdf = filename.toLowerCase().endsWith('.pdf');
 </script>
 
 <a href={url} class="attachment" target="_blank" rel="noopener noreferrer">
-  📎 {filename} — View
+  {isPdf ? '📄' : '📎'} {filename} — View
 </a>
 
 <style>

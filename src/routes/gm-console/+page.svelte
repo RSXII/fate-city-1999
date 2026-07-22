@@ -11,9 +11,9 @@
   let activeTab = 'wire';
 
   const GITHUB_IMAGES_API =
-    'https://api.github.com/repos/RSXII/fate-city-1999/contents/images/messages';
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/messages';
   const GITHUB_ROOT_IMAGES_API =
-    'https://api.github.com/repos/RSXII/fate-city-1999/contents/images';
+    'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images';
   const GITHUB_FATESTAGRAM_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/fatestagram';
   const GITHUB_RIDES_API =
@@ -329,11 +329,13 @@
 
   // Per-reply picker state keyed by reply id
   let replyPickers = {}; // id → { open, loading, error, images }
+  let replyPdfPickers = {}; // id → { open, loading, error, pdfs }
 
   function addReply(from = '', body = '') {
     const id = ++replyCounter;
-    replies = [...replies, { id, from, body, imageUrl: '', size: 'md', bold: false, color: '' }];
+    replies = [...replies, { id, from, body, imageUrl: '', pdfUrl: '', size: 'md', bold: false, color: '' }];
     replyPickers = { ...replyPickers, [id]: { open: false, loading: false, error: '', images: [] } };
+    replyPdfPickers = { ...replyPdfPickers, [id]: { open: false, loading: false, error: '', pdfs: [] } };
   }
 
   function removeReply(id) {
@@ -341,6 +343,9 @@
     const p = { ...replyPickers };
     delete p[id];
     replyPickers = p;
+    const pp = { ...replyPdfPickers };
+    delete pp[id];
+    replyPdfPickers = pp;
   }
 
   async function toggleReplyPicker(id) {
@@ -374,6 +379,37 @@
     replies = replies.map(r => r.id === replyId ? { ...r, imageUrl: '' } : r);
   }
 
+  async function toggleReplyPdfPicker(id) {
+    const cur = replyPdfPickers[id];
+    if (cur.open) {
+      replyPdfPickers = { ...replyPdfPickers, [id]: { ...cur, open: false } };
+      return;
+    }
+    replyPdfPickers = { ...replyPdfPickers, [id]: { ...cur, open: true, loading: true, error: '', pdfs: [] } };
+    try {
+      const res = await fetch(GITHUB_IMAGES_API);
+      if (res.status === 404) {
+        replyPdfPickers = { ...replyPdfPickers, [id]: { ...replyPdfPickers[id], loading: false, error: 'No files found in images/messages/.' } };
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const pdfs = data.filter(f => f.type === 'file' && /\.pdf$/i.test(f.name));
+      replyPdfPickers = { ...replyPdfPickers, [id]: { ...replyPdfPickers[id], loading: false, pdfs, error: pdfs.length ? '' : 'No PDFs found in images/messages/.' } };
+    } catch (e) {
+      replyPdfPickers = { ...replyPdfPickers, [id]: { ...replyPdfPickers[id], loading: false, error: `Failed: ${e?.message ?? 'error'}` } };
+    }
+  }
+
+  function selectReplyPdf(replyId, file) {
+    replies = replies.map(r => r.id === replyId ? { ...r, pdfUrl: file.download_url } : r);
+    replyPdfPickers = { ...replyPdfPickers, [replyId]: { ...replyPdfPickers[replyId], open: false } };
+  }
+
+  function clearReplyPdf(replyId) {
+    replies = replies.map(r => r.id === replyId ? { ...r, pdfUrl: '' } : r);
+  }
+
   async function stageChain() {
     const subject = emailSubject.trim();
     if (!subject) { emailStatus = { text: 'A subject line is required.', type: 'err' }; return; }
@@ -390,8 +426,9 @@
         if (r.color) m.color = r.color;
       }
       if (r.imageUrl) m.imageUrl = r.imageUrl;
+      if (r.pdfUrl) m.pdfUrl = r.pdfUrl;
       return m;
-    }).filter(m => m.body || m.imageUrl);
+    }).filter(m => m.body || m.imageUrl || m.pdfUrl);
 
     const msgs = emailType === 'transmission' ? allMsgs.slice(0, 1) : allMsgs;
 
@@ -417,6 +454,7 @@
       emailClassification = 'decrypted';
       replies = [];
       replyPickers = {};
+      replyPdfPickers = {};
       replyCounter = 0;
       addReply(); addReply();
       emailStatus = { text: 'Staged. Use Deploy when the players are ready.', type: 'ok' };
@@ -2323,6 +2361,17 @@
                     <button type="button" class="reply-attach-remove" on:click={() => clearReplyImage(reply.id)}>&times;</button>
                   </div>
                 {/if}
+
+                {#if !reply.pdfUrl}
+                  <button type="button" class="ghost-btn reply-attach-btn" on:click={() => toggleReplyPdfPicker(reply.id)}>
+                    {replyPdfPickers[reply.id]?.open ? 'Close picker' : '+ Attach PDF'}
+                  </button>
+                {:else}
+                  <div class="reply-attach-preview">
+                    <span class="reply-attach-name">📄 {reply.pdfUrl.split('/').pop()}</span>
+                    <button type="button" class="reply-attach-remove" on:click={() => clearReplyPdf(reply.id)}>&times;</button>
+                  </div>
+                {/if}
               </div>
 
               {#if replyPickers[reply.id]?.open}
@@ -2336,6 +2385,23 @@
                       <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
                       <div class="img-thumb" on:click={() => selectReplyImage(reply.id, img)}>
                         <img src={img.download_url} alt={img.name} loading="lazy" />
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
+
+              {#if replyPdfPickers[reply.id]?.open}
+                <div class="reply-image-picker" style="grid-template-columns:1fr">
+                  {#if replyPdfPickers[reply.id].loading}
+                    <div class="img-picker-status">Loading…</div>
+                  {:else if replyPdfPickers[reply.id].error}
+                    <div class="img-picker-status err">{replyPdfPickers[reply.id].error}</div>
+                  {:else}
+                    {#each replyPdfPickers[reply.id].pdfs as pdf (pdf.name)}
+                      <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+                      <div class="pdf-file-row" on:click={() => selectReplyPdf(reply.id, pdf)}>
+                        📄 {pdf.name}
                       </div>
                     {/each}
                   {/if}
@@ -4163,6 +4229,8 @@
   .reply-attach-remove { background: none; border: none; color: #6a7d90; font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1; }
   .reply-attach-remove:hover { color: #e24b4a; }
   .reply-image-picker { margin-top: 8px; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; max-height: 180px; overflow-y: auto; }
+  .pdf-file-row { cursor: pointer; font-size: 11.5px; font-family: 'Courier New', Courier, monospace; color: #c9a227; padding: 6px 8px; border-radius: 5px; border: 1px solid #1a2030; transition: background 0.12s ease; }
+  .pdf-file-row:hover { background: rgba(201,162,39,0.08); border-color: rgba(201,162,39,0.3); }
 
   .email-subject-input { width: 100%; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; color: #e8dfc8; font-family: inherit; font-size: 13.5px; padding: 10px 12px; outline: none; margin-bottom: 12px; }
   .email-subject-input:focus { border-color: #c9a227; }

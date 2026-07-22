@@ -224,6 +224,7 @@
             </div>
             <div class="mail-body">{m.body ?? ''}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
+            {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
 
         {:else if threadType === 'log'}
@@ -240,6 +241,7 @@
               style={m.color ? `color:${m.color}` : ''}
             >{m.body ?? ''}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
+            {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
 
         {:else if threadType === 'document'}
@@ -256,6 +258,7 @@
               style={m.color ? `color:${m.color}` : ''}
             >{m.body ?? ''}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
+            {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
 
         {:else if threadType === 'transmission'}
@@ -274,6 +277,7 @@
             {#if m.from}<div class="mail-block-header"><span class="mail-from">FROM: {m.from}</span><span class="mail-ts">{m.ts ? relTime(m.ts) : ''}</span></div>{/if}
             <div class="mail-body">{m.body ?? ''}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
+            {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
         {/if}
       {/each}
