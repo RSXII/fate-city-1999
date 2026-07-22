@@ -27,20 +27,17 @@
 
   let isFirstPoll = true;
 
-  let responses = [];
+  let allResponses = []; // all player responses — always fetched, derived per-thread
   let responseText = '';
   let sendingResponse = false;
   let playerProfiles = {}; // codename → { imageUrl }
 
-  // Clear stale responses when navigating between threads
-  let _lastThreadKey = null;
-  $: {
-    const _key = activeThread || activeSender || '';
-    if (_key !== _lastThreadKey) {
-      responses = [];
-      _lastThreadKey = _key;
-    }
-  }
+  // Derive the active thread's responses reactively — no stale-clear needed
+  $: responses = activeThread
+    ? allResponses.filter(r => r.groupId === activeThread)
+    : activeSender
+    ? allResponses.filter(r => r.context === activeSender && !r.groupId)
+    : [];
 
   function playTextChime() {
     try {
@@ -103,17 +100,14 @@
   }
 
   async function pollResponses() {
-    if (!myCodename || (!activeSender && !activeThread)) return;
+    if (!myCodename) return;
     try {
       const data = await dbGet('player-responses', { orderBy: '$key', limitToLast: 200 });
-      if (!data) { responses = []; return; }
-      const all = Object.entries(data).map(([id, r]) => ({ ...r, id, _isResponse: true }));
-      if (activeThread) {
-        responses = all.filter(r => r.groupId === activeThread).sort((a, b) => a.ts - b.ts);
-      } else if (activeSender) {
-        responses = all.filter(r => r.context === activeSender && !r.groupId).sort((a, b) => a.ts - b.ts);
-      }
-    } catch { responses = []; }
+      if (!data) { allResponses = []; return; }
+      allResponses = Object.entries(data)
+        .map(([id, r]) => ({ ...r, id, _isResponse: true }))
+        .sort((a, b) => a.ts - b.ts);
+    } catch { allResponses = []; }
   }
 
   async function sendResponse() {
@@ -150,7 +144,7 @@
     if (hadNew && !isFirstPoll) playTextChime();
     if ((activeSender || activeThread) && hadNew) needsScroll = true;
     isFirstPoll = false;
-    if (activeSender || activeThread) await pollResponses();
+    await pollResponses();
   }
 
   afterUpdate(() => {
@@ -217,25 +211,41 @@
             key, groupId: m.groupId,
             name: m.groupName || 'Group Chat',
             isGroup: true, color: '#5b9e8f', avatar: null,
-            lastTs: 0, lastText: '', lastSender: ''
+            lastTs: 0, lastText: '', lastSender: '', lastNpcTs: 0
           };
         } else {
           const meta = senderMeta(m.sender);
           convMap[key] = {
             key, name: m.sender,
             isGroup: false, color: meta.color, avatar: meta.avatar,
-            lastTs: 0, lastText: ''
+            lastTs: 0, lastText: '', lastNpcTs: 0
           };
         }
       }
       if (m.ts >= convMap[key].lastTs) {
         convMap[key].lastTs = m.ts;
+        convMap[key].lastNpcTs = m.ts;
         convMap[key].lastText = m.imageUrl ? `📷 ${m.text || 'Photo'}` : (m.text || '');
         if (m.groupId) convMap[key].lastSender = m.sender;
       }
     }
+    // Fold in player responses — update last message and sort order if more recent
+    for (const r of allResponses) {
+      const convKey = r.groupId ? `group:${r.groupId}` : r.context ? `sender:${r.context}` : null;
+      if (convKey && convMap[convKey] && r.ts > convMap[convKey].lastTs) {
+        convMap[convKey].lastTs = r.ts;
+        if (convMap[convKey].isGroup) {
+          // Group threads already show lastSender as a prefix in the template
+          convMap[convKey].lastSender = r.codename;
+          convMap[convKey].lastText = r.text;
+        } else {
+          // 1:1 threads have no lastSender prefix — include codename in the text
+          convMap[convKey].lastText = `${r.codename}: ${r.text}`;
+        }
+      }
+    }
     return Object.values(convMap)
-      .map(g => ({ ...g, unread: g.lastTs > (lastSeenMap[g.key] ?? 0) }))
+      .map(g => ({ ...g, unread: g.lastNpcTs > (lastSeenMap[g.key] ?? 0) }))
       .sort((a, b) => b.lastTs - a.lastTs);
   })();
 </script>
