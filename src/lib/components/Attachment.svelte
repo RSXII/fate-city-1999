@@ -11,9 +11,12 @@
   })();
 
   $: isPdf = filename.toLowerCase().endsWith('.pdf');
+  $: href = isPdf
+    ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`
+    : url;
 </script>
 
-<a href={url} class="attachment" target="_blank" rel="noopener noreferrer">
+<a href={href} class="attachment" target="_blank" rel="noopener noreferrer">
   {isPdf ? '📄' : '📎'} {filename} — View
 </a>
 
