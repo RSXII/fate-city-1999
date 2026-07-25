@@ -76,9 +76,32 @@
     else { adjustStatus = ''; adjustStatusType = ''; }
   }
 
+  // ── Intro ──────────────────────────────────────────────────────────────────
+  let showIntro = false;
+  let introPhase = 'login'; // 'login' | 'animate'
+  const fakePassword = 'vdb2077secure';
+  let dismissTimer;
+
+  function handleLogin() {
+    introPhase = 'animate';
+    const audio = document.getElementById('vb-jingle-audio');
+    if (audio) audio.play().catch(() => {});
+    dismissTimer = setTimeout(dismissIntro, 12500);
+  }
+
+  function dismissIntro() {
+    clearTimeout(dismissTimer);
+    showIntro = false;
+    if (typeof sessionStorage !== 'undefined')
+      sessionStorage.setItem('vb_intro_seen', '1');
+  }
+
   onMount(() => {
     if (!browser) return;
     codename = getCodename() || 'UNKNOWN';
+    if (!sessionStorage.getItem('vb_intro_seen')) {
+      showIntro = true;
+    }
     loadAccount();
   });
 </script>
@@ -86,6 +109,99 @@
 <svelte:head>
   <title>Vandewalle Bank</title>
 </svelte:head>
+
+{#if showIntro}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <div class="vb-intro-overlay">
+    <audio id="vb-jingle-audio" src="{base}/sounds/vandewalle_jingle.mp3" preload="auto"></audio>
+
+    {#if introPhase === 'login'}
+      <!-- ── Login modal ── -->
+      <div class="vb-intro-login">
+        <!-- Logo mark -->
+        <svg class="vb-intro-login-logo" viewBox="0 0 80 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="il-grad1" x1="0" y1="0" x2="80" y2="72" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#a78bfa"/>
+              <stop offset="40%" stop-color="#818cf8"/>
+              <stop offset="100%" stop-color="#60a5fa"/>
+            </linearGradient>
+          </defs>
+          <path d="M40 68 L4 8 L76 8 Z" stroke="url(#il-grad1)" stroke-width="3.5" stroke-linejoin="round" fill="rgba(109,40,217,0.12)"/>
+          <path d="M40 52 L18 22 L62 22 Z" stroke="url(#il-grad1)" stroke-width="2.5" stroke-linejoin="round" fill="rgba(96,165,250,0.07)"/>
+        </svg>
+
+        <div class="vb-intro-login-title">LOG IN TO ACCOUNT</div>
+        <div class="vb-intro-login-divider"></div>
+
+        <div class="vb-intro-field-group">
+          <label class="vb-intro-field-label">ACCOUNT HOLDER</label>
+          <div class="vb-intro-field-box vb-intro-field-box--readonly">
+            <span class="vb-intro-field-value">{codename || 'OPERATIVE'}</span>
+          </div>
+        </div>
+
+        <div class="vb-intro-field-group">
+          <label class="vb-intro-field-label">PASSWORD</label>
+          <div class="vb-intro-field-box">
+            <input
+              class="vb-intro-password"
+              type="password"
+              value={fakePassword}
+              readonly
+              tabindex="-1"
+            />
+          </div>
+        </div>
+
+        <button class="vb-intro-login-btn" on:click={handleLogin}>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13 10H4m0 0l3-3m-3 3l3 3M17 4v12"/>
+          </svg>
+          ACCESS NETWORK
+        </button>
+      </div>
+
+    {:else}
+      <!-- ── Animation phase ── -->
+      <div class="vb-intro-anim">
+        <div class="vb-intro-scanlines"></div>
+
+        <!-- Triangle logo draws in -->
+        <div class="vb-intro-logo-wrap">
+          <svg class="vb-intro-anim-svg" viewBox="0 0 80 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="ia-grad1" x1="0" y1="0" x2="80" y2="72" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#a78bfa"/>
+                <stop offset="40%" stop-color="#818cf8"/>
+                <stop offset="100%" stop-color="#60a5fa"/>
+              </linearGradient>
+              <linearGradient id="ia-grad2" x1="80" y1="0" x2="0" y2="72" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#c4b5fd"/>
+                <stop offset="50%" stop-color="#818cf8"/>
+                <stop offset="100%" stop-color="#38bdf8"/>
+              </linearGradient>
+            </defs>
+            <path class="vb-anim-path-outer" d="M40 68 L4 8 L76 8 Z"
+              stroke="url(#ia-grad1)" stroke-width="3.5" stroke-linejoin="round" fill="rgba(109,40,217,0.08)"/>
+            <path class="vb-anim-path-inner" d="M40 52 L18 22 L62 22 Z"
+              stroke="url(#ia-grad2)" stroke-width="2.5" stroke-linejoin="round" fill="rgba(96,165,250,0.06)"/>
+            <!-- Corner accents -->
+            <line class="vb-anim-accent" x1="4" y1="8" x2="12" y2="8" stroke="#c4b5fd" stroke-width="2" opacity="0"/>
+            <line class="vb-anim-accent" x1="4" y1="8" x2="8" y2="15" stroke="#c4b5fd" stroke-width="2" opacity="0"/>
+          </svg>
+        </div>
+
+        <!-- VANDEWALLE name — fires at 8s to sync with jingle -->
+        <div class="vb-anim-name-wrap">
+          <div class="vb-anim-name">VANDEWALLE</div>
+          <div class="vb-anim-bank">BANK</div>
+          <div class="vb-anim-tagline">SECURE FINANCIAL NETWORK · EST. 2047</div>
+        </div>
+      </div>
+    {/if}
+  </div>
+{/if}
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
 <wire-header back="{base}/home" title="Vandewalle Bank" layout="flex"></wire-header>
@@ -647,5 +763,282 @@
   .vb-sub-unit {
     font-size: 9px;
     opacity: 0.6;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     INTRO OVERLAY
+  ════════════════════════════════════════════════════════ */
+  .vb-intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: #030306;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Login modal ── */
+  .vb-intro-login {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: min(340px, 90vw);
+    background: linear-gradient(145deg, #0e0b1a 0%, #080c1a 70%, #050810 100%);
+    border: 1px solid rgba(124, 58, 237, 0.55);
+    border-radius: 20px;
+    padding: 36px 28px 32px;
+    box-shadow:
+      0 0 60px rgba(109, 40, 217, 0.2),
+      0 0 120px rgba(96, 165, 250, 0.08),
+      inset 0 1px 0 rgba(196, 181, 253, 0.12);
+    animation: vb-login-in 0.4s ease-out both;
+  }
+  @keyframes vb-login-in {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .vb-intro-login-logo {
+    width: 56px;
+    height: 50px;
+    margin-bottom: 18px;
+    filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.5));
+  }
+
+  .vb-intro-login-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: rgba(196, 181, 253, 0.7);
+    text-align: center;
+    margin-bottom: 16px;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .vb-intro-login-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(124, 58, 237, 0.5), rgba(96, 165, 250, 0.3), transparent);
+    margin-bottom: 22px;
+  }
+
+  .vb-intro-field-group {
+    width: 100%;
+    margin-bottom: 14px;
+  }
+  .vb-intro-field-label {
+    display: block;
+    font-size: 8px;
+    letter-spacing: 2.5px;
+    color: rgba(196, 181, 253, 0.35);
+    margin-bottom: 5px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  .vb-intro-field-box {
+    width: 100%;
+    background: rgba(109, 40, 217, 0.08);
+    border: 1px solid rgba(124, 58, 237, 0.4);
+    border-radius: 8px;
+    padding: 11px 14px;
+    box-sizing: border-box;
+  }
+  .vb-intro-field-box--readonly {
+    border-color: rgba(124, 58, 237, 0.25);
+    background: rgba(109, 40, 217, 0.04);
+  }
+  .vb-intro-field-value {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #e2e8f0;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  }
+  .vb-intro-password {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: rgba(196, 181, 253, 0.6);
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    cursor: default;
+    -webkit-text-security: disc;
+    pointer-events: none;
+    padding: 0;
+  }
+
+  .vb-intro-login-btn {
+    margin-top: 10px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, rgba(109, 40, 217, 0.25) 0%, rgba(96, 165, 250, 0.15) 100%);
+    border: 1px solid rgba(124, 58, 237, 0.65);
+    border-radius: 10px;
+    color: #c4b5fd;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    box-shadow: 0 0 20px rgba(109, 40, 217, 0.15);
+  }
+  .vb-intro-login-btn svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+  }
+  .vb-intro-login-btn:active {
+    box-shadow: 0 0 30px rgba(109, 40, 217, 0.4);
+    border-color: rgba(167, 139, 250, 0.9);
+  }
+
+  /* ── Animation phase ── */
+  .vb-intro-anim {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    animation: vb-anim-fade-in 0.5s ease-out both;
+  }
+  @keyframes vb-anim-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Scanlines */
+  .vb-intro-scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 3px,
+      rgba(109, 40, 217, 0.03) 3px, rgba(109, 40, 217, 0.03) 4px
+    );
+    animation: vb-scanlines-in 1s ease-out 0.3s both;
+  }
+  @keyframes vb-scanlines-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Logo */
+  .vb-intro-logo-wrap {
+    position: relative;
+    margin-bottom: 32px;
+    animation: vb-logo-appear 0.4s ease-out 0.4s both;
+  }
+  @keyframes vb-logo-appear {
+    from { opacity: 0; transform: scale(0.8); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .vb-intro-anim-svg {
+    width: 140px;
+    height: 126px;
+    filter: drop-shadow(0 0 16px rgba(167, 139, 250, 0.4));
+    animation: vb-logo-glow 2s ease-in-out 5s infinite alternate;
+  }
+  @keyframes vb-logo-glow {
+    from { filter: drop-shadow(0 0 16px rgba(167, 139, 250, 0.4)); }
+    to   { filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.85)) drop-shadow(0 0 60px rgba(96, 165, 250, 0.3)); }
+  }
+
+  /* Outer triangle draws in: perimeter ~212, delay 0.5s, duration 2.5s */
+  .vb-anim-path-outer {
+    stroke-dasharray: 215;
+    stroke-dashoffset: 215;
+    animation: vb-draw-path 2.5s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
+  }
+  /* Inner triangle draws in: perimeter ~119, delay 2.8s, duration 1.8s */
+  .vb-anim-path-inner {
+    stroke-dasharray: 120;
+    stroke-dashoffset: 120;
+    animation: vb-draw-path 1.8s cubic-bezier(0.4, 0, 0.2, 1) 2.8s forwards;
+  }
+  @keyframes vb-draw-path {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Corner accent lines appear after inner triangle */
+  .vb-anim-accent {
+    animation: vb-accent-appear 0.4s ease-out 4.7s forwards;
+  }
+  .vb-anim-accent:nth-child(3) { animation-delay: 4.7s; }
+  .vb-anim-accent:nth-child(4) { animation-delay: 4.9s; }
+  @keyframes vb-accent-appear {
+    to { opacity: 0.7; }
+  }
+
+  /* Name section */
+  .vb-anim-name-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  /* VANDEWALLE — fires at 8s, syncs with jingle vocal */
+  .vb-anim-name {
+    font-size: clamp(28px, 8vw, 42px);
+    font-weight: 900;
+    letter-spacing: 8px;
+    background: linear-gradient(90deg, #c4b5fd 0%, #818cf8 45%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    opacity: 0;
+    transform: translateX(-24px) scale(0.95);
+    animation: vb-name-slam 0.7s cubic-bezier(0.16, 1, 0.3, 1) 8s forwards;
+    text-shadow: none;
+    filter: drop-shadow(0 0 20px rgba(167, 139, 250, 0.6));
+  }
+  @keyframes vb-name-slam {
+    0%   { opacity: 0; transform: translateX(-24px) scale(0.95); }
+    60%  { opacity: 1; transform: translateX(4px) scale(1.02); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+  }
+
+  /* BANK — appears just after the name */
+  .vb-anim-bank {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 9px;
+    color: rgba(96, 165, 250, 0.6);
+    opacity: 0;
+    animation: vb-bank-in 0.5s ease-out 8.6s forwards;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    padding-left: 9px; /* compensate for letter-spacing on last char */
+  }
+  @keyframes vb-bank-in {
+    from { opacity: 0; transform: scaleX(0.8) translateY(-4px); }
+    to   { opacity: 1; transform: scaleX(1) translateY(0); }
+  }
+
+  /* Tagline — appears at ~10s */
+  .vb-anim-tagline {
+    margin-top: 18px;
+    font-size: 8px;
+    letter-spacing: 2.5px;
+    color: rgba(196, 181, 253, 0.25);
+    font-family: 'Courier New', Courier, monospace;
+    text-align: center;
+    opacity: 0;
+    animation: vb-tagline-in 0.8s ease-out 10s forwards;
+  }
+  @keyframes vb-tagline-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 </style>
