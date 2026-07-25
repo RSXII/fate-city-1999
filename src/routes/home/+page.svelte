@@ -124,6 +124,38 @@
   let timerFetchPoll;
   let rafId;
 
+  // ── Gyroscope parallax ────────────────────────────────────────────────────
+  let wallpaperEl;
+  let _orientationHandler = null;
+
+  function _setupParallax() {
+    if (!wallpaperEl) return;
+    function handler(e) {
+      const gx = Math.max(-25, Math.min(25, e.gamma ?? 0));
+      const gy = Math.max(-25, Math.min(25, (e.beta ?? 90) - 90));
+      wallpaperEl.style.transform = `scale(1.05) translate(${(gx / 25) * 14}px, ${(gy / 25) * 10}px)`;
+    }
+    _orientationHandler = handler;
+    window.addEventListener('deviceorientation', handler, { passive: true });
+  }
+
+  async function _initParallax() {
+    if (!browser) return;
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS 13+ requires a user gesture to grant permission
+      document.addEventListener('touchstart', async function onFirstTouch() {
+        document.removeEventListener('touchstart', onFirstTouch);
+        try {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm === 'granted') _setupParallax();
+        } catch { /* denied */ }
+      }, { once: true, passive: true });
+    } else {
+      _setupParallax();
+    }
+  }
+
   function getLastSeenMap() {
     try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? '{}'); }
     catch { return {}; }
@@ -242,6 +274,7 @@
     oncePollInterval = visibilityAwareInterval(pollOnce, 7000);
     fetchTimerState();
     timerFetchPoll = visibilityAwareInterval(fetchTimerState, 5000);
+    _initParallax();
   });
 
   onDestroy(() => {
@@ -250,12 +283,15 @@
     if (timerFetchPoll) timerFetchPoll();
     if (rafId) cancelAnimationFrame(rafId);
     clearTimeout(toastTimer);
+    if (_orientationHandler) window.removeEventListener('deviceorientation', _orientationHandler);
   });
 </script>
 
 <svelte:head>
   <title>Fate City: 1999 — Wire</title>
 </svelte:head>
+
+<div class="wallpaper" bind:this={wallpaperEl} style="background-image: url('{base}/images/phonebg.jpg')" aria-hidden="true"></div>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
 
@@ -301,7 +337,7 @@
       <div class="hs-page">
         <div class="hs-row">
           <a class="hs-icon" href="{base}/messages">
-            <div class="hs-icon-tile" class:has-unread={unreadCount > 0}>
+            <div class="hs-icon-tile tile-messages" class:has-unread={unreadCount > 0}>
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
               </svg>
@@ -310,7 +346,7 @@
             <span class="hs-icon-label">Messages</span>
           </a>
           <a class="hs-icon" href="{base}/phone">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-phone">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z" />
               </svg>
@@ -318,7 +354,7 @@
             <span class="hs-icon-label">Phone</span>
           </a>
           <a class="hs-icon" href="{base}/calendar">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-calendar">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="4" y="5" width="16" height="15" rx="1.5" />
                 <line x1="4" y1="9.5" x2="20" y2="9.5" />
@@ -333,7 +369,7 @@
 
         <div class="hs-row">
           <a class="hs-icon" href="{base}/jobs">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-jobs">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7l-5-4z" />
                 <polyline points="14 3 14 7 18 7" />
@@ -366,18 +402,27 @@
         </div>
 
         <div class="hs-row">
-          <a class="hs-icon" href="{base}/camera">
-            <div class="hs-icon-tile">
-              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
-                <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
-                <circle cx="12" cy="13.7" r="3.3" />
+          <a class="hs-icon" href="{base}/bank">
+            <div class="hs-icon-tile vb-tile">
+              <svg viewBox="0 0 80 72" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="vb-icon-svg">
+                <defs>
+                  <linearGradient id="vb-hs-g1" x1="0" y1="0" x2="80" y2="72" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#a78bfa"/>
+                    <stop offset="100%" stop-color="#60a5fa"/>
+                  </linearGradient>
+                  <linearGradient id="vb-hs-g2" x1="80" y1="0" x2="0" y2="72" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#c4b5fd"/>
+                    <stop offset="100%" stop-color="#38bdf8"/>
+                  </linearGradient>
+                </defs>
+                <path d="M40 66 L6 10 L74 10 Z" stroke="url(#vb-hs-g1)" stroke-width="5" stroke-linejoin="round" fill="none"/>
+                <path d="M40 50 L20 24 L60 24 Z" stroke="url(#vb-hs-g2)" stroke-width="3.5" stroke-linejoin="round" fill="none"/>
               </svg>
             </div>
-            <span class="hs-icon-label">Camera</span>
+            <span class="hs-icon-label">Vandewalle</span>
           </a>
           <a class="hs-icon" href="{base}/emails">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-email">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
                 <path d="M3.6 6.8l8.4 6.3 8.4-6.3" />
@@ -386,7 +431,7 @@
             <span class="hs-icon-label">Email</span>
           </a>
           <a class="hs-icon" href="{base}/settings">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-settings">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3.8" />
                 <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
@@ -436,17 +481,20 @@
 
           <!-- FateStaGram -->
           <a class="hs-icon" href="{base}/fatestagram">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-fsg">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <!-- IG-style rounded square -->
+                <defs>
+                  <linearGradient id="fsg-icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#f59e0b"/>
+                    <stop offset="50%" stop-color="#ec4899"/>
+                    <stop offset="100%" stop-color="#a855f7"/>
+                  </linearGradient>
+                </defs>
                 <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-                <!-- Camera lens -->
                 <circle cx="12" cy="12" r="4.2" />
-                <!-- Crosshair reticle inside lens (Fate City twist) -->
                 <line x1="12" y1="9.2" x2="12" y2="14.8" />
                 <line x1="9.2" y1="12" x2="14.8" y2="12" />
-                <!-- Viewfinder dot top-right -->
-                <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none" />
+                <circle cx="17.5" cy="6.5" r="1.2" fill="#ec4899" stroke="none" />
               </svg>
             </div>
             <span class="hs-icon-label">FateStaGram</span>
@@ -487,7 +535,16 @@
             </div>
             <span class="hs-icon-label">Timer</span>
           </a>
-          <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
+          <a class="hs-icon" href="{base}/camera">
+            <div class="hs-icon-tile">
+              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+                <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
+                <circle cx="12" cy="13.7" r="3.3" />
+              </svg>
+            </div>
+            <span class="hs-icon-label">Camera</span>
+          </a>
         </div>
         <!-- Row 2: EverNear, [empty], [empty] -->
         <div class="hs-row">
@@ -689,6 +746,19 @@
     pointer-events: auto;
   }
 
+  /* Wallpaper */
+  .wallpaper {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(10px) brightness(0.75);
+    transform: scale(1.05);
+    z-index: -1;
+    will-change: transform;
+  }
+
   /* Home screen wrap */
   .hs-wrap {
     flex: 1;
@@ -759,7 +829,9 @@
     margin: 0 auto;
     border: 1px solid rgba(201, 162, 39, 0.35);
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(10, 14, 28, 0.48);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -811,6 +883,22 @@
     50%       { box-shadow: 0 0 48px rgba(124, 58, 237, 0.95), 0 0 18px rgba(168, 85, 247, 0.7), inset 0 0 24px rgba(124, 58, 237, 0.35); }
   }
 
+  /* Vandewalle Bank tile — border inherits standard yellow from .hs-icon-tile */
+
+  /* Per-app icon colors */
+  .tile-messages :global(svg) { stroke: #93c5fd; color: #93c5fd; }
+  .tile-phone    :global(svg) { stroke: #93c5fd; }
+  .tile-calendar :global(svg) { stroke: #f1f5f9; color: #f1f5f9; }
+  .tile-jobs     :global(svg) { stroke: #22d3ee; }
+  .tile-email    :global(svg) { stroke: #f87171; }
+  .tile-settings :global(svg) { stroke: #94a3b8; color: #94a3b8; }
+  .tile-fsg      :global(svg) { stroke: url(#fsg-icon-grad); }
+  .vb-icon-svg {
+    width: 38px !important;
+    height: 34px !important;
+    stroke: none !important;
+  }
+
   /* EverNear tile */
   .evernear-tile {
     border-color: rgba(217, 70, 239, 0.45);
@@ -840,8 +928,9 @@
     font-size: 9px;
     letter-spacing: 1.1px;
     text-transform: uppercase;
-    color: #b8902f;
+    color: #e8d9a0;
     text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
 
   /* Page dots */
@@ -851,6 +940,7 @@
     gap: 7px;
     margin-top: 22px;
     margin-bottom: 8px;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.7));
   }
   .hs-dot {
     width: 6px; height: 6px;
