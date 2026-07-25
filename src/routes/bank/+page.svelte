@@ -11,6 +11,9 @@
   let loading = true;
   let error = '';
 
+  let frozen = false;
+  let subscriptions = {};
+
   let adjustAmount = '';
   let adjusting = false;
   let adjustStatus = '';
@@ -31,6 +34,8 @@
       if (data && typeof data.balance === 'number') {
         balance = data.balance;
         accountNumber = data.accountNumber || genAccountNumber(codename);
+        frozen = data.frozen ?? false;
+        subscriptions = data.subscriptions ?? {};
         if (!data.accountNumber) {
           await dbPut(`bank/${codename}/accountNumber`, accountNumber);
         }
@@ -86,6 +91,19 @@
 <wire-header back="{base}/home" title="Vandewalle Bank" layout="flex"></wire-header>
 
 <div class="vb-shell">
+  {#if frozen}
+    <div class="vb-frozen-overlay" role="alert" aria-live="assertive">
+      <div class="vb-frozen-scanline" aria-hidden="true"></div>
+      <svg class="vb-frozen-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="11" width="14" height="10" rx="2"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        <circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+      <p class="vb-frozen-label">ACCOUNT FROZEN</p>
+      <div class="vb-frozen-divider" aria-hidden="true"></div>
+      <p class="vb-frozen-sub">This account has been suspended by FCPD directive. All transactions are blocked pending review.</p>
+    </div>
+  {/if}
 
   <!-- Header -->
   <header class="vb-header">
@@ -199,6 +217,19 @@
 
         <p class="vb-honor-note">Platinum is tracked on the honor system.<br>Keep your ledger accurate.</p>
       </div>
+
+      {#if Object.keys(subscriptions).length > 0}
+        <div class="vb-subs">
+          <div class="vb-subs-label">// ACTIVE SERVICES</div>
+          <div class="vb-subs-divider"></div>
+          {#each Object.values(subscriptions) as sub}
+            <div class="vb-sub-row">
+              <span class="vb-sub-name">{sub.name}</span>
+              <span class="vb-sub-cost">-₱{(sub.cost ?? 0).toLocaleString()}<span class="vb-sub-unit">/wk</span></span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -210,6 +241,7 @@
     flex-direction: column;
     overflow-y: auto;
     background: #050508;
+    position: relative;
   }
 
   /* ── Header ── */
@@ -517,5 +549,103 @@
     color: rgba(196, 181, 253, 0.2);
     margin: 8px 0 0;
     letter-spacing: 0.5px;
+  }
+
+  /* ── Frozen overlay ── */
+  .vb-frozen-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background: rgba(10, 2, 2, 0.97);
+    border-top: 2px solid #ef4444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 28px;
+    gap: 16px;
+    overflow: hidden;
+  }
+  .vb-frozen-scanline {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 3px,
+      rgba(239,68,68,0.04) 3px, rgba(239,68,68,0.04) 4px
+    );
+  }
+  .vb-frozen-icon {
+    width: 48px;
+    height: 48px;
+    color: #ef4444;
+    opacity: 0.85;
+  }
+  .vb-frozen-label {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 5px;
+    color: #ef4444;
+    margin: 0;
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    text-align: center;
+  }
+  .vb-frozen-divider {
+    width: 60px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(239,68,68,0.6), transparent);
+  }
+  .vb-frozen-sub {
+    font-size: 11px;
+    line-height: 1.65;
+    color: rgba(252,165,165,0.4);
+    text-align: center;
+    margin: 0;
+    max-width: 280px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Active services ── */
+  .vb-subs {
+    background: rgba(109, 40, 217, 0.05);
+    border: 1px solid rgba(109, 40, 217, 0.2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vb-subs-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(167, 139, 250, 0.4);
+    font-family: 'Courier New', Courier, monospace;
+  }
+  .vb-subs-divider {
+    height: 1px;
+    background: linear-gradient(to right, rgba(124,58,237,0.3), transparent);
+    margin-bottom: 2px;
+  }
+  .vb-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .vb-sub-name {
+    font-size: 12px;
+    color: rgba(226, 232, 240, 0.75);
+  }
+  .vb-sub-cost {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fca5a5;
+    font-family: 'Courier New', Courier, monospace;
+    white-space: nowrap;
+  }
+  .vb-sub-unit {
+    font-size: 9px;
+    opacity: 0.6;
   }
 </style>

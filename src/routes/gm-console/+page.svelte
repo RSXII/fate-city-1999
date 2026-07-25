@@ -1938,10 +1938,17 @@
     name: c.name,
     balance: null,
     accountNumber: '',
+    frozen: false,
+    subscriptions: {},
     _addInput: '',
     _adding: false,
     _addStatus: '',
     _addStatusType: '',
+    _subName: '',
+    _subCost: '',
+    _charging: false,
+    _chargeStatus: '',
+    _chargeStatusType: '',
   }));
 
   function genBankAccountNumber(cn) {
@@ -1959,7 +1966,13 @@
       bankCharacters = bankCharacters.map(c => {
         const rec = data?.[c.codename];
         const acct = rec?.accountNumber || genBankAccountNumber(c.codename);
-        return { ...c, balance: rec?.balance ?? 0, accountNumber: acct };
+        return {
+          ...c,
+          balance: rec?.balance ?? 0,
+          accountNumber: acct,
+          frozen: rec?.frozen ?? false,
+          subscriptions: rec?.subscriptions ?? {},
+        };
       });
     } catch {
       bankError = 'Failed to load bank data.';
@@ -1973,8 +1986,7 @@
     bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, _adding: true } : c);
     try {
       const newBalance = (char.balance ?? 0) + amt;
-      const acct = char.accountNumber || genBankAccountNumber(char.codename);
-      await dbPut(`bank/${char.codename}`, { balance: newBalance, accountNumber: acct });
+      await dbPut(`bank/${char.codename}/balance`, newBalance);
       bankCharacters = bankCharacters.map(c => c.codename === char.codename
         ? { ...c, balance: newBalance, _addInput: '', _adding: false, _addStatus: `+₱${amt} added`, _addStatusType: 'ok' }
         : c);
@@ -1985,6 +1997,68 @@
       bankCharacters = bankCharacters.map(c => c.codename === char.codename
         ? { ...c, _adding: false, _addStatus: 'Failed', _addStatusType: 'err' }
         : c);
+    }
+  }
+
+  async function toggleFreeze(char) {
+    const next = !char.frozen;
+    bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, frozen: next } : c);
+    try {
+      await dbPut(`bank/${char.codename}/frozen`, next);
+    } catch {
+      bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, frozen: !next } : c);
+    }
+  }
+
+  async function addSubscription(char) {
+    const name = char._subName.trim();
+    const cost = parseInt(char._subCost);
+    if (!name || !cost || cost <= 0) return;
+    try {
+      const res = await dbPost(`bank/${char.codename}/subscriptions`, { name, cost });
+      const newId = res.name;
+      bankCharacters = bankCharacters.map(c => c.codename === char.codename
+        ? { ...c, subscriptions: { ...c.subscriptions, [newId]: { name, cost } }, _subName: '', _subCost: '' }
+        : c);
+    } catch {}
+  }
+
+  async function removeSubscription(char, subId) {
+    try {
+      await dbDelete(`bank/${char.codename}/subscriptions/${subId}`);
+      bankCharacters = bankCharacters.map(c => {
+        if (c.codename !== char.codename) return c;
+        const subs = { ...c.subscriptions };
+        delete subs[subId];
+        return { ...c, subscriptions: subs };
+      });
+    } catch {}
+  }
+
+  async function chargeWeek(char) {
+    const subs = Object.values(char.subscriptions ?? {});
+    if (!subs.length) return;
+    const total = subs.reduce((sum, s) => sum + (s.cost ?? 0), 0);
+    bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, _charging: true } : c);
+    try {
+      const newBalance = (char.balance ?? 0) - total;
+      await dbPut(`bank/${char.codename}/balance`, newBalance);
+      bankCharacters = bankCharacters.map(c => c.codename === char.codename
+        ? { ...c, balance: newBalance, _charging: false, _chargeStatus: `-₱${total.toLocaleString()} charged`, _chargeStatusType: 'ok' }
+        : c);
+      setTimeout(() => {
+        bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, _chargeStatus: '' } : c);
+      }, 3000);
+    } catch {
+      bankCharacters = bankCharacters.map(c => c.codename === char.codename
+        ? { ...c, _charging: false, _chargeStatus: 'Failed', _chargeStatusType: 'err' }
+        : c);
+    }
+  }
+
+  async function chargeAll() {
+    for (const char of bankCharacters) {
+      if (Object.keys(char.subscriptions ?? {}).length > 0) await chargeWeek(char);
     }
   }
 </script>
@@ -4070,9 +4144,12 @@
             <div class="bank-subtitle">// PLATINUM LEDGER</div>
           </div>
         </div>
-        <button class="inline-btn" on:click={loadBankBalances} disabled={bankLoading}>
-          {bankLoading ? 'Loading…' : 'Refresh'}
-        </button>
+        <div class="bank-header-actions">
+          <button class="bank-charge-all-btn" on:click={chargeAll}>⚡ Charge All</button>
+          <button class="inline-btn" on:click={loadBankBalances} disabled={bankLoading}>
+            {bankLoading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {#if bankError}
@@ -4080,25 +4157,58 @@
       {:else}
         <div class="bank-grid">
           {#each bankCharacters as char (char.codename)}
-            <div class="bank-card">
-              <div class="bank-card-info">
-                <div class="bank-char-name">{char.name}</div>
-                <div class="bank-char-codename">{char.codename}</div>
-                <div class="bank-char-acct">{char.accountNumber || '—'}</div>
+            <div class="bank-card" class:bank-card--frozen={char.frozen}>
+
+              <!-- Card header: identity + freeze toggle -->
+              <div class="bank-card-header">
+                <div class="bank-card-info">
+                  <div class="bank-char-name">{char.name}</div>
+                  <div class="bank-char-codename">{char.codename}</div>
+                  <div class="bank-char-acct">{char.accountNumber || '—'}</div>
+                </div>
+                <button class="bank-freeze-btn" class:bank-freeze-btn--frozen={char.frozen} on:click={() => toggleFreeze(char)}>
+                  {char.frozen ? '🔒 FROZEN' : 'FREEZE'}
+                </button>
               </div>
+
+              <!-- Balance -->
               <div class="bank-balance-display">
                 <span class="bank-bal-sym">₱</span>
                 <span class="bank-bal-num">{(char.balance ?? 0).toLocaleString()}</span>
               </div>
+
+              <!-- Subscriptions list -->
+              {#if Object.keys(char.subscriptions ?? {}).length > 0}
+                <div class="bank-subs-section">
+                  <div class="bank-subs-label">// WEEKLY SERVICES</div>
+                  {#each Object.entries(char.subscriptions ?? {}) as [id, sub]}
+                    <div class="bank-sub-row">
+                      <span class="bank-sub-name">{sub.name}</span>
+                      <span class="bank-sub-cost">-₱{(sub.cost ?? 0).toLocaleString()}/wk</span>
+                      <button class="bank-sub-remove" on:click={() => removeSubscription(char, id)}>×</button>
+                    </div>
+                  {/each}
+                  <div class="bank-charge-row">
+                    <button class="bank-charge-week-btn" on:click={() => chargeWeek(char)} disabled={char._charging}>
+                      {char._charging ? '…' : '⚡ Charge Week'}
+                    </button>
+                    {#if char._chargeStatus}
+                      <span class="bank-add-status" class:ok={char._chargeStatusType === 'ok'} class:err={char._chargeStatusType === 'err'}>{char._chargeStatus}</span>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Add subscription -->
+              <div class="bank-sub-add-row">
+                <input class="bank-input bank-sub-name-input" placeholder="Service name" bind:value={char._subName}/>
+                <input class="bank-input bank-sub-cost-input" type="number" min="1" placeholder="₱/wk" bind:value={char._subCost}/>
+                <button class="bank-add-btn" on:click={() => addSubscription(char)} disabled={!char._subName || !char._subCost}>+</button>
+              </div>
+
+              <!-- Add plat -->
               <div class="bank-add-row">
-                <input
-                  class="bank-input"
-                  type="number"
-                  min="1"
-                  placeholder="Amount"
-                  bind:value={char._addInput}
-                  disabled={char._adding}
-                />
+                <input class="bank-input" type="number" min="1" placeholder="Amount" bind:value={char._addInput} disabled={char._adding}/>
                 <button class="bank-add-btn" on:click={() => gmAddPlat(char)} disabled={char._adding || !char._addInput}>
                   {char._adding ? '…' : '+ Add Plat'}
                 </button>
@@ -4106,6 +4216,7 @@
               {#if char._addStatus}
                 <p class="bank-add-status" class:ok={char._addStatusType === 'ok'} class:err={char._addStatusType === 'err'}>{char._addStatus}</p>
               {/if}
+
             </div>
           {/each}
         </div>
@@ -5692,4 +5803,131 @@
   }
   .bank-add-status.ok { color: #86efac; }
   .bank-add-status.err { color: #fca5a5; }
+
+  .bank-header-actions { display: flex; gap: 8px; align-items: center; }
+
+  .bank-charge-all-btn {
+    background: rgba(234,179,8,0.12);
+    border: 1px solid rgba(234,179,8,0.4);
+    border-radius: 5px;
+    color: #fde047;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .bank-charge-all-btn:hover { background: rgba(234,179,8,0.22); }
+
+  .bank-card--frozen {
+    border-color: rgba(239,68,68,0.5);
+    background: rgba(239,68,68,0.04);
+  }
+
+  .bank-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .bank-freeze-btn {
+    flex-shrink: 0;
+    background: rgba(239,68,68,0.07);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 4px;
+    color: rgba(252,165,165,0.6);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .bank-freeze-btn:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .bank-freeze-btn--frozen {
+    background: rgba(239,68,68,0.2);
+    border-color: rgba(239,68,68,0.7);
+    color: #fca5a5;
+  }
+
+  .bank-subs-section {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(109,40,217,0.2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .bank-subs-label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: rgba(167,139,250,0.4);
+    font-family: 'Courier New', Courier, monospace;
+    margin-bottom: 2px;
+  }
+  .bank-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .bank-sub-name {
+    flex: 1;
+    font-size: 11px;
+    color: #e8dfc8;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bank-sub-cost {
+    font-size: 10px;
+    color: #fca5a5;
+    font-family: 'Courier New', Courier, monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .bank-sub-remove {
+    background: none;
+    border: none;
+    color: rgba(252,165,165,0.4);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+    transition: color 0.12s;
+  }
+  .bank-sub-remove:hover { color: #fca5a5; }
+
+  .bank-charge-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .bank-charge-week-btn {
+    background: rgba(234,179,8,0.1);
+    border: 1px solid rgba(234,179,8,0.35);
+    border-radius: 4px;
+    color: #fde047;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .bank-charge-week-btn:not(:disabled):hover { background: rgba(234,179,8,0.2); }
+  .bank-charge-week-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .bank-sub-add-row {
+    display: flex;
+    gap: 5px;
+  }
+  .bank-sub-name-input { flex: 2; }
+  .bank-sub-cost-input { flex: 1; min-width: 0; }
 </style>
