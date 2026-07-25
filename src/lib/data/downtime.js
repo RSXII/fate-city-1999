@@ -193,6 +193,28 @@ export const CHARACTERS = {
     ],
   },
 
+  GHOST: {
+    codename: 'GHOST',
+    name: 'GHOST',
+    role: 'OPERATIVE',
+    stats: [
+      { key: 'plat', label: 'PLAT ₱', currency: true },
+    ],
+    statDefaults: { plat: 0 },
+    actions: [],
+  },
+
+  TAZI: {
+    codename: 'TAZI',
+    name: 'TAZI',
+    role: 'OPERATIVE',
+    stats: [
+      { key: 'plat', label: 'PLAT ₱', currency: true },
+    ],
+    statDefaults: { plat: 0 },
+    actions: [],
+  },
+
   REGI: {
     codename: 'REGI',
     name: 'Regi-X',
