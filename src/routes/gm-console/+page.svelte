@@ -2061,6 +2061,33 @@
       if (Object.keys(char.subscriptions ?? {}).length > 0) await chargeWeek(char);
     }
   }
+
+  let giveAllInput = '';
+  let givingAll = false;
+  let giveAllStatus = '';
+  let giveAllStatusType = '';
+
+  async function giveAll() {
+    const amt = parseInt(giveAllInput);
+    if (!amt || amt <= 0) return;
+    givingAll = true;
+    giveAllStatus = '';
+    try {
+      await Promise.all(bankCharacters.map(async char => {
+        const newBalance = (char.balance ?? 0) + amt;
+        await dbPut(`bank/${char.codename}/balance`, newBalance);
+        bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, balance: newBalance } : c);
+      }));
+      giveAllInput = '';
+      giveAllStatus = `+₱${amt.toLocaleString()} given to all`;
+      giveAllStatusType = 'ok';
+      setTimeout(() => { giveAllStatus = ''; }, 3500);
+    } catch {
+      giveAllStatus = 'Failed — try again';
+      giveAllStatusType = 'err';
+    }
+    givingAll = false;
+  }
 </script>
 
 <svelte:head>
@@ -4145,6 +4172,25 @@
           </div>
         </div>
         <div class="bank-header-actions">
+          <div class="bank-give-all-group">
+            <div class="bank-give-all-row">
+              <input
+                class="bank-input bank-give-all-input"
+                type="number"
+                min="1"
+                placeholder="Amount"
+                bind:value={giveAllInput}
+                disabled={givingAll}
+              />
+              <button class="bank-give-all-btn" on:click={giveAll} disabled={givingAll || !giveAllInput}>
+                {givingAll ? '…' : '+ Give All'}
+              </button>
+            </div>
+            {#if giveAllStatus}
+              <span class="bank-give-all-status" class:ok={giveAllStatusType === 'ok'} class:err={giveAllStatusType === 'err'}>{giveAllStatus}</span>
+            {/if}
+          </div>
+          <div class="bank-header-sep" aria-hidden="true"></div>
           <button class="bank-charge-all-btn" on:click={chargeAll}>⚡ Charge All</button>
           <button class="inline-btn" on:click={loadBankBalances} disabled={bankLoading}>
             {bankLoading ? 'Loading…' : 'Refresh'}
@@ -5804,7 +5850,29 @@
   .bank-add-status.ok { color: #86efac; }
   .bank-add-status.err { color: #fca5a5; }
 
-  .bank-header-actions { display: flex; gap: 8px; align-items: center; }
+  .bank-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bank-give-all-group { display: flex; flex-direction: column; gap: 4px; }
+  .bank-give-all-row { display: flex; gap: 5px; align-items: center; }
+  .bank-header-sep { width: 1px; height: 28px; background: rgba(255,255,255,0.1); margin: 0 6px; flex-shrink: 0; }
+  .bank-give-all-input { width: 100px; }
+  .bank-give-all-btn {
+    background: rgba(74,222,128,0.1);
+    border: 1px solid rgba(74,222,128,0.4);
+    border-radius: 5px;
+    color: #86efac;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .bank-give-all-btn:not(:disabled):hover { background: rgba(74,222,128,0.2); }
+  .bank-give-all-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .bank-give-all-status { font-size: 10px; letter-spacing: 1px; font-family: 'Courier New', Courier, monospace; }
+  .bank-give-all-status.ok { color: #86efac; }
+  .bank-give-all-status.err { color: #fca5a5; }
 
   .bank-charge-all-btn {
     background: rgba(234,179,8,0.12);
