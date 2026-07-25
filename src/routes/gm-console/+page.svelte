@@ -1929,6 +1929,64 @@
     clearInterval(timerDisplayTick);
     clearInterval(splitInterval);
   });
+
+  // ── Bank ──────────────────────────────────────────────────────────────────
+  let bankLoading = false;
+  let bankError = '';
+  let bankCharacters = Object.values(CHARACTERS).map(c => ({
+    codename: c.codename,
+    name: c.name,
+    balance: null,
+    accountNumber: '',
+    _addInput: '',
+    _adding: false,
+    _addStatus: '',
+    _addStatusType: '',
+  }));
+
+  function genBankAccountNumber(cn) {
+    let h = 5381;
+    for (const c of cn) h = ((h << 5) + h + c.charCodeAt(0)) & 0x7fffffff;
+    const n = String(Math.abs(h)).padStart(8, '0');
+    return `VDB-${n.slice(0, 4)}-${n.slice(4, 8)}`;
+  }
+
+  async function loadBankBalances() {
+    bankLoading = true;
+    bankError = '';
+    try {
+      const data = await dbGet('bank');
+      bankCharacters = bankCharacters.map(c => {
+        const rec = data?.[c.codename];
+        const acct = rec?.accountNumber || genBankAccountNumber(c.codename);
+        return { ...c, balance: rec?.balance ?? 0, accountNumber: acct };
+      });
+    } catch {
+      bankError = 'Failed to load bank data.';
+    }
+    bankLoading = false;
+  }
+
+  async function gmAddPlat(char) {
+    const amt = parseInt(char._addInput);
+    if (!amt || amt <= 0) return;
+    bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, _adding: true } : c);
+    try {
+      const newBalance = (char.balance ?? 0) + amt;
+      const acct = char.accountNumber || genBankAccountNumber(char.codename);
+      await dbPut(`bank/${char.codename}`, { balance: newBalance, accountNumber: acct });
+      bankCharacters = bankCharacters.map(c => c.codename === char.codename
+        ? { ...c, balance: newBalance, _addInput: '', _adding: false, _addStatus: `+₱${amt} added`, _addStatusType: 'ok' }
+        : c);
+      setTimeout(() => {
+        bankCharacters = bankCharacters.map(c => c.codename === char.codename ? { ...c, _addStatus: '' } : c);
+      }, 3000);
+    } catch {
+      bankCharacters = bankCharacters.map(c => c.codename === char.codename
+        ? { ...c, _adding: false, _addStatus: 'Failed', _addStatusType: 'err' }
+        : c);
+    }
+  }
 </script>
 
 <svelte:head>
@@ -1959,6 +2017,7 @@
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
     <button class="tab tab--users"    class:active={activeTab === 'users'}      role="tab" on:click={() => { activeTab = 'users'; refreshDevices(); }}>Users</button>
     <button class="tab tab--responses" class:active={activeTab === 'responses'} role="tab" on:click={() => { activeTab = 'responses'; loadPlayerResponses(); }}>Responses{#if playerResponses.length}&thinsp;<span class="resp-count">{playerResponses.length}</span>{/if}</button>
+    <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -3991,6 +4050,69 @@
 
     {/if}
 
+    <!-- ══ BANK ══════════════════════════════════════════════════════════════ -->
+    {#if activeTab === 'bank'}
+
+      <div class="bank-header-row">
+        <div class="bank-logo-wrap">
+          <svg class="bank-logo-svg" viewBox="0 0 60 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="bk-g1" x1="0" y1="0" x2="60" y2="54" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#a78bfa"/>
+                <stop offset="100%" stop-color="#60a5fa"/>
+              </linearGradient>
+            </defs>
+            <path d="M30 50 L3 6 L57 6 Z" stroke="url(#bk-g1)" stroke-width="3" stroke-linejoin="round" fill="none"/>
+            <path d="M30 36 L15 16 L45 16 Z" stroke="url(#bk-g1)" stroke-width="2" stroke-linejoin="round" fill="none" opacity="0.6"/>
+          </svg>
+          <div>
+            <div class="bank-title">VANDEWALLE BANK</div>
+            <div class="bank-subtitle">// PLATINUM LEDGER</div>
+          </div>
+        </div>
+        <button class="inline-btn" on:click={loadBankBalances} disabled={bankLoading}>
+          {bankLoading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {#if bankError}
+        <p class="tab-empty" style="color:#fca5a5">{bankError}</p>
+      {:else}
+        <div class="bank-grid">
+          {#each bankCharacters as char (char.codename)}
+            <div class="bank-card">
+              <div class="bank-card-info">
+                <div class="bank-char-name">{char.name}</div>
+                <div class="bank-char-codename">{char.codename}</div>
+                <div class="bank-char-acct">{char.accountNumber || '—'}</div>
+              </div>
+              <div class="bank-balance-display">
+                <span class="bank-bal-sym">₱</span>
+                <span class="bank-bal-num">{(char.balance ?? 0).toLocaleString()}</span>
+              </div>
+              <div class="bank-add-row">
+                <input
+                  class="bank-input"
+                  type="number"
+                  min="1"
+                  placeholder="Amount"
+                  bind:value={char._addInput}
+                  disabled={char._adding}
+                />
+                <button class="bank-add-btn" on:click={() => gmAddPlat(char)} disabled={char._adding || !char._addInput}>
+                  {char._adding ? '…' : '+ Add Plat'}
+                </button>
+              </div>
+              {#if char._addStatus}
+                <p class="bank-add-status" class:ok={char._addStatusType === 'ok'} class:err={char._addStatusType === 'err'}>{char._addStatus}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -5467,4 +5589,107 @@
   .resp-status-btn--fail { border-color: rgba(192,80,74,0.25); }
   .resp-status-btn--fail:hover { border-color: #c0504a; color: #c0504a; }
   .resp-status-btn--fail.resp-status-btn--active { border-color: #c0504a; color: #c0504a; background: rgba(192,80,74,0.08); }
+
+  /* ── Bank tab ── */
+  .tab--bank { color: #a78bfa; border-color: rgba(167,139,250,0.35); }
+  .tab--bank.active { background: rgba(109,40,217,0.15); color: #c4b5fd; border-color: rgba(167,139,250,0.6); }
+
+  .bank-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .bank-logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .bank-logo-svg { width: 36px; height: 32px; flex-shrink: 0; }
+  .bank-title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    background: linear-gradient(90deg, #c4b5fd, #818cf8, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .bank-subtitle {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(167,139,250,0.4);
+    font-family: 'Courier New', Courier, monospace;
+    margin-top: 1px;
+  }
+  .bank-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .bank-card {
+    background: rgba(109,40,217,0.06);
+    border: 1px solid rgba(109,40,217,0.3);
+    border-radius: 10px;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bank-card-info { display: flex; flex-direction: column; gap: 2px; }
+  .bank-char-name { font-size: 13px; font-weight: 700; color: #e8dfc8; }
+  .bank-char-codename { font-size: 10px; letter-spacing: 2px; color: rgba(167,139,250,0.6); font-family: 'Courier New', Courier, monospace; }
+  .bank-char-acct { font-size: 10px; letter-spacing: 1.5px; color: rgba(167,139,250,0.35); font-family: 'Courier New', Courier, monospace; margin-top: 2px; }
+  .bank-balance-display {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 8px 0;
+    border-top: 1px solid rgba(109,40,217,0.2);
+    border-bottom: 1px solid rgba(109,40,217,0.2);
+  }
+  .bank-bal-sym { font-size: 14px; color: rgba(167,139,250,0.6); }
+  .bank-bal-num { font-size: 28px; font-weight: 800; letter-spacing: -1px; color: #c4b5fd; font-variant-numeric: tabular-nums; }
+  .bank-add-row { display: flex; gap: 6px; }
+  .bank-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(109,40,217,0.08);
+    border: 1px solid rgba(109,40,217,0.35);
+    border-radius: 5px;
+    color: #e8dfc8;
+    font-size: 13px;
+    padding: 6px 8px;
+    outline: none;
+    font-family: 'Courier New', Courier, monospace;
+    -moz-appearance: textfield;
+  }
+  .bank-input::-webkit-outer-spin-button,
+  .bank-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .bank-input:focus { border-color: rgba(167,139,250,0.65); }
+  .bank-add-btn {
+    background: rgba(109,40,217,0.18);
+    border: 1px solid rgba(124,58,237,0.5);
+    border-radius: 5px;
+    color: #c4b5fd;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 6px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .bank-add-btn:not(:disabled):hover { background: rgba(109,40,217,0.3); }
+  .bank-add-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .bank-add-status {
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 0;
+  }
+  .bank-add-status.ok { color: #86efac; }
+  .bank-add-status.err { color: #fca5a5; }
 </style>

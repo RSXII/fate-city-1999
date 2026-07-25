@@ -366,15 +366,24 @@
         </div>
 
         <div class="hs-row">
-          <a class="hs-icon" href="{base}/camera">
-            <div class="hs-icon-tile">
-              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
-                <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
-                <circle cx="12" cy="13.7" r="3.3" />
+          <a class="hs-icon" href="{base}/bank">
+            <div class="hs-icon-tile vb-tile">
+              <svg viewBox="0 0 80 72" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="vb-icon-svg">
+                <defs>
+                  <linearGradient id="vb-hs-g1" x1="0" y1="0" x2="80" y2="72" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#a78bfa"/>
+                    <stop offset="100%" stop-color="#60a5fa"/>
+                  </linearGradient>
+                  <linearGradient id="vb-hs-g2" x1="80" y1="0" x2="0" y2="72" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#c4b5fd"/>
+                    <stop offset="100%" stop-color="#38bdf8"/>
+                  </linearGradient>
+                </defs>
+                <path d="M40 66 L6 10 L74 10 Z" stroke="url(#vb-hs-g1)" stroke-width="5" stroke-linejoin="round" fill="none"/>
+                <path d="M40 50 L20 24 L60 24 Z" stroke="url(#vb-hs-g2)" stroke-width="3.5" stroke-linejoin="round" fill="none"/>
               </svg>
             </div>
-            <span class="hs-icon-label">Camera</span>
+            <span class="hs-icon-label">Vandewalle</span>
           </a>
           <a class="hs-icon" href="{base}/emails">
             <div class="hs-icon-tile">
@@ -487,7 +496,16 @@
             </div>
             <span class="hs-icon-label">Timer</span>
           </a>
-          <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
+          <a class="hs-icon" href="{base}/camera">
+            <div class="hs-icon-tile">
+              <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+                <path d="M8.3 7.5l1.3-2.3h4.8l1.3 2.3" />
+                <circle cx="12" cy="13.7" r="3.3" />
+              </svg>
+            </div>
+            <span class="hs-icon-label">Camera</span>
+          </a>
         </div>
         <!-- Row 2: EverNear, [empty], [empty] -->
         <div class="hs-row">
@@ -809,6 +827,18 @@
   @keyframes once-pulse-urgent {
     0%, 100% { box-shadow: 0 0 28px rgba(124, 58, 237, 0.7), 0 0 8px rgba(168, 85, 247, 0.5), inset 0 0 14px rgba(124, 58, 237, 0.25); }
     50%       { box-shadow: 0 0 48px rgba(124, 58, 237, 0.95), 0 0 18px rgba(168, 85, 247, 0.7), inset 0 0 24px rgba(124, 58, 237, 0.35); }
+  }
+
+  /* Vandewalle Bank tile */
+  .vb-tile {
+    border-color: rgba(124, 58, 237, 0.55);
+    background: rgba(109, 40, 217, 0.07);
+    box-shadow: 0 0 14px rgba(124, 58, 237, 0.2), inset 0 0 8px rgba(96, 165, 250, 0.06);
+  }
+  .vb-icon-svg {
+    width: 38px !important;
+    height: 34px !important;
+    stroke: none !important;
   }
 
   /* EverNear tile */
