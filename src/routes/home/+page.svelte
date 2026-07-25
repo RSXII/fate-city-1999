@@ -301,7 +301,7 @@
       <div class="hs-page">
         <div class="hs-row">
           <a class="hs-icon" href="{base}/messages">
-            <div class="hs-icon-tile" class:has-unread={unreadCount > 0}>
+            <div class="hs-icon-tile tile-messages" class:has-unread={unreadCount > 0}>
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
               </svg>
@@ -310,7 +310,7 @@
             <span class="hs-icon-label">Messages</span>
           </a>
           <a class="hs-icon" href="{base}/phone">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-phone">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6.7 4h2.7l1.4 3.8-2 1.6a12.3 12.3 0 0 0 5.8 5.8l1.6-2 3.8 1.4v2.7a2 2 0 0 1-2 2C10.8 19.3 4.7 13.2 4.7 6a2 2 0 0 1 2-2z" />
               </svg>
@@ -318,7 +318,7 @@
             <span class="hs-icon-label">Phone</span>
           </a>
           <a class="hs-icon" href="{base}/calendar">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-calendar">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="4" y="5" width="16" height="15" rx="1.5" />
                 <line x1="4" y1="9.5" x2="20" y2="9.5" />
@@ -333,7 +333,7 @@
 
         <div class="hs-row">
           <a class="hs-icon" href="{base}/jobs">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-jobs">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7l-5-4z" />
                 <polyline points="14 3 14 7 18 7" />
@@ -386,7 +386,7 @@
             <span class="hs-icon-label">Vandewalle</span>
           </a>
           <a class="hs-icon" href="{base}/emails">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-email">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
                 <path d="M3.6 6.8l8.4 6.3 8.4-6.3" />
@@ -395,7 +395,7 @@
             <span class="hs-icon-label">Email</span>
           </a>
           <a class="hs-icon" href="{base}/settings">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-settings">
               <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3.8" />
                 <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
@@ -445,17 +445,20 @@
 
           <!-- FateStaGram -->
           <a class="hs-icon" href="{base}/fatestagram">
-            <div class="hs-icon-tile">
+            <div class="hs-icon-tile tile-fsg">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <!-- IG-style rounded square -->
+                <defs>
+                  <linearGradient id="fsg-icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#f59e0b"/>
+                    <stop offset="50%" stop-color="#ec4899"/>
+                    <stop offset="100%" stop-color="#a855f7"/>
+                  </linearGradient>
+                </defs>
                 <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-                <!-- Camera lens -->
                 <circle cx="12" cy="12" r="4.2" />
-                <!-- Crosshair reticle inside lens (Fate City twist) -->
                 <line x1="12" y1="9.2" x2="12" y2="14.8" />
                 <line x1="9.2" y1="12" x2="14.8" y2="12" />
-                <!-- Viewfinder dot top-right -->
-                <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none" />
+                <circle cx="17.5" cy="6.5" r="1.2" fill="#ec4899" stroke="none" />
               </svg>
             </div>
             <span class="hs-icon-label">FateStaGram</span>
@@ -829,12 +832,16 @@
     50%       { box-shadow: 0 0 48px rgba(124, 58, 237, 0.95), 0 0 18px rgba(168, 85, 247, 0.7), inset 0 0 24px rgba(124, 58, 237, 0.35); }
   }
 
-  /* Vandewalle Bank tile */
-  .vb-tile {
-    border-color: rgba(124, 58, 237, 0.55);
-    background: rgba(109, 40, 217, 0.07);
-    box-shadow: 0 0 14px rgba(124, 58, 237, 0.2), inset 0 0 8px rgba(96, 165, 250, 0.06);
-  }
+  /* Vandewalle Bank tile — border inherits standard yellow from .hs-icon-tile */
+
+  /* Per-app icon colors */
+  .tile-messages :global(svg) { stroke: #93c5fd; color: #93c5fd; }
+  .tile-phone    :global(svg) { stroke: #93c5fd; }
+  .tile-calendar :global(svg) { stroke: #f1f5f9; color: #f1f5f9; }
+  .tile-jobs     :global(svg) { stroke: #22d3ee; }
+  .tile-email    :global(svg) { stroke: #f87171; }
+  .tile-settings :global(svg) { stroke: #94a3b8; color: #94a3b8; }
+  .tile-fsg      :global(svg) { stroke: url(#fsg-icon-grad); }
   .vb-icon-svg {
     width: 38px !important;
     height: 34px !important;

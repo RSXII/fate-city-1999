@@ -83,6 +83,7 @@
 </svelte:head>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
+<wire-header back="{base}/home" title="Vandewalle Bank" layout="flex"></wire-header>
 
 <div class="vb-shell">
 
