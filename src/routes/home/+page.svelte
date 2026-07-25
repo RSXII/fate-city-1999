@@ -565,7 +565,16 @@
             </div>
             <span class="hs-icon-label">EverNear</span>
           </a>
-          <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
+          <a class="hs-icon" href="{base}/trauma-team">
+            <div class="hs-icon-tile tile-tt">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
+            </div>
+            <span class="hs-icon-label">Trauma Team</span>
+          </a>
           <div class="hs-icon" aria-hidden="true" style="visibility:hidden"><div class="hs-icon-tile"></div><span class="hs-icon-label">&nbsp;</span></div>
         </div>
         <!-- Rows 3–4: all empty -->
@@ -893,6 +902,7 @@
   .tile-email    :global(svg) { stroke: #f87171; }
   .tile-settings :global(svg) { stroke: #94a3b8; color: #94a3b8; }
   .tile-fsg      :global(svg) { stroke: url(#fsg-icon-grad); }
+  .tile-tt       :global(svg) { stroke: #f87171; }
   .vb-icon-svg {
     width: 38px !important;
     height: 34px !important;
