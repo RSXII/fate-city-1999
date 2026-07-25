@@ -124,6 +124,38 @@
   let timerFetchPoll;
   let rafId;
 
+  // ── Gyroscope parallax ────────────────────────────────────────────────────
+  let wallpaperEl;
+  let _orientationHandler = null;
+
+  function _setupParallax() {
+    if (!wallpaperEl) return;
+    function handler(e) {
+      const gx = Math.max(-25, Math.min(25, e.gamma ?? 0));
+      const gy = Math.max(-25, Math.min(25, (e.beta ?? 90) - 90));
+      wallpaperEl.style.transform = `scale(1.05) translate(${(gx / 25) * 14}px, ${(gy / 25) * 10}px)`;
+    }
+    _orientationHandler = handler;
+    window.addEventListener('deviceorientation', handler, { passive: true });
+  }
+
+  async function _initParallax() {
+    if (!browser) return;
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS 13+ requires a user gesture to grant permission
+      document.addEventListener('touchstart', async function onFirstTouch() {
+        document.removeEventListener('touchstart', onFirstTouch);
+        try {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm === 'granted') _setupParallax();
+        } catch { /* denied */ }
+      }, { once: true, passive: true });
+    } else {
+      _setupParallax();
+    }
+  }
+
   function getLastSeenMap() {
     try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? '{}'); }
     catch { return {}; }
@@ -242,6 +274,7 @@
     oncePollInterval = visibilityAwareInterval(pollOnce, 7000);
     fetchTimerState();
     timerFetchPoll = visibilityAwareInterval(fetchTimerState, 5000);
+    _initParallax();
   });
 
   onDestroy(() => {
@@ -250,12 +283,15 @@
     if (timerFetchPoll) timerFetchPoll();
     if (rafId) cancelAnimationFrame(rafId);
     clearTimeout(toastTimer);
+    if (_orientationHandler) window.removeEventListener('deviceorientation', _orientationHandler);
   });
 </script>
 
 <svelte:head>
   <title>Fate City: 1999 — Wire</title>
 </svelte:head>
+
+<div class="wallpaper" bind:this={wallpaperEl} style="background-image: url('{base}/images/phonebg.jpg')" aria-hidden="true"></div>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
 
@@ -710,6 +746,19 @@
     pointer-events: auto;
   }
 
+  /* Wallpaper */
+  .wallpaper {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(10px) brightness(0.75);
+    transform: scale(1.05);
+    z-index: -1;
+    will-change: transform;
+  }
+
   /* Home screen wrap */
   .hs-wrap {
     flex: 1;
@@ -780,7 +829,9 @@
     margin: 0 auto;
     border: 1px solid rgba(201, 162, 39, 0.35);
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(10, 14, 28, 0.48);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -877,8 +928,9 @@
     font-size: 9px;
     letter-spacing: 1.1px;
     text-transform: uppercase;
-    color: #b8902f;
+    color: #e8d9a0;
     text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
 
   /* Page dots */
@@ -888,6 +940,7 @@
     gap: 7px;
     margin-top: 22px;
     margin-bottom: 8px;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.7));
   }
   .hs-dot {
     width: 6px; height: 6px;
