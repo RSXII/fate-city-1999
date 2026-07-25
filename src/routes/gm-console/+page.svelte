@@ -2014,10 +2014,10 @@
     <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
+    <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
     <button class="tab tab--users"    class:active={activeTab === 'users'}      role="tab" on:click={() => { activeTab = 'users'; refreshDevices(); }}>Users</button>
     <button class="tab tab--responses" class:active={activeTab === 'responses'} role="tab" on:click={() => { activeTab = 'responses'; loadPlayerResponses(); }}>Responses{#if playerResponses.length}&thinsp;<span class="resp-count">{playerResponses.length}</span>{/if}</button>
-    <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
