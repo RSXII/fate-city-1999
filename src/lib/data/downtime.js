@@ -3,7 +3,7 @@
 
 export const CHARACTERS = {
   VAL: {
-    codename: 'VAL',
+    codename: 'VAL HOLLOW',
     name: 'Val Hollow',
     role: 'ROCKERBOY',
     stats: [
