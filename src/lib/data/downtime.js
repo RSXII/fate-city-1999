@@ -216,7 +216,7 @@ export const CHARACTERS = {
   },
 
   REGI: {
-    codename: 'REGI',
+    codename: 'REGI-X',
     name: 'Regi-X',
     role: 'NOMAD',
     stats: [
