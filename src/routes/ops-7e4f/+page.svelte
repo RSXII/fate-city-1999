@@ -2,6 +2,15 @@
   import { base } from '$app/paths';
   import { onMount, onDestroy } from 'svelte';
   import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
+  import {
+    convIdForMsg,
+    createMessage,
+    deployMessage as fsDeployMessage,
+    subscribeConversations as fsSubscribeConversations,
+    subscribeMessages as fsSubscribeMessages,
+    updateMessage as fsUpdateMessage,
+    deleteMessage as fsDeleteMessage,
+  } from '$lib/firestore-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
@@ -69,12 +78,13 @@
   let pickerImages = [];
   let pickerLoading = false;
   let pickerError = '';
-  let stagedMsgs = [];
-  let liveMsgs = [];
+  let allWireMsgs = [];      // flat array from all conversation message subscriptions
+  const _wireCache = new Map(); // convId → msgs[]
+  let _wireSubs    = [];        // per-conversation unsub functions
+  let _wireConvSub = null;      // conversations-list unsub
   let sendStatus = { text: '', type: '' };
   let sending = false;
-  let liveMsgLogEl;
-  let liveThreadFilter = null; // null=all, 'broadcast'=no recipients, string=codename
+  let deployingMsgId = null;
   let expandedConvKey = null;
 
   let deviceRecords = []; // full device records from Firebase
@@ -227,33 +237,10 @@
 
   $: sendEnabled = !sending && !!selectedSender && (msgText.trim().length > 0 || !!selectedImage);
 
-  async function loadMsgs() {
-    try {
-      const data = await dbGet('messages', { orderBy: '$key', limitToLast: 200 });
-      if (!data) { stagedMsgs = []; liveMsgs = []; return; }
-      const all = Object.keys(data).map(k => { const m = data[k]; m._id = k; return m; })
-        .sort((a, b) => a.ts - b.ts);
-      stagedMsgs = all.filter(m => m.staged === false);
-      liveMsgs   = all.filter(m => m.staged !== false);
-    } catch { stagedMsgs = []; liveMsgs = []; }
-    setTimeout(() => { if (liveMsgLogEl) liveMsgLogEl.scrollTop = liveMsgLogEl.scrollHeight; }, 0);
-  }
-
-  $: liveFilterOptions = (() => {
-    const codenames = new Set();
-    let hasBroadcast = false;
-    for (const m of liveMsgs) {
-      if (!m.recipients?.length) hasBroadcast = true;
-      else m.recipients.forEach(c => codenames.add(c));
-    }
-    return { hasBroadcast, codenames: [...codenames].sort() };
-  })();
-
-  $: filteredLiveMsgs = liveThreadFilter === null
-    ? liveMsgs
-    : liveThreadFilter === 'broadcast'
-      ? liveMsgs.filter(m => !m.recipients?.length)
-      : liveMsgs.filter(m => m.recipients?.includes(liveThreadFilter));
+  // ── Wire: Firestore-only ──────────────────────────────────────────────────
+  $: stagedMsgs   = allWireMsgs.filter(m => m.type === 'npc' && m.staged === false);
+  $: liveNpcMsgs  = allWireMsgs.filter(m => m.type === 'npc' && m.staged !== false);
+  $: livePlayerMsgs = allWireMsgs.filter(m => m.type === 'player');
 
   async function sendMessage() {
     const text = msgText.trim();
@@ -265,38 +252,41 @@
       if (selectedImage) payload.imageUrl = selectedImage.url;
       if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       if (selectedGroup) { payload.groupId = selectedGroup._id; payload.groupName = selectedGroup.name; }
-      await dbPost('messages', payload);
+      await createMessage(convIdForMsg(payload), payload);
       msgText = '';
       selectedImage = null;
       pickerOpen = false;
       sendStatus = { text: 'Staged. Deploy when players are ready.', type: 'ok' };
-      await loadMsgs();
     } catch (e) {
       sendStatus = { text: `Stage failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
     sending = false;
   }
 
-  let deployingMsgId = null;
   async function deployMessage(id) {
     deployingMsgId = id;
-    try { await dbPut(`messages/${id}/staged`, true); await loadMsgs(); }
-    catch (e) { console.error('Deploy failed', e); }
+    try {
+      const m = stagedMsgs.find(x => x.id === id);
+      if (m) await fsDeployMessage(m.convId, id, m);
+    } catch (e) { console.error('Deploy failed', e); }
     deployingMsgId = null;
   }
 
   async function recallMessage(id) {
     if (!confirm('Recall this message? It will disappear from player devices.')) return;
-    try { await dbPut(`messages/${id}/staged`, false); await loadMsgs(); }
-    catch (e) { console.error('Recall failed', e); }
+    try {
+      const m = allWireMsgs.find(x => x.id === id);
+      if (m) await fsUpdateMessage(m.convId, id, { staged: false });
+    } catch (e) { console.error('Recall failed', e); }
   }
 
   async function deleteMessage(id) {
-    const m = [...stagedMsgs, ...liveMsgs].find(x => x._id === id);
+    const m = allWireMsgs.find(x => x.id === id);
     const isLive = m?.staged !== false;
     if (!confirm(isLive ? 'Delete this message from all player devices?' : 'Delete this staged message?')) return;
-    try { await dbDelete(`messages/${id}`); await loadMsgs(); }
-    catch (e) { console.error('Delete failed', e); }
+    try {
+      if (m) await fsDeleteMessage(m.convId, id);
+    } catch (e) { console.error('Delete failed', e); }
   }
 
   async function togglePicker() {
@@ -1804,7 +1794,9 @@
   // Groups live NPC messages + player responses into per-thread conversation objects
   $: wireConversations = (() => {
     const convMap = {};
-    for (const m of liveMsgs) {
+    const convIdToKey = {}; // Firestore convId → convMap key
+
+    for (const m of liveNpcMsgs) {
       const key = m.groupId ? `group:${m.groupId}` : `sender:${m.sender}`;
       if (!convMap[key]) {
         convMap[key] = {
@@ -1815,6 +1807,7 @@
           items: [], lastTs: 0, isBroadcast: false,
         };
       }
+      if (m.convId) convIdToKey[m.convId] = key;
       const c = convMap[key];
       c.npcMembers.add(m.sender);
       if (m.recipients?.length) {
@@ -1825,12 +1818,12 @@
       c.items.push({ ...m, _type: 'npc' });
       if (m.ts > c.lastTs) c.lastTs = m.ts;
     }
-    for (const r of playerResponses) {
-      const key = r.groupId ? `group:${r.groupId}` : (r.context ? `sender:${r.context}` : null);
+    for (const r of livePlayerMsgs) {
+      const key = r.convId ? convIdToKey[r.convId] : null;
       if (!key || !convMap[key]) continue;
       const c = convMap[key];
-      if (!c.isBroadcast) c.playerMembers.add(r.codename);
-      c.items.push({ ...r, _type: 'player' });
+      if (!c.isBroadcast) c.playerMembers.add(r.sender);
+      c.items.push({ ...r, _type: 'player', codename: r.sender });
       if (r.ts > c.lastTs) c.lastTs = r.ts;
     }
     return Object.values(convMap)
@@ -1844,7 +1837,6 @@
   })();
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
-  let msgPoll;
   let responsesPoll;
   let emailPoll;
   let casePoll;
@@ -1992,7 +1984,19 @@
   onMount(() => {
     try { authenticated = localStorage.getItem(AUTH_KEY) === GM_PIN; } catch {}
     addReply(); addReply();
-    loadMsgs();
+    // Wire messages — subscribe to all conversations, then to each conversation's messages
+    _wireConvSub = fsSubscribeConversations(convs => {
+      _wireSubs.forEach(u => u());
+      _wireSubs = [];
+      _wireCache.clear();
+      for (const conv of convs) {
+        const cid = conv.id;
+        _wireSubs.push(fsSubscribeMessages(cid, msgs => {
+          _wireCache.set(cid, msgs.map(m => ({ ...m, convId: cid })));
+          allWireMsgs = [..._wireCache.values()].flat();
+        }));
+      }
+    });
     loadGroups();
     refreshDevices();
     refreshStaged();
@@ -2002,7 +2006,6 @@
     refreshContacts();
     loadCurrentCalDate();
     refreshOnceLog();
-    msgPoll     = visibilityAwareInterval(loadMsgs, 5000);
     emailPoll   = visibilityAwareInterval(() => { refreshStaged(); refreshLive(); }, 8000);
     casePoll    = visibilityAwareInterval(() => { refreshCaseStaged(); refreshCaseLive(); }, 8000);
     contactPoll = visibilityAwareInterval(refreshContacts, 10000);
@@ -2031,7 +2034,8 @@
   });
 
   onDestroy(() => {
-    if (msgPoll) msgPoll();
+    _wireSubs.forEach(u => u());
+    if (_wireConvSub) _wireConvSub();
     if (emailPoll) emailPoll();
     if (casePoll) casePoll();
     if (contactPoll) contactPoll();
@@ -2472,13 +2476,12 @@
       <div class="section">
         <div class="section-label-row">
           <div class="section-label" style="margin-bottom:0">Staged — awaiting deploy</div>
-          <button class="ghost-btn" on:click={loadMsgs}>Refresh</button>
         </div>
         <div class="log">
           {#if !stagedMsgs.length}
             <div class="log-empty">No staged messages.</div>
           {:else}
-            {#each stagedMsgs as m (m._id)}
+            {#each stagedMsgs as m (m.id)}
               <div class="chain-log-row">
                 <div class="chain-log-top">
                   <span class="log-name" style="color:{m.color}">{m.sender}:</span>
@@ -2491,10 +2494,10 @@
                   </div>
                 {/if}
                 <div class="chain-log-actions">
-                  <button class="deploy-btn" disabled={deployingMsgId === m._id} on:click={() => deployMessage(m._id)}>
-                    {deployingMsgId === m._id ? 'Deploying…' : 'Deploy → Players'}
+                  <button class="deploy-btn" disabled={deployingMsgId === m.id} on:click={() => deployMessage(m.id)}>
+                    {deployingMsgId === m.id ? 'Deploying…' : 'Deploy → Players'}
                   </button>
-                  <button class="danger-btn" on:click={() => deleteMessage(m._id)}>Delete</button>
+                  <button class="danger-btn" on:click={() => deleteMessage(m.id)}>Delete</button>
                 </div>
               </div>
             {/each}
@@ -2539,7 +2542,7 @@
               </button>
               {#if isExpanded}
                 <div class="conv-card-feed">
-                  {#each conv.items as item (item._id ?? item.id ?? item.ts)}
+                  {#each conv.items as item (item.id ?? item.ts)}
                     {#if item._type === 'npc'}
                       <div class="conv-msg conv-msg-npc">
                         {#if conv.npcMembers.length > 1}
@@ -2548,8 +2551,8 @@
                         <span class="conv-msg-text">{#if item.imageUrl}📷 {/if}{item.text ?? ''}</span>
                         <span class="conv-msg-time">{relTime(item.ts)}</span>
                         <span class="conv-msg-actions">
-                          <button class="conv-action-btn" title="Recall" on:click|stopPropagation={() => recallMessage(item._id)}>↩</button>
-                          <button class="conv-action-btn conv-action-btn--danger" title="Delete" on:click|stopPropagation={() => deleteMessage(item._id)}>×</button>
+                          <button class="conv-action-btn" title="Recall" on:click|stopPropagation={() => recallMessage(item.id)}>↩</button>
+                          <button class="conv-action-btn conv-action-btn--danger" title="Delete" on:click|stopPropagation={() => deleteMessage(item.id)}>×</button>
                         </span>
                       </div>
                     {:else}

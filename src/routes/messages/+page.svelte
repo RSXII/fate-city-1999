@@ -3,49 +3,43 @@
   import { fly } from 'svelte/transition';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
-  import { dbGet, dbPost } from '$lib/firebase-db.js';
+  import { dbGet } from '$lib/firebase-db.js';
   import { relTime, visibilityAwareInterval, getCodename } from '$lib/utils.js';
+  import {
+    subscribeConversations,
+    subscribeMessages,
+    convIdForMsg,
+    createResponse,
+  } from '$lib/firestore-db.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
   import SearchModal from '$lib/components/SearchModal.svelte';
-  import { messagesCache } from '$lib/stores/search.js';
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
 
-  // Driven by ?sender=Name or ?thread=groupId — null on both means list view
+  // URL params — null on both means conversation list view
   $: activeSender = $page.url.searchParams.get('sender');
-  $: activeThread = $page.url.searchParams.get('thread'); // groupId
+  $: activeThread = $page.url.searchParams.get('thread'); // RTDB group key
 
   let myCodename = null;
-  let messages = [];
   let lastSeenMap = {};
   let feedEl;
-  let pollTimer;
   let contactsPollTimer;
   let needsScroll = false;
   let searchOpen = false;
 
-  let isFirstPoll = true;
-
-  let allResponses = []; // all player responses — always fetched, derived per-thread
   let responseText = '';
   let sendingResponse = false;
-  let playerProfiles = {}; // codename → { imageUrl }
+  let playerProfiles = {};
 
-  // Derive the active thread's responses reactively — no stale-clear needed
-  $: responses = activeThread
-    ? allResponses.filter(r => r.groupId === activeThread)
-    : activeSender
-    ? allResponses.filter(r => r.context === activeSender && !r.groupId)
-    : [];
+  // ── Firestore state ───────────────────────────────────────────────────────────
+  let fsConvsRaw = [];      // raw Firestore conversation docs (filtered, no meta)
+  let fsMessages = [];      // messages for the active thread
+  let unsubConversations = null;
+  let unsubMessages = null;
+  let isFirstSnapshot = true;
 
-  function playTextChime() {
-    try {
-      const audio = new Audio(`${base}/sounds/message_sound.mp3`);
-      audio.play();
-    } catch { /* audio blocked or unavailable */ }
-  }
-
+  // ── contacts ──────────────────────────────────────────────────────────────────
   let contacts = [];
   $: contactsByName = Object.fromEntries(contacts.map(c => [c.name, c]));
 
@@ -57,7 +51,7 @@
     } catch { contacts = []; }
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────────
+  // ── helpers ───────────────────────────────────────────────────────────────────
 
   function senderMeta(name) {
     return contactsByName[name] ?? { color: '#b8902f', avatar: null };
@@ -83,14 +77,19 @@
     catch { return {}; }
   }
 
-  function markSeen(name, ts) {
-    if (!lastSeenMap[name] || ts > lastSeenMap[name]) {
-      lastSeenMap = { ...lastSeenMap, [name]: ts };
+  function markSeen(key, ts) {
+    if (!lastSeenMap[key] || ts > lastSeenMap[key]) {
+      lastSeenMap = { ...lastSeenMap, [key]: ts };
       localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeenMap));
     }
   }
 
-  // ── data ─────────────────────────────────────────────────────────────────────
+  function playTextChime() {
+    try {
+      const audio = new Audio(`${base}/sounds/message_sound.mp3`);
+      audio.play();
+    } catch { /* audio blocked or unavailable */ }
+  }
 
   async function loadPlayerProfiles() {
     try {
@@ -99,16 +98,7 @@
     } catch {}
   }
 
-  async function pollResponses() {
-    if (!myCodename) return;
-    try {
-      const data = await dbGet('player-responses', { orderBy: '$key', limitToLast: 200 });
-      if (!data) { allResponses = []; return; }
-      allResponses = Object.entries(data)
-        .map(([id, r]) => ({ ...r, id, _isResponse: true }))
-        .sort((a, b) => a.ts - b.ts);
-    } catch { allResponses = []; }
-  }
+  // ── player response ───────────────────────────────────────────────────────────
 
   async function sendResponse() {
     const text = responseText.trim();
@@ -122,29 +112,12 @@
       } else if (activeSender) {
         payload.context = activeSender;
       }
-      await dbPost('player-responses', payload);
+      const cid = convIdForMsg({ groupId: payload.groupId, sender: payload.context });
+      await createResponse(cid, payload);
       responseText = '';
-      await pollResponses();
       needsScroll = true;
-    } catch { /* swallow; retry on next poll */ }
+    } catch { /* swallow; will appear on next Firestore push */ }
     sendingResponse = false;
-  }
-
-  async function poll() {
-    const data = await dbGet('messages', { orderBy: '$key', limitToLast: 100 });
-    if (!data) return;
-    const fetched = Object.entries(data)
-      .map(([id, m]) => ({ ...m, id }))
-      .filter(m => m.staged !== false)
-      .filter(m => !m.recipients || m.recipients.includes(myCodename))
-      .sort((a, b) => a.ts - b.ts);
-    const hadNew = fetched.length > messages.length;
-    messages = fetched;
-    messagesCache.set(fetched);
-    if (hadNew && !isFirstPoll) playTextChime();
-    if ((activeSender || activeThread) && hadNew) needsScroll = true;
-    isFirstPoll = false;
-    await pollResponses();
   }
 
   afterUpdate(() => {
@@ -154,38 +127,88 @@
     }
   });
 
+  // ── Firestore: thread subscription ───────────────────────────────────────────
+
+  // Stable Firestore conversation ID derived from the current URL params
+  $: convId = activeThread
+    ? `group_${activeThread}`
+    : activeSender
+    ? convIdForMsg({ sender: activeSender })
+    : null;
+
+  // Re-subscribe whenever the active conversation changes
+  let _lastConvId = null;
+  $: if (convId !== _lastConvId) {
+    _lastConvId = convId;
+    if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+    fsMessages = [];
+    if (convId) {
+      isFirstSnapshot = true;
+      unsubMessages = subscribeMessages(convId, msgs => {
+        const visible = msgs.filter(m =>
+          m.type === 'player' ||
+          (m.staged !== false && (!m.recipients || m.recipients.includes(myCodename)))
+        );
+        const hadNew = visible.length > fsMessages.length;
+        if (hadNew && !isFirstSnapshot) playTextChime();
+        fsMessages = visible;
+        if (hadNew) needsScroll = true;
+        isFirstSnapshot = false;
+      });
+    }
+  }
+
   onMount(() => {
     myCodename = getCodename();
     lastSeenMap = loadLastSeen();
     loadContacts();
-    poll();
-    pollResponses(); // parallel with poll so responses appear immediately
     loadPlayerProfiles();
-    pollTimer = visibilityAwareInterval(poll, 5000);
+    unsubConversations = subscribeConversations(rawConvs => {
+      fsConvsRaw = rawConvs.filter(c =>
+        c.isBroadcast || (c.playerMembers ?? []).includes(myCodename)
+      );
+    });
     contactsPollTimer = visibilityAwareInterval(loadContacts, 30000);
   });
 
   onDestroy(() => {
-    if (pollTimer) pollTimer();
+    if (unsubConversations) unsubConversations();
+    if (unsubMessages) unsubMessages();
     if (contactsPollTimer) contactsPollTimer();
   });
 
   // ── derived views ─────────────────────────────────────────────────────────────
 
-  $: threadMessages = activeThread
-    ? messages.filter(m => m.groupId === activeThread)
-    : activeSender
-      ? messages.filter(m => m.sender === activeSender && !m.groupId)
-      : [];
+  // Enrich raw Firestore conv docs with contact meta — re-runs when contacts load
+  $: fsConversations = fsConvsRaw.map(c => {
+    const isGroup = c.id.startsWith('group_');
+    const groupId  = isGroup ? c.id.slice('group_'.length) : null;
+    const senderName = isGroup ? null : (c.npcMembers?.[0] ?? '');
+    const key  = isGroup ? `group:${groupId}` : `sender:${senderName}`;
+    const meta = isGroup ? { color: '#5b9e8f', avatar: null } : senderMeta(senderName);
+    return {
+      key, isGroup, groupId,
+      name:       c.name ?? senderName,
+      color:      meta.color,
+      avatar:     meta.avatar ?? null,
+      lastTs:     c.lastMessageAt   ?? 0,
+      lastText:   c.lastMessageText  ?? '',
+      lastSender: c.lastMessageSender ?? '',
+    };
+  });
+
+  // NPC-only messages in the active thread (used for header, markSeen)
+  $: threadMessages = fsMessages.filter(m => m.type === 'npc');
 
   $: isGroupThread = new Set(threadMessages.map(m => m.sender)).size > 1;
 
-  $: mergedThread = [
-      ...threadMessages.map(m => ({ ...m, _isResponse: false })),
-      ...responses,
-    ].sort((a, b) => a.ts - b.ts);
+  // Combined NPC + player messages shaped for the template
+  $: mergedThread = fsMessages.map(m => ({
+    ...m,
+    _isResponse: m.type === 'player',
+    codename:    m.type === 'player' ? m.sender : undefined,
+  }));
 
-  // Derive group display info from embedded message fields — no extra Firebase fetch
   $: activeGroupName = activeThread
     ? (threadMessages.find(m => m.groupName)?.groupName ?? 'Group Chat')
     : null;
@@ -193,61 +216,19 @@
     ? [...new Set(threadMessages.map(m => m.sender))]
     : [];
 
-  // Mark thread read; use prefixed key for groups to avoid collisions with sender names
+  // Mark thread read when NPC messages are visible
   $: if ((activeSender || activeThread) && threadMessages.length) {
     const seenKey = activeThread ? `group:${activeThread}` : activeSender;
-    const maxTs = Math.max(...threadMessages.map(m => m.ts));
-    markSeen(seenKey, maxTs);
+    markSeen(seenKey, Math.max(...threadMessages.map(m => m.ts)));
   }
 
-  $: conversations = (() => {
-    if (activeSender || activeThread) return [];
-    const convMap = {};
-    for (const m of messages) {
-      const key = m.groupId ? `group:${m.groupId}` : `sender:${m.sender}`;
-      if (!convMap[key]) {
-        if (m.groupId) {
-          convMap[key] = {
-            key, groupId: m.groupId,
-            name: m.groupName || 'Group Chat',
-            isGroup: true, color: '#5b9e8f', avatar: null,
-            lastTs: 0, lastText: '', lastSender: '', lastNpcTs: 0
-          };
-        } else {
-          const meta = senderMeta(m.sender);
-          convMap[key] = {
-            key, name: m.sender,
-            isGroup: false, color: meta.color, avatar: meta.avatar,
-            lastTs: 0, lastText: '', lastNpcTs: 0
-          };
-        }
-      }
-      if (m.ts >= convMap[key].lastTs) {
-        convMap[key].lastTs = m.ts;
-        convMap[key].lastNpcTs = m.ts;
-        convMap[key].lastText = m.imageUrl ? `📷 ${m.text || 'Photo'}` : (m.text || '');
-        if (m.groupId) convMap[key].lastSender = m.sender;
-      }
-    }
-    // Fold in player responses — update last message and sort order if more recent
-    for (const r of allResponses) {
-      const convKey = r.groupId ? `group:${r.groupId}` : r.context ? `sender:${r.context}` : null;
-      if (convKey && convMap[convKey] && r.ts > convMap[convKey].lastTs) {
-        convMap[convKey].lastTs = r.ts;
-        if (convMap[convKey].isGroup) {
-          // Group threads already show lastSender as a prefix in the template
-          convMap[convKey].lastSender = r.codename;
-          convMap[convKey].lastText = r.text;
-        } else {
-          // 1:1 threads have no lastSender prefix — include codename in the text
-          convMap[convKey].lastText = `${r.codename}: ${r.text}`;
-        }
-      }
-    }
-    return Object.values(convMap)
-      .map(g => ({ ...g, unread: g.lastNpcTs > (lastSeenMap[g.key] ?? 0) }))
-      .sort((a, b) => b.lastTs - a.lastTs);
-  })();
+  // Conversation list — adds reactive unread dot based on lastSeenMap
+  $: conversations = (activeSender || activeThread)
+    ? []
+    : fsConversations.map(c => ({
+        ...c,
+        unread: c.lastTs > (lastSeenMap[c.key] ?? 0),
+      })).sort((a, b) => b.lastTs - a.lastTs);
 </script>
 
 <svelte:head>
@@ -796,6 +777,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    min-width: 0;
+    max-width: calc(85% - 34px); /* 85% of row minus avatar (26px) + gap (8px) */
   }
   .msg-mine-avatar {
     flex-shrink: 0;
@@ -836,7 +819,7 @@
     color: rgba(232, 223, 200, 0.92);
     word-wrap: break-word;
     white-space: pre-line;
-    max-width: 85%;
+    max-width: 100%;
   }
   .msg-mine-time {
     font-size: 9.5px;
