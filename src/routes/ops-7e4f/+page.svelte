@@ -75,6 +75,7 @@
   let sending = false;
   let liveMsgLogEl;
   let liveThreadFilter = null; // null=all, 'broadcast'=no recipients, string=codename
+  let expandedConvKey = null;
 
   let deviceRecords = []; // full device records from Firebase
   let selectedRecipients = []; // empty = broadcast to all
@@ -1800,6 +1801,48 @@
       })
     : playerResponses;
 
+  // Groups live NPC messages + player responses into per-thread conversation objects
+  $: wireConversations = (() => {
+    const convMap = {};
+    for (const m of liveMsgs) {
+      const key = m.groupId ? `group:${m.groupId}` : `sender:${m.sender}`;
+      if (!convMap[key]) {
+        convMap[key] = {
+          key, isGroup: !!m.groupId, groupId: m.groupId ?? null,
+          name: m.groupId ? (m.groupName || 'Group Chat') : m.sender,
+          color: m.color || '#c9a227',
+          npcMembers: new Set(), playerMembers: new Set(),
+          items: [], lastTs: 0, isBroadcast: false,
+        };
+      }
+      const c = convMap[key];
+      c.npcMembers.add(m.sender);
+      if (m.recipients?.length) {
+        m.recipients.forEach(r => c.playerMembers.add(r));
+      } else {
+        c.isBroadcast = true;
+      }
+      c.items.push({ ...m, _type: 'npc' });
+      if (m.ts > c.lastTs) c.lastTs = m.ts;
+    }
+    for (const r of playerResponses) {
+      const key = r.groupId ? `group:${r.groupId}` : (r.context ? `sender:${r.context}` : null);
+      if (!key || !convMap[key]) continue;
+      const c = convMap[key];
+      if (!c.isBroadcast) c.playerMembers.add(r.codename);
+      c.items.push({ ...r, _type: 'player' });
+      if (r.ts > c.lastTs) c.lastTs = r.ts;
+    }
+    return Object.values(convMap)
+      .map(c => ({
+        ...c,
+        npcMembers: [...c.npcMembers],
+        playerMembers: [...c.playerMembers],
+        items: c.items.sort((a, b) => a.ts - b.ts),
+      }))
+      .sort((a, b) => b.lastTs - a.lastTs);
+  })();
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   let msgPoll;
   let responsesPoll;
@@ -2461,49 +2504,67 @@
 
       <div class="section">
         <div class="section-label-row">
-          <div class="section-label" style="margin-bottom:0">Live — on player devices</div>
-          <button class="ghost-btn" on:click={loadMsgs}>Refresh</button>
+          <div class="section-label" style="margin-bottom:0">Conversations — live</div>
+          <button class="ghost-btn" on:click={() => { loadMsgs(); loadPlayerResponses(); }}>Refresh</button>
         </div>
-        {#if liveFilterOptions.hasBroadcast || liveFilterOptions.codenames.length}
-          <div class="tag-filter-bar">
-            <span class="tag-filter-label">Filter:</span>
-            <button type="button" class="tag-badge" class:filter-active={liveThreadFilter === null}
-              on:click={() => liveThreadFilter = null}>All</button>
-            {#if liveFilterOptions.hasBroadcast}
-              <button type="button" class="tag-badge" class:filter-active={liveThreadFilter === 'broadcast'}
-                on:click={() => { liveThreadFilter = liveThreadFilter === 'broadcast' ? null : 'broadcast'; }}>Broadcast</button>
-            {/if}
-            {#each liveFilterOptions.codenames as codename (codename)}
-              <button type="button" class="tag-badge" class:filter-active={liveThreadFilter === codename}
-                on:click={() => { liveThreadFilter = liveThreadFilter === codename ? null : codename; }}>{codename}</button>
-            {/each}
-          </div>
+        {#if !wireConversations.length}
+          <div class="log"><div class="log-empty">No live conversations.</div></div>
+        {:else}
+          {#each wireConversations as conv (conv.key)}
+            {@const isExpanded = expandedConvKey === conv.key}
+            {@const last = conv.items[conv.items.length - 1]}
+            {@const lastPreview = last
+              ? (last._type === 'npc'
+                  ? (conv.npcMembers.length > 1 ? `${last.sender}: ` : '') + (last.imageUrl ? '📷 ' : '') + (last.text ?? '')
+                  : `${last.codename}: ${last.text}`)
+              : ''}
+            <div class="conv-tile" class:conv-tile--expanded={isExpanded}>
+              <button class="conv-tile-header" on:click={() => expandedConvKey = isExpanded ? null : conv.key}>
+                <div class="conv-tile-top">
+                  <span class="conv-tile-name" style="color:{conv.color}">{conv.name}</span>
+                  <span class="conv-tile-time">{relTime(conv.lastTs)}</span>
+                  <span class="conv-tile-chevron" class:open={isExpanded}>›</span>
+                </div>
+                <div class="conv-tile-bottom">
+                  <span class="conv-tile-members">
+                    {conv.npcMembers.join(' · ')}
+                    {#if conv.isBroadcast}
+                      <span class="conv-tile-players">@Everyone</span>
+                    {:else if conv.playerMembers.length}
+                      <span class="conv-tile-players">{conv.playerMembers.map(p => `@${p}`).join(' ')}</span>
+                    {/if}
+                  </span>
+                  <span class="conv-tile-preview">{lastPreview}</span>
+                </div>
+              </button>
+              {#if isExpanded}
+                <div class="conv-card-feed">
+                  {#each conv.items as item (item._id ?? item.id ?? item.ts)}
+                    {#if item._type === 'npc'}
+                      <div class="conv-msg conv-msg-npc">
+                        {#if conv.npcMembers.length > 1}
+                          <span class="conv-msg-name" style="color:{item.color}">{item.sender}:</span>
+                        {/if}
+                        <span class="conv-msg-text">{#if item.imageUrl}📷 {/if}{item.text ?? ''}</span>
+                        <span class="conv-msg-time">{relTime(item.ts)}</span>
+                        <span class="conv-msg-actions">
+                          <button class="conv-action-btn" title="Recall" on:click|stopPropagation={() => recallMessage(item._id)}>↩</button>
+                          <button class="conv-action-btn conv-action-btn--danger" title="Delete" on:click|stopPropagation={() => deleteMessage(item._id)}>×</button>
+                        </span>
+                      </div>
+                    {:else}
+                      <div class="conv-msg conv-msg-player">
+                        <span class="conv-msg-name conv-msg-name--player">{item.codename}:</span>
+                        <span class="conv-msg-text">{item.text}</span>
+                        <span class="conv-msg-time">{relTime(item.ts)}</span>
+                      </div>
+                    {/if}
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
         {/if}
-        <div class="log" bind:this={liveMsgLogEl}>
-          {#if !filteredLiveMsgs.length}
-            <div class="log-empty">{liveThreadFilter ? `No live messages for "${liveThreadFilter}".` : 'No live messages.'}</div>
-          {:else}
-            {#each filteredLiveMsgs as m (m._id ?? m.ts)}
-              <div class="chain-log-row">
-                <div class="chain-log-top">
-                  <span class="live-label">▶ &nbsp;</span>
-                  <span class="log-name" style="color:{m.color}">{m.sender}:</span>
-                  <span class="log-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{#if m.imageUrl}📷 {/if}{m.text ?? ''}</span>
-                  <span class="chain-log-meta">{relTime(m.ts)}</span>
-                </div>
-                {#if m.recipients?.length}
-                  <div class="chain-log-tags">
-                    {#each m.recipients as r (r)}<span class="tag-badge">{r}</span>{/each}
-                  </div>
-                {/if}
-                <div class="chain-log-actions" style="justify-content:flex-end">
-                  <button class="recall-btn" on:click={() => recallMessage(m._id)}>Recall</button>
-                  <button class="danger-btn" on:click={() => deleteMessage(m._id)}>Delete</button>
-                </div>
-              </div>
-            {/each}
-          {/if}
-        </div>
       </div>
 
       </div><!-- /col-list -->
@@ -4603,6 +4664,36 @@
   .log-name { font-weight: 700; flex-shrink: 0; }
   .log-text { color: rgba(232,223,200,0.85); white-space: pre-line; }
   .log-time { color: #3a4a5a; font-size: 10px; margin-left: 6px; }
+
+  /* ── Wire conversation tiles ── */
+  .conv-tile { border: 1px solid #1a2030; border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: #0a0d14; }
+  .conv-tile:last-child { margin-bottom: 0; }
+  .conv-tile--expanded { border-color: #2a3a4a; }
+  .conv-tile-header { display: block; width: 100%; background: none; border: none; padding: 9px 12px 8px; cursor: pointer; text-align: left; transition: background 0.12s; }
+  .conv-tile-header:hover { background: rgba(255,255,255,0.03); }
+  .conv-tile--expanded .conv-tile-header { background: rgba(255,255,255,0.025); border-bottom: 1px solid #1a2030; }
+  .conv-tile-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .conv-tile-name { font-size: 12.5px; font-weight: 700; flex-shrink: 0; }
+  .conv-tile-time { font-size: 9.5px; color: #3a4a5a; margin-left: auto; flex-shrink: 0; }
+  .conv-tile-chevron { font-size: 14px; color: #3a4a5a; flex-shrink: 0; display: inline-block; transform: rotate(90deg); transition: transform 0.15s; line-height: 1; }
+  .conv-tile-chevron.open { transform: rotate(270deg); }
+  .conv-tile-bottom { display: flex; align-items: baseline; gap: 10px; }
+  .conv-tile-members { font-size: 10.5px; color: #6a7d90; flex-shrink: 0; white-space: nowrap; }
+  .conv-tile-players { color: #6ab0d4; margin-left: 6px; }
+  .conv-tile-preview { font-size: 11px; color: rgba(232,223,200,0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: right; }
+  .conv-card-feed { padding: 8px 12px 10px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; scrollbar-color: rgba(201,162,39,0.15) transparent; }
+  .conv-msg { display: flex; align-items: baseline; gap: 5px; font-size: 12px; line-height: 1.4; }
+  .conv-msg-npc { flex-direction: row; }
+  .conv-msg-player { flex-direction: row; padding-left: 10px; opacity: 0.85; }
+  .conv-msg-name { font-weight: 700; flex-shrink: 0; font-size: 10.5px; white-space: nowrap; }
+  .conv-msg-name--player { color: #6ab0d4; }
+  .conv-msg-text { flex: 1; min-width: 0; color: rgba(232,223,200,0.82); word-break: break-word; white-space: pre-line; }
+  .conv-msg-time { font-size: 9.5px; color: #3a4a5a; flex-shrink: 0; align-self: flex-end; }
+  .conv-msg-actions { display: flex; gap: 1px; flex-shrink: 0; opacity: 0; transition: opacity 0.1s; }
+  .conv-msg:hover .conv-msg-actions { opacity: 1; }
+  .conv-action-btn { background: none; border: none; color: #6a7d90; cursor: pointer; font-size: 13px; padding: 0 3px; line-height: 1; border-radius: 3px; }
+  .conv-action-btn:hover { color: #c9a227; background: rgba(201,162,39,0.1); }
+  .conv-action-btn--danger:hover { color: #e24b4a; background: rgba(226,74,74,0.1); }
 
   .status-line { font-size: 11px; color: #6a7d90; margin-top: 8px; min-height: 14px; }
   .status-line.ok { color: #639922; }
