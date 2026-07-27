@@ -8,6 +8,25 @@
   import { NPCS } from '$lib/data/persons.js';
   import { CHARACTERS, normActions, formatDelta } from '$lib/data/downtime.js';
 
+  // ── PIN gate ──────────────────────────────────────────────────────────────────
+  const GM_PIN = 'fc99-ops';   // change this to your preferred passphrase
+  const AUTH_KEY = 'gm-auth-7e4f';
+
+  let authenticated = false;
+  let pinInput = '';
+  let pinError = false;
+
+  function submitPin() {
+    if (pinInput.trim() === GM_PIN) {
+      try { localStorage.setItem(AUTH_KEY, GM_PIN); } catch {}
+      authenticated = true;
+      pinError = false;
+    } else {
+      pinError = true;
+      pinInput = '';
+    }
+  }
+
   let activeTab = 'wire';
 
   const GITHUB_IMAGES_API =
@@ -1442,6 +1461,59 @@
     }
   }
 
+  // ── Incoming Call ─────────────────────────────────────────────────────────────
+  let callPickContact = null;
+  let callPickCodename = '';
+  let callSendStatus = null;
+  let callSending = false;
+  let activeCall = null;
+  let callConsolePoll;
+
+  async function loadActiveCall() {
+    try {
+      const data = await dbGet('incomingCall');
+      activeCall = (data && data.active) ? data : null;
+    } catch {}
+  }
+
+  async function triggerIncomingCall() {
+    const c = callPickContact;
+    const codename = callPickCodename.trim().toUpperCase();
+    if (!c || !codename) {
+      callSendStatus = { text: 'Select a caller and a target codename.', type: 'err' };
+      return;
+    }
+    callSending = true;
+    callSendStatus = null;
+    try {
+      await dbPut('incomingCall', {
+        active: true,
+        targetCodename: codename,
+        callerName: c.name,
+        callerSubtitle: c.subtitle || null,
+        callerAvatar: c.avatar || null,
+        callerColor: c.color || '#c9a227',
+        ts: Date.now(),
+      });
+      await loadActiveCall();
+      callSendStatus = { text: 'Call triggered.', type: 'ok' };
+    } catch (e) {
+      callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+    callSending = false;
+  }
+
+  async function endActiveCall() {
+    if (!confirm("End the active call? This will dismiss the overlay on the player's device.")) return;
+    try {
+      await dbDelete('incomingCall');
+      activeCall = null;
+      callSendStatus = { text: 'Call ended.', type: 'ok' };
+    } catch (e) {
+      callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+  }
+
   // ── HouseKit ──────────────────────────────────────────────────────────────
   const GITHUB_HOUSEKIT_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/housekit';
@@ -1875,6 +1947,7 @@
   }
 
   onMount(() => {
+    try { authenticated = localStorage.getItem(AUTH_KEY) === GM_PIN; } catch {}
     addReply(); addReply();
     loadMsgs();
     loadGroups();
@@ -1903,6 +1976,8 @@
     loadTimerState();
     timerConsolePoll  = visibilityAwareInterval(loadTimerState, 4000);
     timerDisplayTick  = setInterval(updateTimerDisplayStr, 500);
+    loadActiveCall();
+    callConsolePoll = visibilityAwareInterval(loadActiveCall, 5000);
     refreshHkProperties();
     hkStartCreate();
     hkPoll = visibilityAwareInterval(refreshHkProperties, 15000);
@@ -1923,6 +1998,7 @@
     if (ridesPoll) ridesPoll();
     if (devicesPoll) devicesPoll();
     if (timerConsolePoll) timerConsolePoll();
+    if (callConsolePoll) callConsolePoll();
     if (hkPoll) hkPoll();
     if (dtPoll) dtPoll();
     if (responsesPoll) responsesPoll();
@@ -2094,6 +2170,34 @@
   <title>Fate City: 1999 — GM Console</title>
 </svelte:head>
 
+{#if !authenticated}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div class="pin-gate">
+    <div class="pin-card">
+      <div class="pin-eyebrow">// RESTRICTED ACCESS</div>
+      <div class="pin-title">GM CONSOLE</div>
+      <div class="pin-sub">Fate City: 1999</div>
+      <form class="pin-form" on:submit|preventDefault={submitPin}>
+        <!-- svelte-ignore a11y-autofocus -->
+        <input
+          class="pin-input"
+          class:pin-input--error={pinError}
+          type="password"
+          placeholder="Passphrase"
+          bind:value={pinInput}
+          autofocus
+          autocomplete="off"
+          spellcheck="false"
+        />
+        {#if pinError}
+          <div class="pin-error">Access denied.</div>
+        {/if}
+        <button class="pin-btn" type="submit">Authenticate</button>
+      </form>
+    </div>
+  </div>
+{:else}
+
 <div class="console">
 
   <!-- ── Header ──────────────────────────────────────────────────────────── -->
@@ -2114,6 +2218,7 @@
     <button class="tab" class:active={activeTab === 'rides'} role="tab" on:click={() => activeTab = 'rides'}>Rides</button>
     <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
+    <button class="tab tab--call"     class:active={activeTab === 'call'}        role="tab" on:click={() => { activeTab = 'call'; loadActiveCall(); }}>Call</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
     <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
@@ -3640,6 +3745,53 @@
 
     {/if}
 
+    <!-- ══ INCOMING CALL ════════════════════════════════════════════════════ -->
+    {#if activeTab === 'call'}
+
+      <p class="tab-sub">Trigger an incoming call overlay on a player's device from an NPC contact.</p>
+
+      <div class="section">
+        <div class="section-label">Caller (NPC)</div>
+        <select class="case-select" bind:value={callPickContact}>
+          <option value={null} disabled selected>— pick a contact —</option>
+          {#each contactList as c (c._id)}
+            <option value={c}>{c.name}{c.subtitle ? ` — ${c.subtitle}` : ''}</option>
+          {/each}
+        </select>
+
+        <div class="section-label" style="margin-top:4px">Target Codename</div>
+        <select class="case-select" bind:value={callPickCodename}>
+          <option value="" disabled selected>— pick a player —</option>
+          {#each deviceRecords as d (d._id)}
+            <option value={d.codename}>{d.codename}</option>
+          {/each}
+        </select>
+
+        <button class="primary" style="width:100%;margin-top:4px" disabled={!callPickContact || !callPickCodename || callSending} on:click={triggerIncomingCall}>
+          {callSending ? 'Triggering…' : 'Trigger Incoming Call'}
+        </button>
+
+        {#if callSendStatus}
+          <div class="status-line" class:ok={callSendStatus.type === 'ok'} class:err={callSendStatus.type === 'err'}>
+            {callSendStatus.text}
+          </div>
+        {/if}
+      </div>
+
+      {#if activeCall}
+        <div class="section">
+          <div class="section-label">Active Call</div>
+          <div class="timer-active-block">
+            <span class="timer-active-str">{activeCall.callerName} → {activeCall.targetCodename}</span>
+            <div class="timer-active-actions">
+              <button class="danger-btn" on:click={endActiveCall}>End Call</button>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+    {/if}
+
     <!-- ══ HOUSEKIT ══════════════════════════════════════════════════════════ -->
     {#if activeTab === 'housekit'}
 
@@ -4272,6 +4424,8 @@
 
   </div><!-- /tab-panel -->
 </div><!-- /console -->
+
+{/if}<!-- /authenticated -->
 
 <style>
   .console {
@@ -5998,4 +6152,104 @@
   }
   .bank-sub-name-input { flex: 2; }
   .bank-sub-cost-input { flex: 1; min-width: 0; }
+
+  /* ── Call tab ── */
+  .tab--call { color: #1a3a1a; }
+  .tab--call:hover { color: #34c759; }
+  .tab--call.active { color: #34c759; border-bottom-color: #2aa847; }
+
+  /* ── PIN gate ── */
+  .pin-gate {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #070a10;
+  }
+  .pin-card {
+    width: min(360px, calc(100vw - 48px));
+    padding: 40px 32px 36px;
+    background: #0c0f16;
+    border: 1px solid rgba(201, 162, 39, 0.2);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .pin-eyebrow {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: rgba(201, 162, 39, 0.45);
+    margin-bottom: 4px;
+  }
+  .pin-title {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #c9a227;
+  }
+  .pin-sub {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.2);
+    margin-bottom: 20px;
+  }
+  .pin-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pin-input {
+    width: 100%;
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    color: #e8dfc8;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 15px;
+    letter-spacing: 2px;
+    padding: 12px 14px;
+    outline: none;
+    text-align: center;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+  }
+  .pin-input:focus { border-color: #c9a227; }
+  .pin-input--error { border-color: #e03e3e; animation: pin-shake 0.3s ease; }
+  @keyframes pin-shake {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-6px); }
+    75%       { transform: translateX(6px); }
+  }
+  .pin-error {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #e03e3e;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .pin-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: 8px;
+    color: #c9a227;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    margin-top: 4px;
+  }
+  .pin-btn:hover { background: rgba(201, 162, 39, 0.2); border-color: rgba(201, 162, 39, 0.6); }
+  .pin-btn:active { background: rgba(201, 162, 39, 0.28); }
 </style>
