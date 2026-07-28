@@ -543,6 +543,10 @@
     font-family: 'Courier New', Courier, monospace; white-space: pre-wrap; word-break: break-word;
     padding: 4px 0 10px;
   }
+  :global(.mail-body a), :global(.log-body a), :global(.doc-body a), :global(.tx-body a),
+  :global(.mail-body a:visited), :global(.log-body a:visited), :global(.doc-body a:visited), :global(.tx-body a:visited) {
+    color: #c8a84b; text-decoration: underline;
+  }
 
   /* ── log blocks ──────────────────────────────────────────────────────────── */
   .log-block { padding: 12px; background: rgba(251,191,36,0.03); border: 1px solid rgba(251,191,36,0.1); border-radius: 5px; }
