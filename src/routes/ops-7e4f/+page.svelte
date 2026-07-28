@@ -2508,7 +2508,6 @@
       <div class="section">
         <div class="section-label-row">
           <div class="section-label" style="margin-bottom:0">Conversations — live</div>
-          <button class="ghost-btn" on:click={() => { loadMsgs(); loadPlayerResponses(); }}>Refresh</button>
         </div>
         {#if !wireConversations.length}
           <div class="log"><div class="log-empty">No live conversations.</div></div>

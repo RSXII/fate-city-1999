@@ -234,31 +234,37 @@ export async function createMessage(convId, payload) {
     Object.entries(msgData).filter(([, v]) => v !== null),
   );
 
-  // Only update structural/membership fields — preview fields update on deploy, not on stage
-  const convUpdate = { npcMembers: arrayUnion(payload.sender) };
-  if (!payload.recipients?.length) convUpdate.isBroadcast = true;
-  if (payload.recipients?.length)  convUpdate.playerMembers = arrayUnion(...payload.recipients);
-  if (payload.groupName)           convUpdate.name = payload.groupName;
+  // lastMessageAt is required for the subscribeConversations orderBy to include this doc.
+  // Membership/preview fields are withheld until deploy so players don't see empty conversations.
+  const convUpdate = {
+    npcMembers:    arrayUnion(payload.sender),
+    lastMessageAt: payload.ts,
+  };
+  if (payload.groupName) convUpdate.name = payload.groupName;
 
   await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
   return addDoc(collection(db, 'conversations', convId, 'messages'), cleanMsg);
 }
 
 /**
- * Deploy a staged NPC message: flip staged → true and update the conversation preview.
+ * Deploy a staged NPC message: flip staged → true, update the conversation preview,
+ * and set membership fields so players can now see the conversation.
  */
 export async function deployMessage(convId, messageId, msg) {
   await updateDoc(
     doc(db, 'conversations', convId, 'messages', messageId),
     { staged: true }
   );
-  await setDoc(doc(db, 'conversations', convId), {
+  const convUpdate = {
     lastMessageAt:     msg.ts,
     lastMessageSender: msg.sender,
     lastMessageText:   msg.imageUrl
       ? `📷 ${msg.text || 'Photo'}`
       : (msg.text || ''),
-  }, { merge: true });
+  };
+  if (!msg.recipients?.length) convUpdate.isBroadcast = true;
+  if (msg.recipients?.length)  convUpdate.playerMembers = arrayUnion(...msg.recipients);
+  await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
 }
 
 /**
