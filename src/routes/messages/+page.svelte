@@ -57,6 +57,19 @@
     return contactsByName[name] ?? { color: '#b8902f', avatar: null };
   }
 
+  function linkify(text) {
+    if (!text) return '';
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    return escaped.replace(
+      /https?:\/\/[^\s<>"]+/g,
+      url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+    );
+  }
+
   function hexToRgba(hex, a) {
     const h = String(hex).replace('#', '');
     const r = parseInt(h.slice(0, 2), 16);
@@ -298,7 +311,7 @@
                 <div class="msg-mine-label">{item.codename}</div>
               {/if}
               <div class="msg-bubble-mine">
-                <div class="msg-bubble-text">{item.text}</div>
+                <div class="msg-bubble-text">{@html linkify(item.text)}</div>
               </div>
               <span class="msg-mine-time">{relTime(item.ts)}</span>
               {#if item.status === 'seen'}
@@ -351,7 +364,7 @@
                       on:error={e => e.currentTarget.style.display = 'none'}>
                   {/if}
                   {#if item.text}
-                    <div class="msg-bubble-text">{item.text}</div>
+                    <div class="msg-bubble-text">{@html linkify(item.text)}</div>
                   {/if}
                   {#if item.attachmentUrl}
                     <Attachment url={item.attachmentUrl} />
@@ -375,7 +388,7 @@
                       on:error={e => e.currentTarget.style.display = 'none'}>
                   {/if}
                   {#if item.text}
-                    <div class="msg-bubble-text">{item.text}</div>
+                    <div class="msg-bubble-text">{@html linkify(item.text)}</div>
                   {/if}
                   {#if item.attachmentUrl}
                     <Attachment url={item.attachmentUrl} />

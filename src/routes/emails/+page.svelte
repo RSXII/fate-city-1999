@@ -63,6 +63,19 @@
   let playerTags    = {};
   let playerTagInput = '';
 
+  function linkify(text) {
+    if (!text) return '';
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    return escaped.replace(
+      /https?:\/\/[^\s<>"]+/g,
+      url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+    );
+  }
+
   function loadPlayerTags() {
     try { return JSON.parse(localStorage.getItem(PLAYER_TAGS_KEY) ?? '{}'); }
     catch { return {}; }
@@ -222,7 +235,7 @@
               <span class="mail-from">FROM: {m.from ?? 'Unknown'}</span>
               <span class="mail-ts">{m.ts ? relTime(m.ts) : ''}</span>
             </div>
-            <div class="mail-body">{m.body ?? ''}</div>
+            <div class="mail-body">{@html linkify(m.body ?? '')}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
             {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
@@ -239,7 +252,7 @@
               class:log-body-lg={m.size === 'lg'}
               class:log-body-bold={m.bold}
               style={m.color ? `color:${m.color}` : ''}
-            >{m.body ?? ''}</div>
+            >{@html linkify(m.body ?? '')}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
             {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
@@ -256,7 +269,7 @@
               class:doc-body-lg={m.size === 'lg'}
               class:doc-body-bold={m.bold}
               style={m.color ? `color:${m.color}` : ''}
-            >{m.body ?? ''}</div>
+            >{@html linkify(m.body ?? '')}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
             {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
@@ -268,14 +281,14 @@
               <span class="tx-label">TRANSMISSION RECEIVED</span>
               <span class="mail-ts">{m.ts ? relTime(m.ts) : ''}</span>
             </div>
-            <div class="tx-body">{m.body ?? ''}</div>
+            <div class="tx-body">{@html linkify(m.body ?? '')}</div>
           </div>
 
         {:else}
           <!-- Fallback to email style -->
           <div class="mail-block" in:fly={{ y: 10, duration: 400 }}>
             {#if m.from}<div class="mail-block-header"><span class="mail-from">FROM: {m.from}</span><span class="mail-ts">{m.ts ? relTime(m.ts) : ''}</span></div>{/if}
-            <div class="mail-body">{m.body ?? ''}</div>
+            <div class="mail-body">{@html linkify(m.body ?? '')}</div>
             {#if m.imageUrl}<Attachment url={m.imageUrl} />{/if}
             {#if m.pdfUrl}<Attachment url={m.pdfUrl} />{/if}
           </div>
