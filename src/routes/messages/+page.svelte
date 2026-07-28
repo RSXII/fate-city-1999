@@ -135,8 +135,11 @@
 
   afterUpdate(() => {
     if (needsScroll && feedEl) {
-      feedEl.scrollTop = feedEl.scrollHeight;
       needsScroll = false;
+      // defer until after the browser reflows the new message layout
+      requestAnimationFrame(() => {
+        if (feedEl) feedEl.scrollTop = feedEl.scrollHeight;
+      });
     }
   });
 
