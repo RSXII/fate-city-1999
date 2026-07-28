@@ -38,6 +38,23 @@
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
+  // Split text into plain/link parts so URLs render as anchors
+  const URL_RE = /https?:\/\/[^\s]+/g;
+  function linkParts(text) {
+    const str = String(text ?? '');
+    const parts = [];
+    let last = 0;
+    for (const m of str.matchAll(URL_RE)) {
+      // Leave trailing punctuation out of the link
+      const url = m[0].replace(/[.,!?;:)\]]+$/, '');
+      if (m.index > last) parts.push({ text: str.slice(last, m.index) });
+      parts.push({ text: url, href: url });
+      last = m.index + url.length;
+    }
+    if (last < str.length) parts.push({ text: str.slice(last) });
+    return parts;
+  }
+
   // Stable decorative like count — seeded by string
   function seedLikes(id, base) {
     let h = 0;
@@ -203,7 +220,7 @@
           {#if post.caption}
             <p class="fsg-caption">
               <span class="fsg-caption-user">{post.username ?? 'unknown'}</span>
-              {post.caption}
+              {#each linkParts(post.caption) as part}{#if part.href}<a class="fsg-caption-link" href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}
             </p>
           {/if}
 
@@ -553,6 +570,15 @@
     font-weight: 700;
     color: #e8dfc8;
     margin-right: 5px;
+  }
+  .fsg-caption-link {
+    color: #c9a227;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+  }
+  .fsg-caption-link:active {
+    opacity: 0.7;
   }
   .fsg-tags {
     font-size: 12px;
