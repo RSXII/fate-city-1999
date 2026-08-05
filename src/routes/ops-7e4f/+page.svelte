@@ -74,6 +74,7 @@
   let selectedSender = null;
   let msgText = '';
   let selectedImage = null; // { url, name }
+  let requestLocationShare = false;
   let pickerOpen = false;
   let pickerImages = [];
   let pickerLoading = false;
@@ -252,9 +253,11 @@
       if (selectedImage) payload.imageUrl = selectedImage.url;
       if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       if (selectedGroup) { payload.groupId = selectedGroup._id; payload.groupName = selectedGroup.name; }
+      if (requestLocationShare) payload.locationRequest = true;
       await createMessage(convIdForMsg(payload), payload);
       msgText = '';
       selectedImage = null;
+      requestLocationShare = false;
       pickerOpen = false;
       sendStatus = { text: 'Staged. Deploy when players are ready.', type: 'ok' };
     } catch (e) {
@@ -2436,6 +2439,10 @@
           <button class="ghost-btn" type="button" on:click={togglePicker}>
             {pickerOpen ? 'Close picker' : '+ Attach image'}
           </button>
+          <button type="button" class="ghost-btn" class:selected={requestLocationShare}
+            on:click={() => requestLocationShare = !requestLocationShare}>
+            {requestLocationShare ? '✓ Location share request' : '+ Location share request'}
+          </button>
           {#if selectedImage}
             <div class="attached-preview">
               <img src={selectedImage.url} alt="" />
@@ -2488,9 +2495,12 @@
                   <span class="log-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{#if m.imageUrl}📷 {/if}{m.text ?? ''}</span>
                   <span class="chain-log-meta">{relTime(m.ts)}</span>
                 </div>
-                {#if m.recipients?.length}
+                {#if m.recipients?.length || m.locationRequest}
                   <div class="chain-log-tags">
-                    {#each m.recipients as r (r)}<span class="tag-badge">{r}</span>{/each}
+                    {#each m.recipients ?? [] as r (r)}<span class="tag-badge">{r}</span>{/each}
+                    {#if m.locationRequest}
+                      <span class="tag-badge" style="color:#5b9e8f;border-color:rgba(91,158,143,0.5)">📍 Location request</span>
+                    {/if}
                   </div>
                 {/if}
                 <div class="chain-log-actions">
@@ -4645,6 +4655,7 @@
     padding: 4px 10px; font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer;
   }
   .ghost-btn:hover { border-color: #6a7d90; color: #c9a227; }
+  .ghost-btn.selected { background: rgba(91,158,143,0.12); border-color: #5b9e8f; color: #5b9e8f; }
 
   .attach-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
   .attached-preview { display: flex; align-items: center; gap: 8px; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 4px 8px 4px 4px; font-size: 11.5px; color: #6a7d90; }

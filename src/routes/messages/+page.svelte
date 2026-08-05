@@ -10,6 +10,8 @@
     subscribeMessages,
     convIdForMsg,
     createResponse,
+    respondLocationShare,
+    cancelLocationShare,
   } from '$lib/firestore-db.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
@@ -31,6 +33,11 @@
   let responseText = '';
   let sendingResponse = false;
   let playerProfiles = {};
+
+  // ── location sharing ─────────────────────────────────────────────────────────
+  let respondingRequestId = null;
+  let cancelShareModalOpen = false;
+  let cancelingShare = false;
 
   // ── Firestore state ───────────────────────────────────────────────────────────
   let fsConvsRaw = [];      // raw Firestore conversation docs (filtered, no meta)
@@ -133,6 +140,26 @@
     sendingResponse = false;
   }
 
+  async function respondLocation(item, choice) {
+    if (!myCodename || !convId || respondingRequestId) return;
+    respondingRequestId = item.id;
+    try {
+      await respondLocationShare(convId, { requestMessageId: item.id, codename: myCodename, choice });
+      needsScroll = true;
+    } catch { /* swallow; will appear on next Firestore push */ }
+    respondingRequestId = null;
+  }
+
+  async function confirmCancelShare() {
+    if (!myCodename || !convId || cancelingShare) return;
+    cancelingShare = true;
+    try {
+      await cancelLocationShare(convId, myCodename);
+      cancelShareModalOpen = false;
+    } catch { /* swallow; banner will reflect actual state on next snapshot */ }
+    cancelingShare = false;
+  }
+
   afterUpdate(() => {
     if (needsScroll && feedEl) {
       needsScroll = false;
@@ -212,6 +239,13 @@
       lastSender: c.lastMessageSender ?? '',
     };
   });
+
+  // Active conversation doc — carries the locationSharing flag
+  $: activeConv = fsConvsRaw.find(c => c.id === convId) ?? null;
+  $: locationSharingEnabled = !!activeConv?.locationSharing?.enabled;
+
+  // Request message ids that already have a Share/Decline response
+  $: answeredLocationRequestIds = new Set(fsMessages.filter(m => m.respondsTo).map(m => m.respondsTo));
 
   // NPC-only messages in the active thread (used for header, markSeen)
   $: threadMessages = fsMessages.filter(m => m.type === 'npc');
@@ -298,6 +332,13 @@
   {/if}
 </header>
 
+{#if (activeSender || activeThread) && locationSharingEnabled}
+  <button class="loc-banner" on:click={() => cancelShareModalOpen = true}>
+    <span class="loc-banner-dot" aria-hidden="true"></span>
+    Location sharing enabled
+  </button>
+{/if}
+
 <div class="msg-feed" bind:this={feedEl}>
   {#if activeSender || activeThread}
     <!-- Thread view -->
@@ -373,6 +414,17 @@
                     <Attachment url={item.attachmentUrl} />
                   {/if}
                 </div>
+                {#if item.locationRequest && !answeredLocationRequestIds.has(item.id)}
+                  <div class="loc-request">
+                    <p class="loc-request-prompt">Share location with this contact?</p>
+                    <div class="loc-request-actions">
+                      <button class="loc-btn loc-btn--share" disabled={respondingRequestId === item.id}
+                        on:click={() => respondLocation(item, 'share')}>Share</button>
+                      <button class="loc-btn loc-btn--decline" disabled={respondingRequestId === item.id}
+                        on:click={() => respondLocation(item, 'decline')}>Decline</button>
+                    </div>
+                  </div>
+                {/if}
                 {#if isLastInRun}
                   <span class="msg-time msg-time-group">{relTime(item.ts)}</span>
                 {/if}
@@ -399,6 +451,17 @@
                 </div>
                 <span class="msg-time">{relTime(item.ts)}</span>
               </div>
+              {#if item.locationRequest && !answeredLocationRequestIds.has(item.id)}
+                <div class="loc-request">
+                  <p class="loc-request-prompt">Share location with this contact?</p>
+                  <div class="loc-request-actions">
+                    <button class="loc-btn loc-btn--share" disabled={respondingRequestId === item.id}
+                      on:click={() => respondLocation(item, 'share')}>Share</button>
+                    <button class="loc-btn loc-btn--decline" disabled={respondingRequestId === item.id}
+                      on:click={() => respondLocation(item, 'decline')}>Decline</button>
+                  </div>
+                </div>
+              {/if}
             </div>
           {/if}
         {/if}
@@ -473,6 +536,29 @@
 {/if}
 
 <SearchModal open={searchOpen} on:close={() => searchOpen = false} />
+
+{#if cancelShareModalOpen}
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div
+    class="loc-modal-backdrop"
+    on:click|self={() => cancelShareModalOpen = false}
+    on:keydown={e => e.key === 'Escape' && (cancelShareModalOpen = false)}
+    role="presentation"
+  >
+    <div class="loc-modal-sheet" role="dialog" aria-modal="true" aria-label="Stop sharing location">
+      <p class="loc-modal-title">Stop sharing location?</p>
+      <p class="loc-modal-body">The players will stop sharing their location in this conversation.</p>
+      <div class="loc-modal-actions">
+        <button class="loc-modal-btn loc-modal-btn--cancel" on:click={() => cancelShareModalOpen = false}>
+          Keep Sharing
+        </button>
+        <button class="loc-modal-btn loc-modal-btn--confirm" disabled={cancelingShare} on:click={confirmCancelShare}>
+          {cancelingShare ? '…' : 'Stop Sharing'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .sr-only {
@@ -849,6 +935,119 @@
   }
   .msg-mine-status--seen { color: rgba(91, 158, 143, 0.75); }
   .msg-mine-status--failed { color: rgba(192, 80, 74, 0.8); }
+
+  /* ── location sharing ────────────────────────────────────────────────────── */
+  .loc-banner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    background: rgba(91, 158, 143, 0.08);
+    border: none;
+    border-bottom: 1px solid rgba(91, 158, 143, 0.25);
+    color: #5b9e8f;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  .loc-banner:hover { background: rgba(91, 158, 143, 0.13); }
+  .loc-banner-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5b9e8f;
+    flex-shrink: 0;
+    animation: live-pulse 2s ease-in-out infinite;
+  }
+
+  .loc-request {
+    margin-top: 6px;
+    padding: 9px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(91, 158, 143, 0.3);
+    border-radius: 8px;
+  }
+  .loc-request-prompt {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: rgba(232, 223, 200, 0.8);
+  }
+  .loc-request-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .loc-btn {
+    flex: 1;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 0;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .loc-btn:disabled { opacity: 0.5; cursor: default; }
+  .loc-btn--share { background: #5b9e8f; color: #0c0f16; }
+  .loc-btn--share:not(:disabled):hover { opacity: 0.85; }
+  .loc-btn--decline {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(232, 223, 200, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .loc-btn--decline:not(:disabled):hover { background: rgba(255, 255, 255, 0.1); }
+
+  .loc-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 7, 12, 0.88);
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .loc-modal-sheet {
+    width: 100%;
+    max-width: 340px;
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  }
+  .loc-modal-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e8dfc8;
+    margin: 0 0 6px;
+  }
+  .loc-modal-body {
+    font-size: 12.5px;
+    color: rgba(232, 223, 200, 0.6);
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .loc-modal-actions { display: flex; gap: 8px; }
+  .loc-modal-btn {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 0;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .loc-modal-btn:disabled { opacity: 0.5; cursor: default; }
+  .loc-modal-btn--cancel { background: rgba(255, 255, 255, 0.06); color: rgba(232, 223, 200, 0.75); }
+  .loc-modal-btn--cancel:hover { background: rgba(255, 255, 255, 0.1); }
+  .loc-modal-btn--confirm { background: #c0504a; color: #f3efe6; }
+  .loc-modal-btn--confirm:not(:disabled):hover { opacity: 0.88; }
 
   /* ── compose area ──────────────────────────────────────────────────────── */
   .msg-compose {
