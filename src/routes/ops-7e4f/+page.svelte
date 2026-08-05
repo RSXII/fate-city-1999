@@ -12,6 +12,12 @@
     deleteMessage as fsDeleteMessage,
   } from '$lib/firestore-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
+  import {
+    getBridgeConfig,
+    setBridgeConfig,
+    notifyBridge,
+    testBridgeConnection,
+  } from '$lib/foundry-bridge.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
   import { NPCS } from '$lib/data/persons.js';
@@ -1491,6 +1497,13 @@
       });
       await loadActiveCall();
       callSendStatus = { text: 'Call triggered.', type: 'ok' };
+      notifyBridge('call.incoming', {
+        targetCodename: codename,
+        callerName: c.name,
+        callerSubtitle: c.subtitle || null,
+        callerAvatar: c.avatar || null,
+        callerColor: c.color || '#c9a227',
+      });
     } catch (e) {
       callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
     }
@@ -1506,6 +1519,41 @@
     } catch (e) {
       callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
     }
+  }
+
+  // ── Foundry Bridge ────────────────────────────────────────────────────────
+  let bridgeUrlDraft = '';
+  let bridgeEnabledDraft = false;
+  let bridgeSaveStatus = null;
+  let bridgeTesting = false;
+
+  function loadBridgeConfig() {
+    const cfg = getBridgeConfig();
+    bridgeUrlDraft = cfg.url;
+    bridgeEnabledDraft = cfg.enabled;
+    bridgeSaveStatus = null;
+  }
+
+  function saveBridgeConfig() {
+    setBridgeConfig({ url: bridgeUrlDraft.trim(), enabled: bridgeEnabledDraft });
+    bridgeSaveStatus = { text: 'Saved.', type: 'ok' };
+  }
+
+  async function runTestBridgeConnection() {
+    bridgeTesting = true;
+    bridgeSaveStatus = null;
+    const result = await testBridgeConnection(bridgeUrlDraft.trim());
+    if (result.ok) {
+      bridgeSaveStatus = {
+        text: result.foundryConnected
+          ? 'Bridge reachable — Foundry module connected.'
+          : 'Bridge reachable — Foundry module not connected yet.',
+        type: result.foundryConnected ? 'ok' : 'err',
+      };
+    } else {
+      bridgeSaveStatus = { text: `Unreachable: ${result.error}`, type: 'err' };
+    }
+    bridgeTesting = false;
   }
 
   // ── HouseKit ──────────────────────────────────────────────────────────────
@@ -2269,6 +2317,7 @@
     <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
     <button class="tab tab--call"     class:active={activeTab === 'call'}        role="tab" on:click={() => { activeTab = 'call'; loadActiveCall(); }}>Call</button>
+    <button class="tab tab--foundry"  class:active={activeTab === 'foundry'}     role="tab" on:click={() => { activeTab = 'foundry'; loadBridgeConfig(); }}>Foundry</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
     <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
@@ -3862,6 +3911,46 @@
           </div>
         </div>
       {/if}
+
+    {/if}
+
+    <!-- ══ FOUNDRY BRIDGE ════════════════════════════════════════════════════ -->
+    {#if activeTab === 'foundry'}
+
+      <p class="tab-sub">Relay live-session events (incoming calls, etc.) to a Foundry VTT world on the LAN.</p>
+
+      <div class="section">
+        <div class="section-label">Bridge URL</div>
+        <input
+          class="case-select"
+          type="text"
+          placeholder="http://192.168.1.42:8787"
+          bind:value={bridgeUrlDraft}
+        />
+
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+          <input type="checkbox" bind:checked={bridgeEnabledDraft} />
+          Send events to Foundry
+        </label>
+
+        <button class="primary" style="width:100%;margin-top:10px" on:click={saveBridgeConfig}>
+          Save
+        </button>
+        <button
+          class="ghost-btn"
+          style="width:100%;margin-top:8px;justify-content:center"
+          disabled={!bridgeUrlDraft.trim() || bridgeTesting}
+          on:click={runTestBridgeConnection}
+        >
+          {bridgeTesting ? 'Testing…' : 'Test Connection'}
+        </button>
+
+        {#if bridgeSaveStatus}
+          <div class="status-line" class:ok={bridgeSaveStatus.type === 'ok'} class:err={bridgeSaveStatus.type === 'err'}>
+            {bridgeSaveStatus.text}
+          </div>
+        {/if}
+      </div>
 
     {/if}
 
@@ -6261,6 +6350,11 @@
   .tab--call { color: #1a3a1a; }
   .tab--call:hover { color: #34c759; }
   .tab--call.active { color: #34c759; border-bottom-color: #2aa847; }
+
+  /* ── Foundry tab ── */
+  .tab--foundry { color: #7c5cff; }
+  .tab--foundry:hover { color: #9c85ff; }
+  .tab--foundry.active { color: #9c85ff; border-bottom-color: #7c5cff; }
 
   /* ── PIN gate ── */
   .pin-gate {
