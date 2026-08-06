@@ -88,46 +88,64 @@ function formatEnvelope(envelope) {
   return `<b>${type}</b><br>${JSON.stringify(payload ?? {})}`;
 }
 
-// Pops an image full-screen for every connected client (players included),
-// using Foundry's own built-in image-share mechanism — the same thing the
-// "share with players" button on a normal image popout does. Auto-closes
-// after `imagePopoutMs` (module setting) so it doesn't sit blocking the view;
-// set that setting to 0 to leave it up until manually closed.
-function shareImagePopout(src, title) {
-  if (!src) return;
-  const ImagePopoutCls = foundry.applications?.apps?.ImagePopout ?? ImagePopout;
+// Small top-of-screen card (see styles/bridge.css) — a circular avatar with
+// a pulsing ring, a label, and a subtitle. Auto-fades after `notificationMs`
+// (module setting); set that to 0 to leave it up until the next one replaces
+// it. Purely cosmetic DOM, `pointer-events: none` so it never blocks canvas
+// interaction underneath.
+let activeToast = null;
+function showToast({ imageUrl, icon, title, subtitle }) {
+  activeToast?.remove();
 
-  // Broadcast to everyone else connected (core Foundry behavior for this
-  // socket event does not loop back to the sender).
-  game.socket.emit('shareImage', { image: src, title: title || '', uuid: null });
+  const el = document.createElement('div');
+  el.className = 'fc99-toast';
+  el.innerHTML = `
+    <div class="fc99-toast-ring">
+      ${imageUrl
+        ? `<img class="fc99-toast-avatar" src="${imageUrl}" alt="">`
+        : `<div class="fc99-toast-icon">${icon ?? '🔔'}</div>`}
+    </div>
+    <div class="fc99-toast-text">
+      <div class="fc99-toast-title">${title ?? ''}</div>
+      ${subtitle ? `<div class="fc99-toast-subtitle">${subtitle}</div>` : ''}
+    </div>
+  `;
+  document.body.appendChild(el);
+  activeToast = el;
+  requestAnimationFrame(() => el.classList.add('fc99-toast-visible'));
 
-  // Render locally too, so the GM sees it as well.
-  const app = new ImagePopoutCls(src, { title: title || '' });
-  app.render(true);
-
-  const durationMs = game.settings.get(MODULE_ID, 'imagePopoutMs');
+  const durationMs = game.settings.get(MODULE_ID, 'notificationMs');
   if (durationMs > 0) {
-    setTimeout(() => app.close?.(), durationMs);
+    setTimeout(() => {
+      el.classList.remove('fc99-toast-visible');
+      setTimeout(() => {
+        if (activeToast === el) activeToast = null;
+        el.remove();
+      }, 400); // matches the CSS transition duration
+    }, durationMs);
   }
 }
 
-// Per-type visual side-effects beyond the chat message, e.g. popping art.
-// Optional — most event types won't need one. Wrapped in try/catch by the
-// caller so a failure here never blocks the chat message itself.
+// Per-type visual side-effects beyond the chat message, e.g. the toast
+// above. Optional — most event types won't need one. Wrapped in try/catch
+// by the caller so a failure here never blocks the chat message itself.
 const VISUAL_HANDLERS = {
   'call.incoming': (payload) => {
-    if (payload.callerAvatarUrl) {
-      shareImagePopout(payload.callerAvatarUrl, payload.callerName || 'Incoming Call');
-    }
+    showToast({
+      imageUrl: payload.callerAvatarUrl,
+      icon: '📞',
+      title: 'Incoming Call',
+      subtitle: payload.callerName ?? 'Unknown',
+    });
   },
 };
 
-function dispatch(envelope) {
+// Runs the chat message + any visual side-effect for one event. Called
+// directly on the GM client (which owns the bridge connection) and via the
+// module's own socket channel on every other connected client, so players
+// see the same toast, not just whoever's tab happened to receive it first.
+function handleEnvelope(envelope) {
   if (!envelope || typeof envelope.type !== 'string') return;
-  ChatMessage.create({
-    content: formatEnvelope(envelope),
-    speaker: { alias: 'Fate City Ops' },
-  });
 
   const visualHandler = VISUAL_HANDLERS[envelope.type];
   if (visualHandler) {
@@ -137,6 +155,20 @@ function dispatch(envelope) {
       console.warn(`[${MODULE_ID}] visual handler for "${envelope.type}" threw:`, err);
     }
   }
+}
+
+function dispatch(envelope) {
+  if (!envelope || typeof envelope.type !== 'string') return;
+  ChatMessage.create({
+    content: formatEnvelope(envelope),
+    speaker: { alias: 'Fate City Ops' },
+  });
+
+  // Broadcast to every other connected client over our own module-namespaced
+  // socket channel (the officially supported way for a module to push data
+  // to all clients), then run it locally too since emit doesn't loop back.
+  game.socket.emit(`module.${MODULE_ID}`, envelope);
+  handleEnvelope(envelope);
 }
 
 let reconnectDelay = RECONNECT_MIN_MS;
@@ -183,17 +215,21 @@ Hooks.once('init', () => {
     default: 'ws://localhost:8787',
   });
 
-  game.settings.register(MODULE_ID, 'imagePopoutMs', {
-    name: 'Image Popout Duration (ms)',
-    hint: 'How long shared images (e.g. an incoming caller\'s avatar) stay on screen before auto-closing. Set to 0 to leave them up until manually closed.',
+  game.settings.register(MODULE_ID, 'notificationMs', {
+    name: 'Notification Duration (ms)',
+    hint: 'How long the on-screen toast (e.g. an incoming call card) stays up before auto-fading. Set to 0 to leave it up until the next event replaces it.',
     scope: 'world',
     config: true,
     type: Number,
-    default: 8000,
+    default: 6000,
   });
 });
 
 Hooks.once('ready', () => {
+  // Every client listens for broadcasts (toasts, etc.), not just the GM.
+  game.socket.on(`module.${MODULE_ID}`, handleEnvelope);
+
+  // Only the GM client owns the actual connection to the bridge service.
   if (!game.user.isGM) return;
   connect();
 });

@@ -38,19 +38,19 @@ chat messages.
   simultaneously in separate tabs, each would connect and each would post a
   duplicate chat message. Not handled in v1; just don't do that.
 
-## Image popouts
+## Notification toast
 
-`call.incoming` events also share the caller's avatar full-screen to every
-connected client (players included) using Foundry's built-in image-share
-mechanism — the same thing the "share with players" button does on a normal
-image popout. It auto-closes after a few seconds by default; adjust or
-disable this under **Configure Settings → Module Settings → Image Popout
-Duration (ms)** (`0` leaves it open until manually closed).
+`call.incoming` events also show a small card at the top of the screen for
+every connected client (players included) — a circular caller avatar with a
+pulsing ring, an "Incoming Call" label, and the caller's name. It auto-fades
+after a few seconds by default; adjust or disable this under **Configure
+Settings → Module Settings → Notification Duration (ms)** (`0` leaves it up
+until the next event replaces it).
 
-This relies on documented core Foundry v12 behavior (`game.socket.emit('shareImage', ...)`)
-but hasn't been exercised against a live world yet — if it doesn't show up
-for players, or double-pops for the GM, check `shareImagePopout()` in
-`scripts/bridge.js` first.
+This broadcasts over the module's own socket channel
+(`game.socket.emit('module.fc99-bridge', ...)`), which every client listens
+for — not just the GM — so it's not relying on any core Foundry behavior
+beyond the standard module-socket pattern.
 
 ## Extending
 

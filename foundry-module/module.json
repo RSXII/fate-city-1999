@@ -9,6 +9,7 @@
     "verified": "12"
   },
   "scripts": ["scripts/bridge.js"],
+  "styles": ["styles/bridge.css"],
   "url": "",
   "manifest": ""
 }
