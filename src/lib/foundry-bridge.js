@@ -7,6 +7,23 @@
 
 const STORAGE_KEY = 'fc99.foundryBridge';
 
+// Public URL the app is deployed to (GitHub Pages). Used to turn relative
+// asset paths (contact avatars, etc.) into URLs Foundry — running on a
+// different machine — can actually load, regardless of whether the GM
+// console itself is being run via `npm run dev` or the hosted build.
+// Note the repo-name subpath: GitHub Pages serves this under /fate-city-1999,
+// matching BASE_PATH in .github/workflows/deploy.yml.
+const ASSET_BASE_URL = 'https://rsxii.github.io/fate-city-1999';
+
+/**
+ * @param {string|null|undefined} relativePath - e.g. 'images/wire-profiles/foo.png'
+ * @returns {string|null}
+ */
+export function toPublicAssetUrl(relativePath) {
+  if (!relativePath) return null;
+  return `${ASSET_BASE_URL}/${relativePath.replace(/^\/+/, '')}`;
+}
+
 /**
  * @returns {{ url: string, enabled: boolean }}
  */

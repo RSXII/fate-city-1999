@@ -10,13 +10,11 @@ Foundry chat.
 [ops-7e4f, MacBook]  --HTTP POST (LAN)-->  [this service]  --WebSocket (localhost)-->  [Foundry module]
 ```
 
-## Run it
+## Run it (Windows)
 
-```bash
-cd bridge
-npm install
-npm start
-```
+Double-click **`start-bridge.bat`**. First run installs dependencies (one-time,
+takes a few seconds); every run after that starts immediately. Leave the
+window open while you're playing — closing it stops the bridge.
 
 You should see:
 
@@ -24,9 +22,32 @@ You should see:
 [bridge] listening on 0.0.0.0:8787 (HTTP + WebSocket)
 ```
 
-The first time it binds, Windows/macOS may prompt to allow inbound network
+The first time it binds, Windows may prompt to allow inbound network
 connections — allow it, otherwise the MacBook won't be able to reach it over
 the LAN.
+
+### Start automatically on login (optional)
+
+Right-click **`install-autostart.ps1`** → **Run with PowerShell**. This adds a
+shortcut to your Windows Startup folder that launches the bridge (minimized)
+every time you log in, so you don't have to remember to start it before a
+session. If Windows blocks the script with an execution-policy error, open
+PowerShell and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-autostart.ps1
+```
+
+To undo, delete the shortcut the script tells you it created (in
+`shell:startup`).
+
+### Manual / other platforms
+
+```bash
+cd bridge
+npm install
+npm start
+```
 
 ## Find the desktop's LAN IP
 

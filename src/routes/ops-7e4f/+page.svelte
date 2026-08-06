@@ -17,6 +17,7 @@
     setBridgeConfig,
     notifyBridge,
     testBridgeConnection,
+    toPublicAssetUrl,
   } from '$lib/foundry-bridge.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
@@ -276,7 +277,15 @@
     deployingMsgId = id;
     try {
       const m = stagedMsgs.find(x => x.id === id);
-      if (m) await fsDeployMessage(m.convId, id, m);
+      if (m) {
+        await fsDeployMessage(m.convId, id, m);
+        notifyBridge('wire.deployed', {
+          sender: m.sender,
+          groupName: m.groupName || null,
+          hasImage: !!m.imageUrl,
+          recipients: m.recipients || null,
+        });
+      }
     } catch (e) { console.error('Deploy failed', e); }
     deployingMsgId = null;
   }
@@ -501,7 +510,11 @@
   let deployingId = null;
   async function deployChain(id) {
     deployingId = id;
-    try { await dbPut(`emails/${id}/staged`, true); await refreshStaged(); await refreshLive(); }
+    try {
+      const chain = stagedChains.find(c => c._id === id);
+      await dbPut(`emails/${id}/staged`, true); await refreshStaged(); await refreshLive();
+      notifyBridge('email.deployed', { subject: chain?.subject ?? null, type: chain?.type ?? null, source: chain?.source || null });
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingId = null;
   }
@@ -625,7 +638,16 @@
   let deployingCaseId = null;
   async function deployCase(id) {
     deployingCaseId = id;
-    try { await dbPut(`briefings/${id}/staged`, true); await refreshCaseStaged(); await refreshCaseLive(); }
+    try {
+      const c = stagedCases.find(x => x._id === id);
+      await dbPut(`briefings/${id}/staged`, true); await refreshCaseStaged(); await refreshCaseLive();
+      notifyBridge('briefing.deployed', {
+        section: c?.section ?? null,
+        sectionLabel: c?.section ? caseSectionLabel(c.section) : null,
+        fileNo: c?.fileNo ?? null,
+        name: c?.name ?? null,
+      });
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingCaseId = null;
   }
@@ -684,6 +706,7 @@
 
   async function addContact() {
     const name = newCName.trim();
+    const subtitle = newCSubtitle.trim() || null;
     if (!name) { contactStatus = { text: 'Name is required.', type: 'err' }; return; }
     addingContact = true;
     contactStatus = { text: 'Adding…', type: '' };
@@ -691,7 +714,7 @@
       await dbPost('contacts', {
         name,
         number: newCNumber.trim() || null,
-        subtitle: newCSubtitle.trim() || null,
+        subtitle,
         color: newCColor,
         avatar: newCAvatar || null,
         enabled: true,
@@ -702,6 +725,7 @@
       contactAvatarPickerOpen = false;
       contactStatus = { text: 'Contact added.', type: 'ok' };
       await refreshContacts();
+      notifyBridge('contact.added', { name, subtitle });
     } catch (e) {
       contactStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
@@ -841,6 +865,12 @@
       await dbPut('calendar/currentDate', { year: Number(calYear), month: Number(calMonth), day: Number(calDay) });
       await loadCurrentCalDate();
       dateStatus = { text: 'Date set.', type: 'ok' };
+      notifyBridge('calendar.changed', {
+        year: Number(calYear),
+        month: Number(calMonth),
+        day: Number(calDay),
+        monthName: CAL_MONTH_NAMES[Number(calMonth) - 1],
+      });
     } catch (e) {
       dateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
@@ -890,9 +920,11 @@
   async function deployOnce(id) {
     deployingOnceId = id;
     try {
+      const m = stagedOnce.find(x => x._id === id);
       await dbPut(`once-messages/${id}/staged`, true);
       await dbPut('once-settings/onceMessageSeen', false);
       await refreshStagedOnce(); await refreshLiveOnce();
+      notifyBridge('once.deployed', { preview: m?.text ? m.text.slice(0, 60) : null });
     }
     catch (e) { console.error('Deploy failed', e); }
     deployingOnceId = null;
@@ -1000,7 +1032,11 @@
   let deployingJobId = null;
   async function deployJob(id) {
     deployingJobId = id;
-    try { await dbPut(`jobs/${id}/staged`, true); await refreshStagedJobs(); await refreshLiveJobs(); }
+    try {
+      const job = stagedJobs.find(j => j._id === id);
+      await dbPut(`jobs/${id}/staged`, true); await refreshStagedJobs(); await refreshLiveJobs();
+      notifyBridge('job.deployed', { title: job?.title ?? null, fileNo: job?.fileNo ?? null, status: job?.status ?? null });
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingJobId = null;
   }
@@ -1413,6 +1449,7 @@
       timerActiveEndsAt = endsAt;
       updateTimerDisplayStr();
       timerSendStatus = { text: 'Countdown started.', type: 'ok' };
+      notifyBridge('timer.started', { durationSec: timerDuration, endsAt });
     } catch (e) {
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
@@ -1444,6 +1481,7 @@
       await dbPut('timer/endsAt', newEndsAt);
       timerActiveEndsAt = newEndsAt;
       timerSendStatus = { text: `+${seconds}s added.`, type: 'ok' };
+      notifyBridge('timer.extended', { addedSec: seconds, endsAt: newEndsAt });
     } catch (e) {
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
@@ -1456,6 +1494,7 @@
       timerActiveEndsAt = null;
       timerDisplayStr = '';
       timerSendStatus = { text: 'Countdown cleared.', type: 'ok' };
+      notifyBridge('timer.stopped', {});
     } catch (e) {
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
@@ -1502,6 +1541,7 @@
         callerName: c.name,
         callerSubtitle: c.subtitle || null,
         callerAvatar: c.avatar || null,
+        callerAvatarUrl: toPublicAssetUrl(c.avatar),
         callerColor: c.color || '#c9a227',
       });
     } catch (e) {
