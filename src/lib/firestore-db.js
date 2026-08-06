@@ -229,6 +229,7 @@ export async function createMessage(convId, payload) {
   };
   if (payload.imageUrl)           msgData.imageUrl   = payload.imageUrl;
   if (payload.recipients?.length) msgData.recipients = payload.recipients;
+  if (payload.locationRequest)    msgData.locationRequest = true;
 
   const cleanMsg = Object.fromEntries(
     Object.entries(msgData).filter(([, v]) => v !== null),
@@ -288,6 +289,50 @@ export async function createResponse(convId, payload) {
 
   await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
   return addDoc(collection(db, 'conversations', convId, 'messages'), msgData);
+}
+
+/**
+ * Record a player's Share/Decline response to a `locationRequest` message.
+ * Adds a response bubble to the thread and, on share, flips the
+ * conversation's `locationSharing` flag on.
+ *
+ * @param {string} convId
+ * @param {{ requestMessageId: string, codename: string, choice: 'share'|'decline' }} payload
+ */
+export async function respondLocationShare(convId, { requestMessageId, codename, choice }) {
+  const ts = Date.now();
+  const text = choice === 'share' ? 'Shared location.' : 'Declined to share location.';
+  const msgData = {
+    type:          'player',
+    sender:        codename,
+    text,
+    ts,
+    staged:        true,
+    respondsTo:    requestMessageId,
+    locationChoice: choice,
+  };
+
+  const convUpdate = {
+    lastMessageAt:     ts,
+    lastMessageSender: codename,
+    lastMessageText:   text,
+  };
+  if (choice === 'share') convUpdate.locationSharing = { enabled: true, ts, by: codename };
+
+  await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
+  return addDoc(collection(db, 'conversations', convId, 'messages'), msgData);
+}
+
+/**
+ * Turn off active location sharing for a conversation.
+ */
+export async function cancelLocationShare(convId, codename) {
+  const ts = Date.now();
+  return setDoc(
+    doc(db, 'conversations', convId),
+    { locationSharing: { enabled: false, ts, by: codename } },
+    { merge: true }
+  );
 }
 
 export async function dualWriteResponse(convId, payload, rtdbMsgId) {

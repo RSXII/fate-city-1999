@@ -1,0 +1,14 @@
+{
+  "name": "fc99-foundry-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Relays LAN events from the Fate City ops console to a Foundry VTT module over WebSocket.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

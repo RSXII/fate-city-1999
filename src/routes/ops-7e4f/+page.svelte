@@ -12,6 +12,13 @@
     deleteMessage as fsDeleteMessage,
   } from '$lib/firestore-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
+  import {
+    getBridgeConfig,
+    setBridgeConfig,
+    notifyBridge,
+    testBridgeConnection,
+    toPublicAssetUrl,
+  } from '$lib/foundry-bridge.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
   import { NPCS } from '$lib/data/persons.js';
@@ -74,6 +81,7 @@
   let selectedSender = null;
   let msgText = '';
   let selectedImage = null; // { url, name }
+  let requestLocationShare = false;
   let pickerOpen = false;
   let pickerImages = [];
   let pickerLoading = false;
@@ -252,9 +260,11 @@
       if (selectedImage) payload.imageUrl = selectedImage.url;
       if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       if (selectedGroup) { payload.groupId = selectedGroup._id; payload.groupName = selectedGroup.name; }
+      if (requestLocationShare) payload.locationRequest = true;
       await createMessage(convIdForMsg(payload), payload);
       msgText = '';
       selectedImage = null;
+      requestLocationShare = false;
       pickerOpen = false;
       sendStatus = { text: 'Staged. Deploy when players are ready.', type: 'ok' };
     } catch (e) {
@@ -267,7 +277,15 @@
     deployingMsgId = id;
     try {
       const m = stagedMsgs.find(x => x.id === id);
-      if (m) await fsDeployMessage(m.convId, id, m);
+      if (m) {
+        await fsDeployMessage(m.convId, id, m);
+        notifyBridge('wire.deployed', {
+          sender: m.sender,
+          groupName: m.groupName || null,
+          hasImage: !!m.imageUrl,
+          recipients: m.recipients || null,
+        });
+      }
     } catch (e) { console.error('Deploy failed', e); }
     deployingMsgId = null;
   }
@@ -492,7 +510,11 @@
   let deployingId = null;
   async function deployChain(id) {
     deployingId = id;
-    try { await dbPut(`emails/${id}/staged`, true); await refreshStaged(); await refreshLive(); }
+    try {
+      const chain = stagedChains.find(c => c._id === id);
+      await dbPut(`emails/${id}/staged`, true); await refreshStaged(); await refreshLive();
+      notifyBridge('email.deployed', { subject: chain?.subject ?? null, type: chain?.type ?? null, source: chain?.source || null });
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingId = null;
   }
@@ -616,7 +638,16 @@
   let deployingCaseId = null;
   async function deployCase(id) {
     deployingCaseId = id;
-    try { await dbPut(`briefings/${id}/staged`, true); await refreshCaseStaged(); await refreshCaseLive(); }
+    try {
+      const c = stagedCases.find(x => x._id === id);
+      await dbPut(`briefings/${id}/staged`, true); await refreshCaseStaged(); await refreshCaseLive();
+      notifyBridge('briefing.deployed', {
+        section: c?.section ?? null,
+        sectionLabel: c?.section ? caseSectionLabel(c.section) : null,
+        fileNo: c?.fileNo ?? null,
+        name: c?.name ?? null,
+      });
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingCaseId = null;
   }
@@ -675,6 +706,7 @@
 
   async function addContact() {
     const name = newCName.trim();
+    const subtitle = newCSubtitle.trim() || null;
     if (!name) { contactStatus = { text: 'Name is required.', type: 'err' }; return; }
     addingContact = true;
     contactStatus = { text: 'Adding…', type: '' };
@@ -682,7 +714,7 @@
       await dbPost('contacts', {
         name,
         number: newCNumber.trim() || null,
-        subtitle: newCSubtitle.trim() || null,
+        subtitle,
         color: newCColor,
         avatar: newCAvatar || null,
         enabled: true,
@@ -693,6 +725,7 @@
       contactAvatarPickerOpen = false;
       contactStatus = { text: 'Contact added.', type: 'ok' };
       await refreshContacts();
+      notifyBridge('contact.added', { name, subtitle });
     } catch (e) {
       contactStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
@@ -832,6 +865,12 @@
       await dbPut('calendar/currentDate', { year: Number(calYear), month: Number(calMonth), day: Number(calDay) });
       await loadCurrentCalDate();
       dateStatus = { text: 'Date set.', type: 'ok' };
+      notifyBridge('calendar.changed', {
+        year: Number(calYear),
+        month: Number(calMonth),
+        day: Number(calDay),
+        monthName: CAL_MONTH_NAMES[Number(calMonth) - 1],
+      });
     } catch (e) {
       dateStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
@@ -881,9 +920,11 @@
   async function deployOnce(id) {
     deployingOnceId = id;
     try {
+      const m = stagedOnce.find(x => x._id === id);
       await dbPut(`once-messages/${id}/staged`, true);
       await dbPut('once-settings/onceMessageSeen', false);
       await refreshStagedOnce(); await refreshLiveOnce();
+      notifyBridge('once.deployed', { preview: m?.text ? m.text.slice(0, 60) : null });
     }
     catch (e) { console.error('Deploy failed', e); }
     deployingOnceId = null;
@@ -991,7 +1032,11 @@
   let deployingJobId = null;
   async function deployJob(id) {
     deployingJobId = id;
-    try { await dbPut(`jobs/${id}/staged`, true); await refreshStagedJobs(); await refreshLiveJobs(); }
+    try {
+      const job = stagedJobs.find(j => j._id === id);
+      await dbPut(`jobs/${id}/staged`, true); await refreshStagedJobs(); await refreshLiveJobs();
+      notifyBridge('job.deployed', { title: job?.title ?? null, fileNo: job?.fileNo ?? null, status: job?.status ?? null });
+    }
     catch (e) { console.error('Deploy failed', e); }
     deployingJobId = null;
   }
@@ -1404,6 +1449,7 @@
       timerActiveEndsAt = endsAt;
       updateTimerDisplayStr();
       timerSendStatus = { text: 'Countdown started.', type: 'ok' };
+      notifyBridge('timer.started', { durationSec: timerDuration, endsAt });
     } catch (e) {
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
@@ -1435,6 +1481,7 @@
       await dbPut('timer/endsAt', newEndsAt);
       timerActiveEndsAt = newEndsAt;
       timerSendStatus = { text: `+${seconds}s added.`, type: 'ok' };
+      notifyBridge('timer.extended', { addedSec: seconds, endsAt: newEndsAt });
     } catch (e) {
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
@@ -1447,6 +1494,7 @@
       timerActiveEndsAt = null;
       timerDisplayStr = '';
       timerSendStatus = { text: 'Countdown cleared.', type: 'ok' };
+      notifyBridge('timer.stopped', {});
     } catch (e) {
       timerSendStatus = { text: `Failed: ${e?.message ?? 'unknown'}`, type: 'err' };
     }
@@ -1488,6 +1536,14 @@
       });
       await loadActiveCall();
       callSendStatus = { text: 'Call triggered.', type: 'ok' };
+      notifyBridge('call.incoming', {
+        targetCodename: codename,
+        callerName: c.name,
+        callerSubtitle: c.subtitle || null,
+        callerAvatar: c.avatar || null,
+        callerAvatarUrl: toPublicAssetUrl(c.avatar),
+        callerColor: c.color || '#c9a227',
+      });
     } catch (e) {
       callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
     }
@@ -1503,6 +1559,41 @@
     } catch (e) {
       callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
     }
+  }
+
+  // ── Foundry Bridge ────────────────────────────────────────────────────────
+  let bridgeUrlDraft = '';
+  let bridgeEnabledDraft = false;
+  let bridgeSaveStatus = null;
+  let bridgeTesting = false;
+
+  function loadBridgeConfig() {
+    const cfg = getBridgeConfig();
+    bridgeUrlDraft = cfg.url;
+    bridgeEnabledDraft = cfg.enabled;
+    bridgeSaveStatus = null;
+  }
+
+  function saveBridgeConfig() {
+    setBridgeConfig({ url: bridgeUrlDraft.trim(), enabled: bridgeEnabledDraft });
+    bridgeSaveStatus = { text: 'Saved.', type: 'ok' };
+  }
+
+  async function runTestBridgeConnection() {
+    bridgeTesting = true;
+    bridgeSaveStatus = null;
+    const result = await testBridgeConnection(bridgeUrlDraft.trim());
+    if (result.ok) {
+      bridgeSaveStatus = {
+        text: result.foundryConnected
+          ? 'Bridge reachable — Foundry module connected.'
+          : 'Bridge reachable — Foundry module not connected yet.',
+        type: result.foundryConnected ? 'ok' : 'err',
+      };
+    } else {
+      bridgeSaveStatus = { text: `Unreachable: ${result.error}`, type: 'err' };
+    }
+    bridgeTesting = false;
   }
 
   // ── HouseKit ──────────────────────────────────────────────────────────────
@@ -2266,6 +2357,7 @@
     <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
     <button class="tab tab--call"     class:active={activeTab === 'call'}        role="tab" on:click={() => { activeTab = 'call'; loadActiveCall(); }}>Call</button>
+    <button class="tab tab--foundry"  class:active={activeTab === 'foundry'}     role="tab" on:click={() => { activeTab = 'foundry'; loadBridgeConfig(); }}>Foundry</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
     <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
     <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
@@ -2436,6 +2528,10 @@
           <button class="ghost-btn" type="button" on:click={togglePicker}>
             {pickerOpen ? 'Close picker' : '+ Attach image'}
           </button>
+          <button type="button" class="ghost-btn" class:selected={requestLocationShare}
+            on:click={() => requestLocationShare = !requestLocationShare}>
+            {requestLocationShare ? '✓ Location share request' : '+ Location share request'}
+          </button>
           {#if selectedImage}
             <div class="attached-preview">
               <img src={selectedImage.url} alt="" />
@@ -2488,9 +2584,12 @@
                   <span class="log-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{#if m.imageUrl}📷 {/if}{m.text ?? ''}</span>
                   <span class="chain-log-meta">{relTime(m.ts)}</span>
                 </div>
-                {#if m.recipients?.length}
+                {#if m.recipients?.length || m.locationRequest}
                   <div class="chain-log-tags">
-                    {#each m.recipients as r (r)}<span class="tag-badge">{r}</span>{/each}
+                    {#each m.recipients ?? [] as r (r)}<span class="tag-badge">{r}</span>{/each}
+                    {#if m.locationRequest}
+                      <span class="tag-badge" style="color:#5b9e8f;border-color:rgba(91,158,143,0.5)">📍 Location request</span>
+                    {/if}
                   </div>
                 {/if}
                 <div class="chain-log-actions">
@@ -3855,6 +3954,46 @@
 
     {/if}
 
+    <!-- ══ FOUNDRY BRIDGE ════════════════════════════════════════════════════ -->
+    {#if activeTab === 'foundry'}
+
+      <p class="tab-sub">Relay live-session events (incoming calls, etc.) to a Foundry VTT world on the LAN.</p>
+
+      <div class="section">
+        <div class="section-label">Bridge URL</div>
+        <input
+          class="case-select"
+          type="text"
+          placeholder="http://192.168.1.42:8787"
+          bind:value={bridgeUrlDraft}
+        />
+
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+          <input type="checkbox" bind:checked={bridgeEnabledDraft} />
+          Send events to Foundry
+        </label>
+
+        <button class="primary" style="width:100%;margin-top:10px" on:click={saveBridgeConfig}>
+          Save
+        </button>
+        <button
+          class="ghost-btn"
+          style="width:100%;margin-top:8px;justify-content:center"
+          disabled={!bridgeUrlDraft.trim() || bridgeTesting}
+          on:click={runTestBridgeConnection}
+        >
+          {bridgeTesting ? 'Testing…' : 'Test Connection'}
+        </button>
+
+        {#if bridgeSaveStatus}
+          <div class="status-line" class:ok={bridgeSaveStatus.type === 'ok'} class:err={bridgeSaveStatus.type === 'err'}>
+            {bridgeSaveStatus.text}
+          </div>
+        {/if}
+      </div>
+
+    {/if}
+
     <!-- ══ HOUSEKIT ══════════════════════════════════════════════════════════ -->
     {#if activeTab === 'housekit'}
 
@@ -4645,6 +4784,7 @@
     padding: 4px 10px; font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer;
   }
   .ghost-btn:hover { border-color: #6a7d90; color: #c9a227; }
+  .ghost-btn.selected { background: rgba(91,158,143,0.12); border-color: #5b9e8f; color: #5b9e8f; }
 
   .attach-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
   .attached-preview { display: flex; align-items: center; gap: 8px; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 4px 8px 4px 4px; font-size: 11.5px; color: #6a7d90; }
@@ -6250,6 +6390,11 @@
   .tab--call { color: #1a3a1a; }
   .tab--call:hover { color: #34c759; }
   .tab--call.active { color: #34c759; border-bottom-color: #2aa847; }
+
+  /* ── Foundry tab ── */
+  .tab--foundry { color: #7c5cff; }
+  .tab--foundry:hover { color: #9c85ff; }
+  .tab--foundry.active { color: #9c85ff; border-bottom-color: #7c5cff; }
 
   /* ── PIN gate ── */
   .pin-gate {

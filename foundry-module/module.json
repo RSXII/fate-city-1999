@@ -1,0 +1,15 @@
+{
+  "id": "fc99-bridge",
+  "title": "Fate City 1999 — Bridge",
+  "description": "Relays live-session events (incoming calls, etc.) from the Fate City ops console into Foundry chat.",
+  "version": "1.0.0",
+  "authors": [{ "name": "Fate City 1999" }],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12"
+  },
+  "scripts": ["scripts/bridge.js"],
+  "styles": ["styles/bridge.css"],
+  "url": "",
+  "manifest": ""
+}

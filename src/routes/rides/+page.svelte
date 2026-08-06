@@ -3,25 +3,71 @@
   import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { dbGet } from '$lib/firebase-db.js';
-  import { visibilityAwareInterval } from '$lib/utils.js';
-  import { CLASS_CONFIG, VEHICLE_UPGRADES } from '$lib/data/rides.js';
+  import { visibilityAwareInterval, getCodename } from '$lib/utils.js';
+  import { CLASS_CONFIG } from '$lib/data/rides.js';
 
   let vehicles = [];
   let pollTimer;
+  let codename = '';
+
+  // Upgrades are per-owned-instance (garage entry), not per catalog model —
+  // two people can own the "same" car with different upgrades installed.
+  // Upgrade types/modifiers are GM-editable data (vehicleUpgrades), not
+  // hardcoded here. Mirrors fatecity-gm-console's lib/vehicleStats.ts —
+  // keep the two in sync if that changes.
+  function effectiveStats(baseStats, upgradeKeys, upgradeDefs) {
+    const stats = { ...(baseStats || {}) };
+    let sdp = stats.sdp ?? 0;
+    let seats = stats.seats ?? 0;
+    let speedCombat = stats.speedCombat ?? 0;
+    for (const key of upgradeKeys || []) {
+      const mods = upgradeDefs[key]?.modifiers;
+      if (!mods) continue;
+      sdp += mods.sdp || 0;
+      seats += mods.seats || 0;
+      speedCombat += mods.speedCombat || 0;
+    }
+    return { ...stats, sdp, seats, speedCombat };
+  }
 
   async function loadVehicles() {
+    if (!codename) { vehicles = []; return; }
     try {
-      const data = await dbGet('rides');
-      if (!data) { vehicles = []; return; }
-      vehicles = Object.keys(data)
-        .map(k => { const r = data[k]; r._id = k; return r; })
-        .filter(r => r.make && r.staged === true)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const [rides, garage, upgradeDefs] = await Promise.all([
+        dbGet('rides'),
+        dbGet('garage'),
+        dbGet('vehicleUpgrades'),
+      ]);
+      if (!rides || !garage) { vehicles = []; return; }
+      const defs = upgradeDefs || {};
+      vehicles = Object.keys(garage)
+        .map(k => { const g = garage[k]; g._id = k; return g; })
+        .filter(g => g.codename === codename && g.status === 'owned')
+        .map(g => {
+          const ride = rides[g.rideId];
+          if (!ride) return null;
+          const upgrades = g.upgrades || [];
+          return {
+            ...ride,
+            _instanceId: g._id,
+            _nickname: g.nickname,
+            _acquiredAt: g.acquiredAt,
+            _upgrades: upgrades,
+            _upgradeDetails: upgrades.map(key => ({
+              label: defs[key]?.label ?? key,
+              description: defs[key]?.description || '',
+            })),
+            stats: effectiveStats(ride.stats, upgrades, defs),
+          };
+        })
+        .filter(v => v && v.make)
+        .sort((a, b) => (b._acquiredAt || 0) - (a._acquiredAt || 0));
     } catch { vehicles = []; }
   }
 
   onMount(() => {
     if (!browser) return;
+    codename = getCodename() || '';
     loadVehicles();
     pollTimer = visibilityAwareInterval(loadVehicles, 10000);
   });
@@ -32,11 +78,11 @@
 </script>
 
 <svelte:head>
-  <title>Fate City: 1999 — Rides</title>
+  <title>Fate City: 1999 — Garage</title>
 </svelte:head>
 
 <wire-status-bar jail layout="flex"></wire-status-bar>
-<wire-header back="{base}/home" title="Rides" subtitle="Vehicle Registry" layout="flex"></wire-header>
+<wire-header back="{base}/home" title="Rides" subtitle="Garage" layout="flex"></wire-header>
 
 <div class="rides-scroll">
   {#if vehicles.length === 0}
@@ -47,10 +93,10 @@
         </svg>
       </div>
       <p class="empty-label">No Vehicles</p>
-      <p class="empty-sub">Vehicles registered to the crew will appear here.</p>
+      <p class="empty-sub">Vehicles in your garage will appear here.</p>
     </div>
   {:else}
-    {#each vehicles as v}
+    {#each vehicles as v (v._instanceId)}
       {@const cc = CLASS_CONFIG[v.class] ?? CLASS_CONFIG.sedan}
       <div class="vehicle-card">
         <div class="card-stripe" style="background:{cc.stripe}"></div>
@@ -62,7 +108,7 @@
         <div class="card-body">
           <div class="card-head">
             <div class="card-title-block">
-              <span class="card-make">{v.make}</span>
+              <span class="card-make">{v._nickname || v.make}</span>
               <h2 class="card-model">{v.model}</h2>
               <span class="card-year">{v.year}</span>
             </div>
@@ -100,14 +146,21 @@
             </div>
           </div>
 
-          {#if v.upgrades?.length}
-            {@const upgradeMap = Object.fromEntries(VEHICLE_UPGRADES.map(u => [u.key, u.label]))}
+          {#if v._upgradeDetails?.length}
+            {@const withDescriptions = v._upgradeDetails.filter(u => u.description)}
             <div class="upgrade-rule" style="border-color:{cc.stripe}99"></div>
             <div class="upgrade-chips">
-              {#each v.upgrades as key (key)}
-                <span class="upgrade-chip">{upgradeMap[key] ?? key}</span>
+              {#each v._upgradeDetails as u (u.label)}
+                <span class="upgrade-chip">{u.label}</span>
               {/each}
             </div>
+            {#if withDescriptions.length}
+              <div class="upgrade-notes">
+                {#each withDescriptions as u (u.label)}
+                  <p class="upgrade-note"><strong>{u.label}:</strong> {u.description}</p>
+                {/each}
+              </div>
+            {/if}
           {/if}
         </div>
       </div>
@@ -276,5 +329,21 @@
     border-radius: 2px;
     padding: 4px 6px;
     white-space: nowrap;
+  }
+
+  .upgrade-notes {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .upgrade-note {
+    font-size: 11px;
+    line-height: 1.5;
+    color: rgba(232, 223, 200, 0.55);
+    margin: 0;
+  }
+  .upgrade-note strong {
+    color: rgba(232, 223, 200, 0.8);
   }
 </style>
