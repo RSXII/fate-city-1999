@@ -75,6 +75,35 @@ const FORMATTERS = {
   },
 };
 
+// Per-type audience extractors. Returns an array of codenames the event is
+// meant for, or null for "everyone" (a normal public chat message). Only
+// types that already carry recipient info in their payload need an entry —
+// everything else defaults to public.
+const AUDIENCE = {
+  'call.incoming': (payload) => (payload.targetCodename ? [payload.targetCodename] : null),
+  'wire.deployed': (payload) => (payload.recipients?.length ? payload.recipients : null),
+};
+
+// Matches codenames to connected Foundry Users by display name, on the
+// convention that a player's Foundry name starts with their codename (e.g.
+// Foundry user "Mirae (deez/nuts)" for codename "MIRAE"). Codenames that
+// don't match any user are dropped silently (logged) rather than falling
+// back to public — better a message goes missing than leaks to the table.
+function resolveWhisperIds(codenames) {
+  const ids = new Set();
+  for (const codename of codenames) {
+    const needle = String(codename ?? '').trim().toLowerCase();
+    if (!needle) continue;
+    const match = game.users.contents.find((u) => u.name.toLowerCase().startsWith(needle));
+    if (match) {
+      ids.add(match.id);
+    } else {
+      console.warn(`[${MODULE_ID}] no Foundry user matches codename "${codename}" — whispering to GM only`);
+    }
+  }
+  return Array.from(ids);
+}
+
 function formatEnvelope(envelope) {
   const { type, payload } = envelope;
   const formatter = FORMATTERS[type];
@@ -140,10 +169,11 @@ const VISUAL_HANDLERS = {
   },
 };
 
-// Runs the chat message + any visual side-effect for one event. Called
-// directly on the GM client (which owns the bridge connection) and via the
-// module's own socket channel on every other connected client, so players
-// see the same toast, not just whoever's tab happened to receive it first.
+// Runs the visual side-effect (e.g. the toast) for one event. Called via the
+// createChatMessage hook below on every connected client — GM and players
+// alike — since chat message creation is one of Foundry's core documents
+// and is always reliably synced to everyone, unlike a raw custom socket
+// event, which isn't guaranteed to be relayed between clients.
 function handleEnvelope(envelope) {
   if (!envelope || typeof envelope.type !== 'string') return;
 
@@ -159,16 +189,27 @@ function handleEnvelope(envelope) {
 
 function dispatch(envelope) {
   if (!envelope || typeof envelope.type !== 'string') return;
+
+  // If this event's payload names an audience, whisper to just those
+  // players (Foundry filters both the chat message and the createChatMessage
+  // hook — and therefore the toast — to whisper recipients + GM only). No
+  // AUDIENCE entry, or a null return, means it's a public event for everyone.
+  const audience = AUDIENCE[envelope.type]?.(envelope.payload ?? {}) ?? null;
+  let whisper;
+  if (audience) {
+    const ids = resolveWhisperIds(audience);
+    whisper = ids.length ? ids : [game.user.id]; // fail closed: GM-only if no match
+  }
+
+  // The envelope rides along as a flag on the chat message itself — every
+  // client picks it up via the createChatMessage hook, so no separate
+  // broadcast channel is needed.
   ChatMessage.create({
     content: formatEnvelope(envelope),
     speaker: { alias: 'Fate City Ops' },
+    flags: { [MODULE_ID]: { envelope } },
+    ...(whisper ? { whisper } : {}),
   });
-
-  // Broadcast to every other connected client over our own module-namespaced
-  // socket channel (the officially supported way for a module to push data
-  // to all clients), then run it locally too since emit doesn't loop back.
-  game.socket.emit(`module.${MODULE_ID}`, envelope);
-  handleEnvelope(envelope);
 }
 
 let reconnectDelay = RECONNECT_MIN_MS;
@@ -225,10 +266,14 @@ Hooks.once('init', () => {
   });
 });
 
-Hooks.once('ready', () => {
-  // Every client listens for broadcasts (toasts, etc.), not just the GM.
-  game.socket.on(`module.${MODULE_ID}`, handleEnvelope);
+// Every client — GM and players alike — reacts when a bridge-originated
+// chat message syncs in, and runs that event's visual side-effect (if any).
+Hooks.on('createChatMessage', (message) => {
+  const envelope = message.getFlag(MODULE_ID, 'envelope');
+  if (envelope) handleEnvelope(envelope);
+});
 
+Hooks.once('ready', () => {
   // Only the GM client owns the actual connection to the bridge service.
   if (!game.user.isGM) return;
   connect();
