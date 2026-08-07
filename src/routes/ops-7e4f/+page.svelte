@@ -281,7 +281,9 @@
         await fsDeployMessage(m.convId, id, m);
         notifyBridge('wire.deployed', {
           sender: m.sender,
+          color: m.color || null,
           groupName: m.groupName || null,
+          preview: m.text ? m.text.slice(0, 80) : null,
           hasImage: !!m.imageUrl,
           recipients: m.recipients || null,
         });
