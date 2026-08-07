@@ -117,26 +117,60 @@ function formatEnvelope(envelope) {
   return `<b>${type}</b><br>${JSON.stringify(payload ?? {})}`;
 }
 
+// Mirrors the Wire app's own initials() (src/routes/messages/+page.svelte) so
+// a sender without an avatar image gets the same two-letter badge in Foundry
+// as they'd show in the phone UI.
+function initials(name) {
+  const clean = String(name ?? '').replace(/^The\s+/i, '').replace(/\./g, '');
+  const parts = clean.split(/[\s-]+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// Mirrors the Wire app's hexToRgba() — used to tint a sender's own contact
+// color onto the toast avatar the same way contact bubbles are tinted in
+// the phone UI (src/routes/messages/+page.svelte).
+function hexToRgba(hex, a) {
+  const h = String(hex ?? '').replace('#', '');
+  if (h.length !== 6) return `rgba(154, 111, 217, ${a})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 // Small top-of-screen card (see styles/bridge.css) — a circular avatar with
 // a pulsing ring, a label, and a subtitle. Auto-fades after `notificationMs`
 // (module setting); set that to 0 to leave it up until the next one replaces
 // it. Purely cosmetic DOM, `pointer-events: none` so it never blocks canvas
 // interaction underneath.
+//
+// `variant` selects a re-skin (see bridge.css `.fc99-toast--<variant>`) —
+// e.g. 'once' mirrors the mobile app's violet O.N.C.E. channel styling, and
+// 'wire' mirrors the phone's Wire messenger, so each notification reads as
+// visually distinct from a plain incoming call.
 let activeToast = null;
-function showToast({ imageUrl, icon, title, subtitle }) {
+function showToast({ imageUrl, icon, title, subtitle, preview, variant, color }) {
   activeToast?.remove();
 
   const el = document.createElement('div');
-  el.className = 'fc99-toast';
+  el.className = `fc99-toast${variant ? ` fc99-toast--${variant}` : ''}`;
+  if (color) el.style.setProperty('--fc99-accent', color);
+  const iconStyle = color
+    ? ` style="background:${hexToRgba(color, 0.16)};border-color:${color};color:${color}"`
+    : '';
   el.innerHTML = `
+    ${variant === 'once' ? '<div class="fc99-toast-scanline" aria-hidden="true"></div>' : ''}
     <div class="fc99-toast-ring">
       ${imageUrl
         ? `<img class="fc99-toast-avatar" src="${imageUrl}" alt="">`
-        : `<div class="fc99-toast-icon">${icon ?? '🔔'}</div>`}
+        : `<div class="fc99-toast-icon"${iconStyle}>${icon ?? '🔔'}</div>`}
     </div>
     <div class="fc99-toast-text">
       <div class="fc99-toast-title">${title ?? ''}</div>
       ${subtitle ? `<div class="fc99-toast-subtitle">${subtitle}</div>` : ''}
+      ${preview ? `<div class="fc99-toast-preview">${preview}</div>` : ''}
     </div>
   `;
   document.body.appendChild(el);
@@ -155,6 +189,193 @@ function showToast({ imageUrl, icon, title, subtitle }) {
   }
 }
 
+// ── Operation Timer HUD ──────────────────────────────────────────────────
+// Persistent on-screen countdown (as opposed to the auto-fading toast
+// above) — mirrors the mobile app's own timer treatment: the amber
+// bottom strip while running (src/routes/+layout.svelte .timer-strip),
+// escalating into the last-10-seconds red strobe (.timer-panic) once
+// ≤10s remain. Kept as a small corner card rather than the phone's
+// full-screen takeover — unlike the phone, Foundry's screen is shared
+// table real estate the GM and players still need to see the canvas
+// through, and `pointer-events: none` (styles/bridge.css) keeps it from
+// ever intercepting clicks either way.
+//
+// Ticks off `timerEndsAt` with its own requestAnimationFrame loop, same
+// approach the mobile app uses, rather than trusting a stream of ticks
+// over the wire — the bridge only pushes state changes (started/extended/
+// stopped), not a tick per frame.
+let timerEndsAt = null;
+let timerRafId = null;
+let timerEl = null;
+
+function ensureTimerEl() {
+  if (timerEl) return;
+  timerEl = document.createElement('div');
+  timerEl.className = 'fc99-timer';
+  timerEl.innerHTML = `
+    <div class="fc99-timer-eyebrow"><span class="fc99-timer-dot"></span>// OPERATION TIMER</div>
+    <div class="fc99-timer-clock">
+      <span class="fc99-timer-main">00:00</span><span class="fc99-timer-ms">.000</span>
+    </div>
+  `;
+  document.body.appendChild(timerEl);
+}
+
+// ── Operation Timer screen frame ─────────────────────────────────────────
+// A full-viewport inset bezel to go with the corner clock above — the
+// "state overlay" visual language: a fixed double ring + cardinal ticks +
+// corner dots (mirroring the game's own token-frame art), with a single
+// glowing segment (blurred halo + crisp core, sharing one dash position)
+// orbiting the frame and breathing in brightness as it travels. Recolors
+// gold → red and speeds up at the same ≤10s threshold as the digit clock.
+// See docs/state-overlay-design-system.md for the full pattern — this is
+// the reference implementation other overlays (police chase, netrunning,
+// etc.) are meant to copy.
+//
+// Built with the Web Animations API rather than CSS @keyframes because the
+// orbit distance is the frame's actual on-screen perimeter, which changes
+// whenever the Foundry window is resized — a plain CSS keyframe can't
+// consume a per-element runtime value like that without registering a
+// typed custom property, so JS just computes and re-issues the animation.
+const FRAME_INSET = 14;
+const FRAME_RADIUS = 10;
+const FRAME_DASH_LEN = 90;
+const ORBIT_MS_RUNNING = 3600;
+const ORBIT_MS_PANIC = 1500;
+
+let timerFrameEl = null;
+let timerFrameAnims = [];
+let timerFrameResizeTimer = null;
+
+function frameGeometry() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const rw = w - FRAME_INSET * 2, rh = h - FRAME_INSET * 2;
+  const perim = 2 * (rw - 2 * FRAME_RADIUS) + 2 * (rh - 2 * FRAME_RADIUS) + 2 * Math.PI * FRAME_RADIUS;
+  return { w, h, rw, rh, perim };
+}
+
+function timerFrameMarkup(g) {
+  const x = FRAME_INSET, y = FRAME_INSET;
+  const { rw, rh, w, h, perim } = g;
+  const cx = w / 2, cy = h / 2;
+  const gapLen = Math.max(perim - FRAME_DASH_LEN, 10);
+  const corner = 34;
+  return `
+    <rect class="ring-outer" x="${x}" y="${y}" width="${rw}" height="${rh}" rx="${FRAME_RADIUS}"/>
+    <rect class="ring-inner" x="${x + 5}" y="${y + 5}" width="${rw - 10}" height="${rh - 10}" rx="${Math.max(FRAME_RADIUS - 2, 0)}"/>
+    <rect class="arc-glow" x="${x}" y="${y}" width="${rw}" height="${rh}" rx="${FRAME_RADIUS}" stroke-dasharray="${FRAME_DASH_LEN} ${gapLen}"/>
+    <rect class="arc-core" x="${x}" y="${y}" width="${rw}" height="${rh}" rx="${FRAME_RADIUS}" stroke-dasharray="${FRAME_DASH_LEN} ${gapLen}"/>
+    <line class="tick" x1="${cx}" y1="${y - 6}" x2="${cx}" y2="${y + 9}"/>
+    <line class="tick" x1="${cx}" y1="${y + rh - 9}" x2="${cx}" y2="${y + rh + 6}"/>
+    <line class="tick" x1="${x - 6}" y1="${cy}" x2="${x + 9}" y2="${cy}"/>
+    <line class="tick" x1="${x + rw - 9}" y1="${cy}" x2="${x + rw + 6}" y2="${cy}"/>
+    <circle class="dot" cx="${x + corner}" cy="${y + corner}" r="2.6"/>
+    <circle class="dot" cx="${x + rw - corner}" cy="${y + corner}" r="2.6"/>
+    <circle class="dot" cx="${x + corner}" cy="${y + rh - corner}" r="2.6"/>
+    <circle class="dot" cx="${x + rw - corner}" cy="${y + rh - corner}" r="2.6"/>
+  `;
+}
+
+// Dash length + gap == the frame's exact perimeter, so the single segment
+// wraps corners and returns to its start with zero seam or jump — the loop
+// only reads as seamless because the dash pattern's period matches the
+// path length exactly.
+function startOrbitAnimations(perim, durationMs) {
+  timerFrameAnims.forEach((a) => a.cancel());
+  timerFrameAnims = [];
+  if (!timerFrameEl) return;
+  timerFrameEl.querySelectorAll('.arc-glow, .arc-core').forEach((el) => {
+    timerFrameAnims.push(el.animate(
+      [{ strokeDashoffset: '0px' }, { strokeDashoffset: `${-perim}px` }],
+      { duration: durationMs, iterations: Infinity, easing: 'linear' }
+    ));
+  });
+}
+
+function layoutTimerFrame() {
+  if (!timerFrameEl) return;
+  const g = frameGeometry();
+  const panic = timerFrameEl.classList.contains('fc99-timer-frame--panic');
+  timerFrameEl.setAttribute('viewBox', `0 0 ${g.w} ${g.h}`);
+  timerFrameEl.innerHTML = timerFrameMarkup(g);
+  startOrbitAnimations(g.perim, panic ? ORBIT_MS_PANIC : ORBIT_MS_RUNNING);
+}
+
+function scheduleFrameRelayout() {
+  clearTimeout(timerFrameResizeTimer);
+  timerFrameResizeTimer = setTimeout(layoutTimerFrame, 150);
+}
+
+function ensureTimerFrame() {
+  if (timerFrameEl) return;
+  timerFrameEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  timerFrameEl.setAttribute('class', 'fc99-timer-frame');
+  document.body.appendChild(timerFrameEl);
+  window.addEventListener('resize', scheduleFrameRelayout);
+  layoutTimerFrame();
+}
+
+function setTimerFramePanic(isPanic) {
+  if (!timerFrameEl) return;
+  const wasPanic = timerFrameEl.classList.contains('fc99-timer-frame--panic');
+  if (isPanic === wasPanic) return;
+  timerFrameEl.classList.toggle('fc99-timer-frame--panic', isPanic);
+  startOrbitAnimations(frameGeometry().perim, isPanic ? ORBIT_MS_PANIC : ORBIT_MS_RUNNING);
+}
+
+function clearTimerFrame() {
+  clearTimeout(timerFrameResizeTimer);
+  window.removeEventListener('resize', scheduleFrameRelayout);
+  timerFrameAnims.forEach((a) => a.cancel());
+  timerFrameAnims = [];
+  timerFrameEl?.remove();
+  timerFrameEl = null;
+}
+
+function tickTimer() {
+  if (!timerEl || timerEndsAt == null) { timerRafId = null; return; }
+
+  const rem = timerEndsAt - Date.now();
+  const mainEl = timerEl.querySelector('.fc99-timer-main');
+  const msEl = timerEl.querySelector('.fc99-timer-ms');
+
+  if (rem <= 0) {
+    mainEl.textContent = '00:00';
+    msEl.textContent = '.000';
+    timerEl.classList.remove('fc99-timer--panic');
+    timerEl.classList.add('fc99-timer--expired');
+    setTimerFramePanic(true); // sits red until timer.stopped, same as the digit clock
+    timerRafId = null; // nothing left to count down — sits at TIME'S UP until timer.stopped
+    return;
+  }
+
+  const totalSec = Math.floor(rem / 1000);
+  mainEl.textContent = `${String(Math.floor(totalSec / 60)).padStart(2, '0')}:${String(totalSec % 60).padStart(2, '0')}`;
+  msEl.textContent = `.${String(Math.floor(rem % 1000)).padStart(3, '0')}`;
+  const isPanic = rem <= 10000;
+  timerEl.classList.toggle('fc99-timer--panic', isPanic);
+  timerEl.classList.remove('fc99-timer--expired');
+  setTimerFramePanic(isPanic);
+
+  timerRafId = requestAnimationFrame(tickTimer);
+}
+
+function setTimerEndsAt(endsAt) {
+  timerEndsAt = endsAt;
+  ensureTimerEl();
+  ensureTimerFrame();
+  if (!timerRafId) timerRafId = requestAnimationFrame(tickTimer);
+}
+
+function clearTimerDisplay() {
+  timerEndsAt = null;
+  if (timerRafId) cancelAnimationFrame(timerRafId);
+  timerRafId = null;
+  timerEl?.remove();
+  timerEl = null;
+  clearTimerFrame();
+}
+
 // Per-type visual side-effects beyond the chat message, e.g. the toast
 // above. Optional — most event types won't need one. Wrapped in try/catch
 // by the caller so a failure here never blocks the chat message itself.
@@ -167,6 +388,43 @@ const VISUAL_HANDLERS = {
       subtitle: payload.callerName ?? 'Unknown',
     });
   },
+
+  'once.deployed': (payload) => {
+    showToast({
+      variant: 'once',
+      icon: 'M',
+      title: 'Encrypted Transmission',
+      subtitle: payload.preview ? `“${payload.preview}”` : 'Sender unverified',
+    });
+  },
+
+  // Whisper-scoped by `dispatch()` below via the AUDIENCE map, same as the
+  // chat message itself — a group wire sent to only some of a group's
+  // players never reaches the others' clients, so this toast can't leak
+  // to them either.
+  'wire.deployed': (payload) => {
+    const sender = payload.sender ?? 'Unknown';
+    let preview = payload.preview ?? null;
+    if (payload.hasImage) preview = preview ? `📷 ${preview}` : '📷 Photo';
+    showToast({
+      variant: 'wire',
+      icon: initials(sender),
+      color: payload.color || null,
+      title: payload.groupName || 'Wire Message',
+      subtitle: sender,
+      preview,
+    });
+  },
+
+  'timer.started': (payload) => {
+    if (payload.endsAt != null) setTimerEndsAt(payload.endsAt);
+  },
+
+  'timer.extended': (payload) => {
+    if (payload.endsAt != null) setTimerEndsAt(payload.endsAt);
+  },
+
+  'timer.stopped': () => clearTimerDisplay(),
 };
 
 // Runs the visual side-effect (e.g. the toast) for one event. Called via the

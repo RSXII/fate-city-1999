@@ -77,3 +77,336 @@
   0% { transform: scale(0.85); opacity: 0.9; }
   100% { transform: scale(1.5); opacity: 0; }
 }
+
+/* ── O.N.C.E. transmission variant ────────────────────────────────────────
+   Mirrors the mobile app's encrypted-channel styling (src/routes/once,
+   the O.N.C.E. alert on src/routes/home): near-black panel, violet glow,
+   concentric pulse rings, "M" glyph avatar, scanline texture, monospace
+   uppercase system label. Kept visually distinct from the red call toast
+   above so a transmission never reads as an incoming call at a glance. */
+.fc99-toast--once {
+  background: #07031a;
+  border-color: rgba(124, 58, 237, 0.55);
+  box-shadow:
+    0 0 24px rgba(124, 58, 237, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 0 16px rgba(124, 58, 237, 0.06);
+}
+
+.fc99-toast-scanline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 14px;
+  overflow: hidden;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(124, 58, 237, 0.05) 3px,
+    rgba(124, 58, 237, 0.05) 4px
+  );
+}
+
+.fc99-toast--once .fc99-toast-ring::before {
+  border-color: rgba(124, 58, 237, 0.5);
+  animation: fc99-pulse-once 1.8s ease-out infinite;
+}
+
+.fc99-toast--once .fc99-toast-ring::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 1px solid rgba(168, 85, 247, 0.6);
+  animation: fc99-pulse-once 1.8s ease-out infinite 0.5s;
+}
+
+.fc99-toast--once .fc99-toast-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #1a0d31;
+  border: 1px solid rgba(154, 111, 217, 0.5);
+  color: #c9b3f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.fc99-toast--once .fc99-toast-title {
+  color: rgba(168, 85, 247, 0.9);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9px;
+}
+
+.fc99-toast--once .fc99-toast-subtitle {
+  color: #c4a8ff;
+  font-style: italic;
+}
+
+@keyframes fc99-pulse-once {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+/* Shared third line — used by any variant that wants a message-preview row
+   under the title/subtitle pair (currently just `wire`). */
+.fc99-toast-preview {
+  font-size: 11.5px;
+  color: rgba(232, 223, 200, 0.6);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Wire message variant ─────────────────────────────────────────────────
+   Mirrors the phone's Wire messenger (src/routes/messages): navy panel,
+   gold system label, cream body text. The avatar badge is tinted with the
+   sender's own contact color (see showToast's `color` param) the same way
+   contact bubbles are tinted in the phone UI, so different senders read as
+   visually distinct from one another, not just from a call/transmission. */
+.fc99-toast--wire {
+  background: #0c0f16;
+  border-color: var(--fc99-accent, #1a2030);
+}
+
+.fc99-toast--wire .fc99-toast-ring::before {
+  border-color: var(--fc99-accent, rgba(201, 162, 39, 0.55));
+  animation: fc99-pulse-wire 1.8s ease-out infinite;
+}
+
+.fc99-toast--wire .fc99-toast-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border-width: 1px;
+  border-style: solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.fc99-toast--wire .fc99-toast-title {
+  color: #c9a227;
+}
+
+.fc99-toast--wire .fc99-toast-subtitle {
+  color: #e8dfc8;
+  font-size: 15px;
+}
+
+@keyframes fc99-pulse-wire {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+/* ── Operation Timer HUD ───────────────────────────────────────────────────
+   Persistent countdown card (unlike the toasts above, this doesn't
+   auto-fade). Mirrors the mobile app's amber running strip
+   (src/routes/+layout.svelte .timer-strip) and its last-10-seconds red
+   strobe (.timer-panic) — see scripts/bridge.js for the state machine. */
+.fc99-timer {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 22px;
+  background: rgba(10, 8, 4, 0.88);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.fc99-timer-eyebrow {
+  font-size: 8px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: rgba(201, 162, 39, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fc99-timer-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c9a227;
+  flex-shrink: 0;
+  animation: fc99-timer-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes fc99-timer-blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.fc99-timer-clock {
+  display: flex;
+  align-items: flex-end;
+  line-height: 1;
+}
+
+.fc99-timer-main {
+  font-size: 34px;
+  font-weight: 700;
+  color: #c9a227;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease, font-size 0.2s ease;
+}
+
+.fc99-timer-ms {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(201, 162, 39, 0.4);
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 3px;
+  margin-left: 2px;
+  transition: color 0.2s ease;
+}
+
+/* Last 10 seconds — hard-flicker red, matching .timer-panic's steps(1) strobe */
+.fc99-timer--panic {
+  animation: fc99-timer-panic-bg 0.18s steps(1) infinite;
+}
+
+@keyframes fc99-timer-panic-bg {
+  0%  { background: rgba(19, 0, 0, 0.92); border-color: rgba(255, 20, 20, 0.35); }
+  50% { background: rgba(40, 0, 0, 0.92); border-color: rgba(255, 20, 20, 0.85); }
+}
+
+.fc99-timer--panic .fc99-timer-dot {
+  background: #ff2424;
+  animation: none;
+}
+
+.fc99-timer--panic .fc99-timer-eyebrow {
+  color: rgba(255, 60, 60, 0.85);
+  animation: fc99-timer-panic-flick 0.18s steps(1) infinite;
+}
+
+@keyframes fc99-timer-panic-flick {
+  0%  { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.fc99-timer--panic .fc99-timer-main {
+  color: #ff2424;
+  font-size: 40px;
+  animation: fc99-timer-panic-num 0.18s steps(1) infinite;
+}
+
+@keyframes fc99-timer-panic-num {
+  0%  { color: #ff2424; }
+  50% { color: #ff7070; }
+}
+
+.fc99-timer--panic .fc99-timer-ms {
+  color: rgba(255, 36, 36, 0.4);
+  animation: fc99-timer-panic-ms 0.18s steps(1) infinite;
+}
+
+@keyframes fc99-timer-panic-ms {
+  0%  { color: rgba(255, 36, 36, 0.4); }
+  50% { color: rgba(255, 112, 112, 0.65); }
+}
+
+/* Timer hit zero and hasn't been cleared by the GM yet — matches .timer-timesup */
+.fc99-timer--expired {
+  animation: fc99-timer-panic-bg 0.28s steps(1) infinite;
+}
+
+.fc99-timer--expired .fc99-timer-eyebrow {
+  color: rgba(255, 30, 30, 0.7);
+}
+
+.fc99-timer--expired .fc99-timer-main,
+.fc99-timer--expired .fc99-timer-ms {
+  color: #ff1a1a;
+}
+
+/* ── Operation Timer screen frame ─────────────────────────────────────────
+   Full-viewport inset bezel to go with the corner clock above. Mirrors the
+   game's own token-frame art: a double ring, fixed cardinal ticks + corner
+   dots, and one glowing segment (blurred halo + crisp core) orbiting the
+   frame — see scripts/bridge.js "Operation Timer screen frame" for the
+   runtime geometry/animation, and docs/state-overlay-design-system.md for
+   the general pattern this is meant to be copied for. */
+.fc99-timer-frame {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 80;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px rgba(201, 162, 39, 0.4));
+}
+
+.fc99-timer-frame .ring-outer { fill: none; stroke: #c9a227; stroke-width: 1; opacity: 0.85; }
+.fc99-timer-frame .ring-inner { fill: none; stroke: #c9a227; stroke-width: 1; opacity: 0.4; }
+.fc99-timer-frame .tick { fill: none; stroke: #c9a227; stroke-width: 2; stroke-linecap: round; opacity: 0.85; }
+.fc99-timer-frame .dot { fill: #c9a227; opacity: 0.9; }
+
+.fc99-timer-frame .arc-glow,
+.fc99-timer-frame .arc-core {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.fc99-timer-frame .arc-glow {
+  stroke: #c9a227;
+  stroke-width: 10;
+  filter: blur(7px);
+  opacity: 0.6;
+  animation: fc99-timer-frame-breathe 1.3s ease-in-out infinite;
+}
+
+.fc99-timer-frame .arc-core {
+  stroke: #fff8dc;
+  stroke-width: 3;
+  animation: fc99-timer-frame-breathe 1.3s ease-in-out infinite;
+}
+
+@keyframes fc99-timer-frame-breathe {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+/* Last 10 seconds (and the persisting TIME'S UP state after) — same bezel,
+   recolored red; the orbit itself speeds up via the JS-driven Web
+   Animations call in bridge.js, this just handles color + a faster pulse. */
+.fc99-timer-frame--panic {
+  filter: drop-shadow(0 0 5px rgba(255, 36, 36, 0.5));
+}
+
+.fc99-timer-frame--panic .ring-outer,
+.fc99-timer-frame--panic .ring-inner,
+.fc99-timer-frame--panic .tick { stroke: #ff2424; }
+
+.fc99-timer-frame--panic .dot { fill: #ff2424; }
+
+.fc99-timer-frame--panic .arc-glow {
+  stroke: #ff2424;
+  animation-duration: 0.55s;
+}
+
+.fc99-timer-frame--panic .arc-core {
+  stroke: #fff2f2;
+  animation-duration: 0.55s;
+}
