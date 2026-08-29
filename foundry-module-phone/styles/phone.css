@@ -1,0 +1,12 @@
+.fc99-phone-app .window-content {
+  padding: 0;
+  overflow: hidden;
+  background: #0c0f16;
+}
+
+.fc99-phone-iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
