@@ -14,15 +14,20 @@
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
 
-  // Whose device this is — the identity that drives every filter below. Comes
-  // straight from the URL (see docs/npc-device-hack-audit.md — deliberately
-  // no storage of any kind, so opening a second device is just navigating to
-  // a different /hacked login, never blocked by stale saved state).
-  $: npcKey = $page.params.npcKey;
+  // Whose device this is — the identity that drives every filter below.
+  // Lives entirely in the URL as a query param, not a dynamic route segment
+  // (see docs/npc-device-hack-audit.md): deliberately no storage of any
+  // kind, so opening a second device is just navigating to a different
+  // /hacked login, never blocked by stale saved state. A [param] route
+  // folder also can't be prerendered by adapter-static without knowing
+  // concrete NPC keys at build time, which this app has no way to do.
+  $: npcKey = $page.url.searchParams.get('npc') ?? '';
 
   // URL params — null on both means conversation list view
   $: activeSender = $page.url.searchParams.get('sender');
   $: activeThread = $page.url.searchParams.get('thread');
+
+  $: backHref = `${base}/hacked/messages?npc=${encodeURIComponent(npcKey)}`;
 
   let feedEl;
   let contactsPollTimer;
@@ -227,7 +232,7 @@
 
 <header class="msg-header">
   {#if activeThread}
-    <a class="msg-back" href="{base}/hacked/{npcKey}/messages" aria-label="Back to all conversations">&lsaquo;</a>
+    <a class="msg-back" href={backHref} aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-group-avatars">
       {#each activeGroupMembers.slice(0, 2) as name, i}
         {@const meta = contactsByName[name] ?? { color: '#5b9e8f' }}
@@ -243,7 +248,7 @@
     </div>
   {:else if activeSender}
     {@const meta = contactsByName[activeSender] ?? { color: '#b8902f', avatar: null }}
-    <a class="msg-back" href="{base}/hacked/{npcKey}/messages" aria-label="Back to all conversations">&lsaquo;</a>
+    <a class="msg-back" href={backHref} aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-avatar"
       style="background:{hexToRgba(meta.color, 0.16)};border-color:{meta.color};color:{meta.color}">
       {initials(activeSender)}
@@ -257,7 +262,7 @@
       <div class="msg-header-sub">{meta.number || 'Fate City'}</div>
     </div>
   {:else}
-    <a class="msg-back" href="{base}/hacked/{npcKey}/home" aria-label="Back to device home screen">&lsaquo;</a>
+    <a class="msg-back" href="{base}/hacked/home?npc={encodeURIComponent(npcKey)}" aria-label="Back to device home screen">&lsaquo;</a>
     <span class="msg-live-dot" aria-hidden="true"></span>
     <div>
       <div class="msg-header-title">Wire</div>
@@ -354,8 +359,8 @@
         {@const g = item}
         <a class="conv-row"
           href={g.isGroup
-            ? `${base}/hacked/${npcKey}/messages?thread=${encodeURIComponent(g.groupId)}`
-            : `${base}/hacked/${npcKey}/messages?sender=${encodeURIComponent(g.name)}`}
+            ? `${backHref}&thread=${encodeURIComponent(g.groupId)}`
+            : `${backHref}&sender=${encodeURIComponent(g.name)}`}
           in:fly={{ y: 8, duration: 350 }}>
           {#if g.isGroup}
             <div class="conv-avatar conv-avatar--group"

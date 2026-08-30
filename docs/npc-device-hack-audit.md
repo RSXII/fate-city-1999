@@ -24,14 +24,22 @@ The design below is implemented, not just planned:
   the existing contacts list rather than free-typed.
 - **`/hacked`** — terminal-style login (`src/routes/hacked/+page.svelte`),
   checks credentials against `device-accounts` client-side, then
-  `goto()`s straight to `/hacked/[npcKey]/home` with no storage written.
-- **`/hacked/[npcKey]/home`** and **`/hacked/[npcKey]/messages`** — a reduced
-  home screen (Wire only — still the only app with real per-person data) and
-  a Wire view adapted from the player-facing one: conversation list filtered
+  `goto()`s straight to `/hacked/home?npc=<npcKey>` with no storage written.
+- **`/hacked/home?npc=`** and **`/hacked/messages?npc=`** — a reduced home
+  screen (Wire only — still the only app with real per-person data) and a
+  Wire view adapted from the player-facing one: conversation list filtered
   by `npcMembers.includes(npcKey)` instead of `playerMembers`, message
   visibility using the same `staged !== false` gate (unbypassed, per
   decision 3), and the mine/theirs bubble split keyed on `sender === npcKey`
   instead of `type === 'player'` so impersonated replies land correctly.
+  Note the identity is a **query param, not a `[npcKey]` dynamic route
+  segment** — the first build used a dynamic segment and it broke the
+  static-site build (`adapter-static` prerenders every route by crawling
+  links from `/`, and can't discover concrete values for a `[param]` folder
+  it never finds linked anywhere at build time). Every other view in this
+  app already avoids this by using query params (`?sender=`, `?thread=`,
+  `?id=`) instead of path segments — `/hacked` now follows the same
+  convention.
 - **A real bug caught and fixed during the build**: `sendAsNpc` forcing
   `npcOnly: true` on the *message* doesn't retroactively hide a conversation
   whose `isBroadcast`/`playerMembers` are already sticky-true from earlier
@@ -179,11 +187,13 @@ sessionStorage" idea below:
 - **No storage of any kind — the URL is the only state.** Rejected
   `sessionStorage` explicitly: it creates sticky state with no way to switch to
   a second device without also building a logout affordance. Instead, a
-  successful login redirects into a **nested route carrying the resolved
-  identity in the URL itself** — recommended shape:
-  `/hacked/[username]/home`, `/hacked/[username]/messages`, etc., with a
-  `+layout` at the `[username]` level doing the credential check once (via
-  `load`) and handing the resolved NPC identity down to every child page. This
+  successful login redirects into a route carrying the resolved identity in
+  the URL itself. Originally sketched as a nested `[username]` dynamic
+  route with a `+layout` doing the credential check once via `load` — **this
+  turned out not to work**: `adapter-static`'s prerender crawl can't
+  discover concrete values for a `[param]` folder, so the build failed
+  outright the first time this actually got built. Landed shape instead:
+  plain query param (`/hacked/home?npc=`, `/hacked/messages?npc=`), which
   matches the existing app convention of driving view state off the URL rather
   than stored state (`?sender=`, `?thread=`, `?id=` elsewhere). Logging into a
   *different* device is then just navigating back to the login route and
@@ -202,11 +212,17 @@ sessionStorage" idea below:
   own view. No credential checking or filtering logic duplicated into Foundry's
   plain JS; all of that stays in the Wire app itself.
 
-Still to design, now that the entry point is settled:
+Still to design, now that the entry point is settled — **note: as actually
+built, this landed as a separate `src/routes/hacked/messages/+page.svelte`
+file adapted from the player-facing one, not a generalized shared component
+with a mode prop.** Lower risk (zero chance of a hacked-mode conditional
+accidentally breaking the live player-facing page) at the cost of some
+duplication between the two files; worth revisiting as a shared component if
+they start drifting apart from bug fixes landing in only one copy.
 
 **Mobile app** — the actual per-page filtering (in
 [src/routes/messages/+page.svelte](../src/routes/messages/+page.svelte) and
-wherever else ends up under `/hacked/[username]/...`):
+[src/routes/hacked/messages/+page.svelte](../src/routes/hacked/messages/+page.svelte)):
 - Swap the filter predicate from `playerMembers.includes(myCodename)` to
   `npcMembers.includes(npcKey)`, where `npcKey` is just the NPC's existing
   contact name (see decision 4 below) — the *exact same* predicate shape as
@@ -215,11 +231,10 @@ wherever else ends up under `/hacked/[username]/...`):
   `type === 'player'`) to be relative to whichever identity is active (real
   codename in normal mode, `npcKey` in hacked mode) instead of a fixed type.
 - **Impersonated replies reuse the existing compose path**, generalized: today
-  `sendResponse()` hardcodes `type: 'player', sender: myCodename`; it becomes
-  `type: identity.type, sender: identity.name` (plus `color` for the NPC case),
-  where `identity` comes from the real codename in normal mode or the
-  `/hacked/[username]` route's resolved NPC in hacked mode. No new send
-  pipeline — same `createMessage`-shaped write, same UI compose box, just no
+  `sendResponse()` hardcodes `type: 'player', sender: myCodename`; the hacked
+  view's own `sendResponse()` sends `type: 'npc', sender: npcKey` (plus
+  `color`) via the new `sendAsNpc()` helper instead. Same
+  `createMessage`-shaped write, same UI compose box, just no
   longer assuming "the sender is always the player."
 - **Visibility filtering is unchanged, not bypassed.** Confirmed: `staged`
   keeps its current meaning (authored vs. sent) and the hacked view uses the
