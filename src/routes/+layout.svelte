@@ -8,6 +8,11 @@
 
   $: isConsole = $page.route.id?.startsWith('/ops-7e4f');
   $: isTimerPage = $page.route.id?.startsWith('/timer');
+  // A hacked-device view is a different device's phone, not the real
+  // player's own — none of the real player's system chrome (incoming calls,
+  // the timer overlay, the O.N.C.E. alert, the bottom nav bar) belongs here,
+  // same reasoning as suppressing it all on the GM console.
+  $: isHacked = $page.route.id?.startsWith('/hacked');
 
   let clockCleanup;
 
@@ -134,7 +139,7 @@
   }
 
   function checkTimerExpiry() {
-    if (timerEndsAt && timerEndsAt !== lastAlertedEndsAt && !isConsole) {
+    if (timerEndsAt && timerEndsAt !== lastAlertedEndsAt && !isConsole && !isHacked) {
       if (Date.now() >= timerEndsAt) {
         lastAlertedEndsAt = timerEndsAt;
         try { new Audio(`${base}/sounds/once_sound.mp3`).play(); } catch {}
@@ -167,7 +172,7 @@
 
 <slot />
 
-{#if panicMode && !isConsole}
+{#if panicMode && !isConsole && !isHacked}
   <div class="timer-panic" aria-live="assertive" aria-label="Timer critical: {panicSecs} seconds remaining">
     <div class="panic-eyebrow">
       <span class="panic-dot" aria-hidden="true"></span>// TIMER CRITICAL
@@ -178,7 +183,7 @@
   </div>
 {/if}
 
-{#if timesUp && !isConsole}
+{#if timesUp && !isConsole && !isHacked}
   <div class="timer-timesup" role="alertdialog" aria-label="Time's up — operation terminated">
     <div class="timesup-scanline" aria-hidden="true"></div>
     <div class="timesup-sys">// OPERATION TERMINATED</div>
@@ -188,7 +193,7 @@
   </div>
 {/if}
 
-{#if stripRunning && !isConsole && !isTimerPage && !panicMode}
+{#if stripRunning && !isConsole && !isHacked && !isTimerPage && !panicMode}
   <a class="timer-strip" href="{base}/timer" aria-label="Operation timer: {stripMins}:{stripSecs}">
     <span class="timer-strip-dot" aria-hidden="true"></span>
     <span class="timer-strip-label">OPERATION TIMER</span>
@@ -198,11 +203,11 @@
   </a>
 {/if}
 
-{#if !isConsole}
+{#if !isConsole && !isHacked}
   <wire-home-bar layout="flex"></wire-home-bar>
 {/if}
 
-{#if callState && !isConsole}
+{#if callState && !isConsole && !isHacked}
   <div class="incoming-call-overlay">
 
     <div class="ic-top-label">

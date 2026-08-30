@@ -28,6 +28,10 @@
     }
   }
 
+  // `id`/`title`/`url` are per-instance (passed via the constructor's options
+  // and merged over defaultOptions by Foundry's own Application base class),
+  // so the player's own phone and a hacked-device window can be open at the
+  // same time without colliding on DOM id.
   class WirePhoneApp extends Application {
     static get defaultOptions() {
       return foundry.utils.mergeObject(super.defaultOptions, {
@@ -43,16 +47,44 @@
     }
 
     getData() {
-      return { url: game.settings.get(MODULE_ID, 'wireUrl') };
+      return { url: this.options.url };
     }
   }
 
+  // Appends the hacked-device login route to the configured Wire URL — see
+  // src/routes/hacked in the main app and docs/npc-device-hack-audit.md.
+  // Foundry's role here is deliberately dumb: open a second window at this
+  // URL, no credential checking or filtering logic lives in this module.
+  function hackedDeviceUrl() {
+    const base = game.settings.get(MODULE_ID, 'wireUrl').replace(/\/+$/, '');
+    return `${base}/hacked`;
+  }
+
   let phoneApp = null;
+  let hackedApp = null;
 
   function togglePhone() {
-    if (!phoneApp) phoneApp = new WirePhoneApp();
+    if (!phoneApp) {
+      phoneApp = new WirePhoneApp({
+        id: 'fc99-phone-app',
+        title: 'Wire',
+        url: game.settings.get(MODULE_ID, 'wireUrl'),
+      });
+    }
     if (phoneApp.rendered) phoneApp.close();
     else phoneApp.render(true);
+  }
+
+  function toggleHackedDevice() {
+    if (!hackedApp) {
+      hackedApp = new WirePhoneApp({
+        id: 'fc99-hacked-phone-app',
+        title: 'Hacked Device',
+        url: hackedDeviceUrl(),
+      });
+    }
+    if (hackedApp.rendered) hackedApp.close();
+    else hackedApp.render(true);
   }
 
   Hooks.once('init', () => {
@@ -84,6 +116,13 @@
           icon: 'fa-solid fa-mobile-screen-button',
           button: true,
           onClick: togglePhone,
+        },
+        {
+          name: 'hacked',
+          title: 'Hacked Device',
+          icon: 'fa-solid fa-terminal',
+          button: true,
+          onClick: toggleHackedDevice,
         },
       ],
     };
