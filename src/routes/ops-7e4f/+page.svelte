@@ -97,6 +97,7 @@
 
   let deviceRecords = []; // full device records from Firebase
   let selectedRecipients = []; // empty = broadcast to all
+  let npcOnlyMessage = false; // hidden NPC↔NPC message — see docs/npc-device-hack-audit.md
 
   $: devices = deviceRecords.map(d => d.codename); // codenames-only view for existing pickers
 
@@ -258,7 +259,8 @@
     try {
       const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now(), staged: false };
       if (selectedImage) payload.imageUrl = selectedImage.url;
-      if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
+      if (npcOnlyMessage) payload.npcOnly = true;
+      else if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       if (selectedGroup) { payload.groupId = selectedGroup._id; payload.groupName = selectedGroup.name; }
       if (requestLocationShare) payload.locationRequest = true;
       await createMessage(convIdForMsg(payload), payload);
@@ -266,7 +268,8 @@
       selectedImage = null;
       requestLocationShare = false;
       pickerOpen = false;
-      sendStatus = { text: 'Staged. Deploy when players are ready.', type: 'ok' };
+      sendStatus = { text: npcOnlyMessage ? 'Staged as hidden NPC-only. Deploy to make it live on the hacked device.' : 'Staged. Deploy when players are ready.', type: 'ok' };
+      npcOnlyMessage = false;
     } catch (e) {
       sendStatus = { text: `Stage failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
     }
@@ -279,14 +282,20 @@
       const m = stagedMsgs.find(x => x.id === id);
       if (m) {
         await fsDeployMessage(m.convId, id, m);
-        notifyBridge('wire.deployed', {
-          sender: m.sender,
-          color: m.color || null,
-          groupName: m.groupName || null,
-          preview: m.text ? m.text.slice(0, 80) : null,
-          hasImage: !!m.imageUrl,
-          recipients: m.recipients || null,
-        });
+        // npcOnly messages never announce to Foundry — the whole point is that
+        // nobody at the table should learn about them except through the
+        // hacked-device view itself. wire.deployed has no AUDIENCE entry for
+        // "nobody," so skipping the call entirely is the only safe option.
+        if (!m.npcOnly) {
+          notifyBridge('wire.deployed', {
+            sender: m.sender,
+            color: m.color || null,
+            groupName: m.groupName || null,
+            preview: m.text ? m.text.slice(0, 80) : null,
+            hasImage: !!m.imageUrl,
+            recipients: m.recipients || null,
+          });
+        }
       }
     } catch (e) { console.error('Deploy failed', e); }
     deployingMsgId = null;
@@ -834,6 +843,91 @@
   function selectEditAvatar(img) {
     editCAvatar = `images/wire-profiles/${img.name}`;
     editAvatarPickerOpen = false;
+  }
+
+  // ── Section 3b: Hacked Devices (device-accounts) ─────────────────────────────
+  // Login credentials for src/routes/hacked — decoupled from the contacts
+  // directory on purpose (see docs/npc-device-hack-audit.md): a device login
+  // shouldn't have to look like "username: LucaGoode". `npcKey` is the
+  // contact name it resolves to for message filtering, picked from the same
+  // contactList loaded above rather than free-typed, so it can't drift out
+  // of sync with an actual contact.
+  let deviceAccountList = [];
+  let newDevUsername = '', newDevPassword = '', newDevNpcKey = '';
+  let addingDeviceAccount = false;
+  let deviceAccountStatus = { text: '', type: '' };
+
+  let editingDevId = null;
+  let editDevUsername = '', editDevPassword = '', editDevNpcKey = '';
+  let savingDeviceAccount = false;
+
+  async function refreshDeviceAccounts() {
+    try {
+      const data = await dbGet('device-accounts');
+      if (!data) { deviceAccountList = []; return; }
+      deviceAccountList = Object.keys(data)
+        .map(k => { const d = data[k]; d._id = k; return d; })
+        .sort((a, b) => a.username.localeCompare(b.username));
+    } catch { deviceAccountList = []; }
+  }
+
+  async function addDeviceAccount() {
+    const username = newDevUsername.trim();
+    const password = newDevPassword.trim();
+    const npcKey = newDevNpcKey.trim();
+    if (!username || !password || !npcKey) {
+      deviceAccountStatus = { text: 'Username, password, and NPC are all required.', type: 'err' };
+      return;
+    }
+    if (deviceAccountList.some(d => d.username.toLowerCase() === username.toLowerCase())) {
+      deviceAccountStatus = { text: 'That username is already taken.', type: 'err' };
+      return;
+    }
+    addingDeviceAccount = true;
+    deviceAccountStatus = { text: 'Adding…', type: '' };
+    try {
+      await dbPost('device-accounts', { username, password, npcKey, createdAt: Date.now() });
+      newDevUsername = ''; newDevPassword = ''; newDevNpcKey = '';
+      deviceAccountStatus = { text: 'Device account added.', type: 'ok' };
+      await refreshDeviceAccounts();
+    } catch (e) {
+      deviceAccountStatus = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    addingDeviceAccount = false;
+  }
+
+  function startEditDeviceAccount(d) {
+    editingDevId = d._id;
+    editDevUsername = d.username;
+    editDevPassword = d.password;
+    editDevNpcKey = d.npcKey;
+  }
+
+  function cancelEditDeviceAccount() { editingDevId = null; }
+
+  async function saveDeviceAccount() {
+    if (!editDevUsername.trim() || !editDevPassword.trim() || !editDevNpcKey.trim()) return;
+    savingDeviceAccount = true;
+    try {
+      await dbPut(`device-accounts/${editingDevId}`, {
+        username: editDevUsername.trim(),
+        password: editDevPassword.trim(),
+        npcKey: editDevNpcKey.trim(),
+      });
+      await refreshDeviceAccounts();
+      editingDevId = null;
+    } catch (e) {
+      deviceAccountStatus = { text: `Save failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+    savingDeviceAccount = false;
+  }
+
+  async function deleteDeviceAccount(id) {
+    if (!confirm('Remove this device account? Its login will stop working immediately.')) return;
+    try {
+      await dbDelete(`device-accounts/${id}`);
+      await refreshDeviceAccounts();
+    } catch (e) { console.error('Delete failed', e); }
   }
 
   // ── Section 4: Current Date ────────────────────────────────────────────────
@@ -2352,6 +2446,7 @@
     <button class="tab" class:active={activeTab === 'email'}    role="tab" on:click={() => activeTab = 'email'}>Email</button>
     <button class="tab" class:active={activeTab === 'cases'}    role="tab" on:click={() => activeTab = 'cases'}>Case Files</button>
     <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
+    <button class="tab" class:active={activeTab === 'devices'} role="tab" on:click={() => { activeTab = 'devices'; refreshDeviceAccounts(); if (!contactList.length) refreshContacts(); }}>Hacked Devices</button>
     <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
     <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
@@ -2479,12 +2574,18 @@
 
       <div class="section">
         <div class="section-label">Recipients</div>
+        <button type="button" class="ghost-btn" class:selected={npcOnlyMessage}
+          style="margin-bottom:8px"
+          on:click={() => { npcOnlyMessage = !npcOnlyMessage; if (npcOnlyMessage) selectedRecipients = []; }}>
+          {npcOnlyMessage ? '✓ Hidden — NPC-only (no player will ever see this)' : '+ Hidden — NPC-only (no player will ever see this)'}
+        </button>
         <div class="chip-grid">
           <button
             type="button"
             class="chip"
             class:selected={selectedRecipients.length === 0}
             style="color:#c9a227;border-color:#c9a227"
+            disabled={npcOnlyMessage}
             on:click={() => selectedRecipients = []}
           >
             <span class="chip-label"><span>All Players</span></span>
@@ -2495,13 +2596,18 @@
               class="chip"
               class:selected={selectedRecipients.includes(codename)}
               style="color:#6ab0d4;border-color:#6ab0d4"
+              disabled={npcOnlyMessage}
               on:click={() => toggleRecipient(codename)}
             >
               <span class="chip-label"><span>{codename}</span></span>
             </button>
           {/each}
         </div>
-        {#if !devices.length}
+        {#if npcOnlyMessage}
+          <div class="selected-line" style="opacity:0.7;color:#c0504a">
+            Hidden from every player. Only reachable through a hacked-device login for this sender.
+          </div>
+        {:else if !devices.length}
           <div class="selected-line" style="opacity:0.45">No players registered yet.</div>
         {/if}
       </div>
@@ -2514,7 +2620,9 @@
             {#if selectedGroup}
               in <strong style="color:#5b9e8f">{selectedGroup.name}</strong>
             {/if}
-            {#if selectedRecipients.length > 0}
+            {#if npcOnlyMessage}
+              → <strong style="color:#c0504a">hidden (NPC-only)</strong>
+            {:else if selectedRecipients.length > 0}
               → <strong style="color:#6ab0d4">{selectedRecipients.join(', ')}</strong>
             {:else}
               → all players
@@ -2562,7 +2670,11 @@
 
         <div style="height:10px"></div>
         <button class="primary" disabled={!sendEnabled} on:click={sendMessage}>
-          {selectedRecipients.length > 0 ? `Stage for ${selectedRecipients.length} player${selectedRecipients.length !== 1 ? 's' : ''}` : 'Stage for all players'}
+          {npcOnlyMessage
+            ? 'Stage hidden NPC-only message'
+            : selectedRecipients.length > 0
+              ? `Stage for ${selectedRecipients.length} player${selectedRecipients.length !== 1 ? 's' : ''}`
+              : 'Stage for all players'}
         </button>
         <div class="status-line" class:ok={sendStatus.type === 'ok'} class:err={sendStatus.type === 'err'}>
           {sendStatus.text}
@@ -3232,6 +3344,84 @@
                       {c.enabled ? 'In Phone' : 'Hidden'}
                     </button>
                     <button class="danger-btn" on:click={() => deleteContact(c._id)}>Delete</button>
+                  </div>
+                </div>
+              {/if}
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+    <!-- ══ HACKED DEVICES ══════════════════════════════════════════════════ -->
+    {:else if activeTab === 'devices'}
+
+      <p class="tab-sub">
+        Login credentials for a hacked-device view (src/routes/hacked) — a terminal-style
+        login that shows only what belongs to one NPC's Wire device. Deliberately decoupled
+        from the Contacts directory: a login shouldn't look like the NPC's real name.
+      </p>
+
+      <div class="section">
+        <div class="section-label">Add Device Account</div>
+        <div class="contact-form">
+          <input type="text" class="contact-input" placeholder="Username…" bind:value={newDevUsername} />
+          <input type="text" class="contact-input" placeholder="Password…" bind:value={newDevPassword} />
+          <select class="contact-input" bind:value={newDevNpcKey}>
+            <option value="" disabled selected>Which NPC's device does this unlock?</option>
+            {#each contactList as c (c._id)}
+              <option value={c.name}>{c.name}</option>
+            {/each}
+          </select>
+        </div>
+        <div style="height:10px"></div>
+        <button class="primary" disabled={addingDeviceAccount || !newDevUsername.trim() || !newDevPassword.trim() || !newDevNpcKey.trim()} on:click={addDeviceAccount}>
+          {addingDeviceAccount ? 'Adding…' : 'Add Device Account'}
+        </button>
+        <div class="status-line" class:ok={deviceAccountStatus.type === 'ok'} class:err={deviceAccountStatus.type === 'err'}>
+          {deviceAccountStatus.text}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label-row">
+          <div class="section-label" style="margin-bottom:0">Device Accounts ({deviceAccountList.length})</div>
+          <button class="ghost-btn" on:click={refreshDeviceAccounts}>Refresh</button>
+        </div>
+        <div class="log">
+          {#if !deviceAccountList.length}
+            <div class="log-empty">No device accounts yet. Add one above.</div>
+          {:else}
+            {#each deviceAccountList as d (d._id)}
+              {#if editingDevId === d._id}
+                <div class="contact-edit-block">
+                  <div class="contact-form" style="margin-bottom:8px">
+                    <input type="text" class="contact-input" placeholder="Username…" bind:value={editDevUsername} />
+                    <input type="text" class="contact-input" placeholder="Password…" bind:value={editDevPassword} />
+                    <select class="contact-input" bind:value={editDevNpcKey}>
+                      {#each contactList as c (c._id)}
+                        <option value={c.name}>{c.name}</option>
+                      {/each}
+                    </select>
+                  </div>
+                  <div class="contact-edit-actions">
+                    <button class="primary" style="flex:1" disabled={savingDeviceAccount || !editDevUsername.trim() || !editDevPassword.trim() || !editDevNpcKey.trim()} on:click={saveDeviceAccount}>
+                      {savingDeviceAccount ? 'Saving…' : 'Save'}
+                    </button>
+                    <button class="ghost-btn" on:click={cancelEditDeviceAccount}>Cancel</button>
+                  </div>
+                </div>
+              {:else}
+                <div class="contact-log-row">
+                  <div class="contact-log-info">
+                    <span class="contact-log-dot" style="background:#c9a227"></span>
+                    <div class="contact-log-text">
+                      <span class="contact-log-name">{d.username}</span>
+                      <span class="contact-log-meta">→ {d.npcKey} · password: {d.password}</span>
+                    </div>
+                  </div>
+                  <div class="contact-log-actions">
+                    <button class="ghost-btn" style="padding:4px 9px;font-size:10px" on:click={() => startEditDeviceAccount(d)}>Edit</button>
+                    <button class="danger-btn" on:click={() => deleteDeviceAccount(d._id)}>Delete</button>
                   </div>
                 </div>
               {/if}

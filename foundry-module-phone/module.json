@@ -1,0 +1,15 @@
+{
+  "id": "fc99-phone",
+  "title": "Fate City 1999 — Phone",
+  "description": "Opens the Wire phone app in a window inside Foundry, for anyone who doesn't have it running on a second device.",
+  "version": "1.0.0",
+  "authors": [{ "name": "Fate City 1999" }],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12"
+  },
+  "scripts": ["scripts/phone.js"],
+  "styles": ["styles/phone.css"],
+  "url": "",
+  "manifest": ""
+}

@@ -230,6 +230,7 @@ export async function createMessage(convId, payload) {
   if (payload.imageUrl)           msgData.imageUrl   = payload.imageUrl;
   if (payload.recipients?.length) msgData.recipients = payload.recipients;
   if (payload.locationRequest)    msgData.locationRequest = true;
+  if (payload.npcOnly)            msgData.npcOnly = true;
 
   const cleanMsg = Object.fromEntries(
     Object.entries(msgData).filter(([, v]) => v !== null),
@@ -242,6 +243,10 @@ export async function createMessage(convId, payload) {
     lastMessageAt: payload.ts,
   };
   if (payload.groupName) convUpdate.name = payload.groupName;
+  // Sticky, cosmetic marker for the GM console's own conversation browser — the
+  // actual player-side invisibility comes from never setting isBroadcast/
+  // playerMembers below, not from this flag.
+  if (payload.npcOnly)   convUpdate.npcOnly = true;
 
   await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
   return addDoc(collection(db, 'conversations', convId, 'messages'), cleanMsg);
@@ -250,6 +255,11 @@ export async function createMessage(convId, payload) {
 /**
  * Deploy a staged NPC message: flip staged → true, update the conversation preview,
  * and set membership fields so players can now see the conversation.
+ *
+ * `msg.npcOnly` opts a message out of the recipients-empty-means-broadcast
+ * default below — used for NPC↔NPC conversations that must stay invisible to
+ * every player (see docs/npc-device-hack-audit.md) rather than becoming a
+ * broadcast just because no player recipients were named.
  */
 export async function deployMessage(convId, messageId, msg) {
   await updateDoc(
@@ -263,9 +273,26 @@ export async function deployMessage(convId, messageId, msg) {
       ? `📷 ${msg.text || 'Photo'}`
       : (msg.text || ''),
   };
-  if (!msg.recipients?.length) convUpdate.isBroadcast = true;
+  if (!msg.recipients?.length && !msg.npcOnly) convUpdate.isBroadcast = true;
   if (msg.recipients?.length)  convUpdate.playerMembers = arrayUnion(...msg.recipients);
   await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
+}
+
+/**
+ * Create-and-immediately-deploy an NPC message in one call — used for live
+ * replies sent through a hacked-device view (src/routes/hacked), where the
+ * message is "sent" the instant it's typed rather than staged for a later
+ * GM deploy step. Always `npcOnly` — anything written through a hacked
+ * device must never leak into the normal broadcast/targeted player inbox.
+ *
+ * @param {string} convId
+ * @param {{ sender: string, color?: string, text: string, ts: number, groupId?: string, groupName?: string }} payload
+ */
+export async function sendAsNpc(convId, payload) {
+  const full = { ...payload, npcOnly: true };
+  const ref = await createMessage(convId, full);
+  await deployMessage(convId, ref.id, full);
+  return ref;
 }
 
 /**
