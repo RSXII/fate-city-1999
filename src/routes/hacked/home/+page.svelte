@@ -4,7 +4,12 @@
   import { base } from '$app/paths';
   import { dbGet } from '$lib/firebase-db.js';
 
-  $: npcKey = $page.params.npcKey;
+  // Identity lives entirely in the URL — a query param, not a dynamic route
+  // segment, matching every other view in this app (?sender=, ?thread=,
+  // ?id=). A [param] route folder needs adapter-static to prerender concrete
+  // URLs it can't crawl to (NPC keys are GM-managed data, not known at build
+  // time), which fails the build outright.
+  $: npcKey = $page.url.searchParams.get('npc') ?? '';
 
   let contacts = [];
   $: contactsByName = Object.fromEntries(contacts.map(c => [c.name, c]));
@@ -51,7 +56,7 @@
   </div>
 
   <div class="hd-row">
-    <a class="hd-icon" href="{base}/hacked/{npcKey}/messages">
+    <a class="hd-icon" href="{base}/hacked/messages?npc={encodeURIComponent(npcKey)}">
       <div class="hd-icon-tile">
         <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />

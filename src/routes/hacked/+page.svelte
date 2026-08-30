@@ -26,7 +26,7 @@
         authenticating = false;
         return;
       }
-      await goto(`${base}/hacked/${encodeURIComponent(match.npcKey)}/home`);
+      await goto(`${base}/hacked/home?npc=${encodeURIComponent(match.npcKey)}`);
     } catch {
       error = 'CONNECTION FAILED — TRY AGAIN';
       authenticating = false;
