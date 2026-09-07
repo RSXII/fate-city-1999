@@ -89,8 +89,9 @@
     dismissTimer = setTimeout(dismissIntro, 12500);
   }
 
-  function dismissIntro() {
+  async function dismissIntro() {
     clearTimeout(dismissTimer);
+    await loadAccount();
     showIntro = false;
     if (typeof sessionStorage !== 'undefined')
       sessionStorage.setItem('vb_intro_seen', '1');
