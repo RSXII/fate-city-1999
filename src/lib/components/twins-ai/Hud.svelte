@@ -11,6 +11,7 @@
 
   import { onMount, onDestroy } from 'svelte';
   import { TAKEOVER_CAP } from '$lib/data/twins-ai.js';
+  import { AI_NAME } from '$lib/data/twins-ai-content.js';
 
   export let entry = null;        // { codename, seizedAt, intrusion }
   export let totalActive = 0;
@@ -87,11 +88,8 @@
   <i class="hud-corner bl" aria-hidden="true"></i>
   <i class="hud-corner br" aria-hidden="true"></i>
 
-  <div class="hud-readout">// AI UPLINK <span class="hud-cursor">_</span></div>
+  <div class="hud-message">User {AI_NAME} is requesting control of your device.</div>
   <div class="hud-clock">{clockText}</div>
-  {#if entry?.codename}
-    <div class="hud-host">HOST: {entry.codename.toUpperCase()}</div>
-  {/if}
 
   <div class="hud-chips" aria-label="Active links {Math.min(totalActive, cap)} of {cap}">
     {#each chips as filled, i (i)}
@@ -141,25 +139,20 @@
     50% { opacity: 1; }
   }
 
-  .hud-readout {
-    font-size: 10.5px;
-    letter-spacing: 1.5px;
-    color: var(--twins-accent, #3dffa0);
-    margin-bottom: 6px;
+  .hud-message {
+    font-size: 13.5px;
+    line-height: 1.4;
+    letter-spacing: 0.5px;
+    color: var(--twins-ink, #eafff2);
+    margin-bottom: 14px;
+    padding: 0 8px;
   }
-  .hud-cursor { animation: hud-cursor-blink 0.9s steps(1, end) infinite; }
-  @keyframes hud-cursor-blink { 50% { opacity: 0; } }
 
   .hud-clock {
     font-size: 20px;
     letter-spacing: 1.5px;
-    margin-bottom: 4px;
-  }
-  .hud-host {
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: rgba(234, 255, 242, 0.65);
     margin-bottom: 14px;
+    color: var(--twins-accent, #3dffa0);
   }
 
   .hud-chips {
@@ -209,6 +202,5 @@
 
   @media (prefers-reduced-motion: reduce) {
     .hud-corner { animation: none; opacity: 1; }
-    .hud-cursor { animation: none; opacity: 1; }
   }
 </style>
