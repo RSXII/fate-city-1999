@@ -1,7 +1,7 @@
 <script>
   import { base } from '$app/paths';
   import { onMount, onDestroy } from 'svelte';
-  import { dbGet, dbPost, dbPut, dbDelete } from '$lib/firebase-db.js';
+  import { dbGet, dbPost, dbPut, dbPatch, dbDelete } from '$lib/firebase-db.js';
   import {
     convIdForMsg,
     createMessage,
@@ -23,6 +23,7 @@
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
   import { NPCS } from '$lib/data/persons.js';
   import { CHARACTERS, normActions, formatDelta } from '$lib/data/downtime.js';
+  import { TAKEOVER_CAP, codenameKey, countActiveTakeovers } from '$lib/data/twins-ai.js';
 
   // ── PIN gate ──────────────────────────────────────────────────────────────────
   const GM_PIN = 'fc99-ops';   // change this to your preferred passphrase
@@ -1657,6 +1658,80 @@
     }
   }
 
+  // ── Twins AI Takeover ────────────────────────────────────────────────────
+  let twinsPickCodename = '';
+  let twinsRoster = {};   // raw map from dbGet('twinsTakeover'), keyed by codenameKey
+  let twinsSending = false;
+  let twinsStatus = null;
+
+  $: twinsActiveCount = countActiveTakeovers(twinsRoster);
+  $: twinsAtCap = twinsActiveCount >= TAKEOVER_CAP;
+  $: twinsRosterList = Object.values(twinsRoster).filter((v) => v?.active);
+
+  async function loadTwinsRoster() {
+    try { twinsRoster = (await dbGet('twinsTakeover')) || {}; } catch { twinsRoster = {}; }
+  }
+
+  async function seizeDevice() {
+    const codename = twinsPickCodename.trim();
+    if (!codename) { twinsStatus = { text: 'Select a player.', type: 'err' }; return; }
+    const key = codenameKey(codename);
+    if (twinsAtCap && !twinsRoster[key]) {
+      twinsStatus = { text: `At cap (${TAKEOVER_CAP} active links). Release a device first.`, type: 'err' };
+      return;
+    }
+    twinsSending = true;
+    twinsStatus = null;
+    try {
+      await dbPut(`twinsTakeover/${key}`, {
+        active: true,
+        codename,
+        seizedAt: Date.now(),
+        intrusion: null,
+      });
+      await loadTwinsRoster();
+      twinsStatus = { text: `${codename} seized.`, type: 'ok' };
+      notifyBridge('twins.seized', { codename });
+    } catch (e) {
+      twinsStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+    twinsSending = false;
+  }
+
+  async function releaseDevice(codename) {
+    if (!confirm(`Release ${codename}'s device? This dismisses the takeover overlay immediately.`)) return;
+    try {
+      await dbDelete(`twinsTakeover/${codenameKey(codename)}`);
+      await loadTwinsRoster();
+      twinsStatus = { text: `${codename} released.`, type: 'ok' };
+    } catch (e) {
+      twinsStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+  }
+
+  async function triggerIntrusion(codename) {
+    const key = codenameKey(codename);
+    const handle = 'ROOT_' + Math.random().toString(16).slice(2, 6).toUpperCase();
+    try {
+      await dbPatch(`twinsTakeover/${key}`, {
+        intrusion: { startedAt: Date.now(), handle, deadlineMs: 45000 },
+      });
+      await loadTwinsRoster();
+      twinsStatus = { text: `Intrusion triggered on ${codename} — handle ${handle}.`, type: 'ok' };
+    } catch (e) {
+      twinsStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+  }
+
+  async function clearIntrusion(codename) {
+    try {
+      await dbPatch(`twinsTakeover/${codenameKey(codename)}`, { intrusion: null });
+      await loadTwinsRoster();
+    } catch (e) {
+      twinsStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
+    }
+  }
+
   // ── Foundry Bridge ────────────────────────────────────────────────────────
   let bridgeUrlDraft = '';
   let bridgeEnabledDraft = false;
@@ -2454,6 +2529,7 @@
     <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
     <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
     <button class="tab tab--call"     class:active={activeTab === 'call'}        role="tab" on:click={() => { activeTab = 'call'; loadActiveCall(); }}>Call</button>
+    <button class="tab tab--twins"    class:active={activeTab === 'twins'}       role="tab" on:click={() => { activeTab = 'twins'; loadTwinsRoster(); }}>Twins AI</button>
     <button class="tab tab--foundry"  class:active={activeTab === 'foundry'}     role="tab" on:click={() => { activeTab = 'foundry'; loadBridgeConfig(); }}>Foundry</button>
     <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
     <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
@@ -4143,6 +4219,56 @@
           </div>
         </div>
       {/if}
+
+    {/if}
+
+    <!-- ══ TWINS AI ══════════════════════════════════════════════════════════ -->
+    {#if activeTab === 'twins'}
+
+      <p class="tab-sub">Seize a player's device — a full-screen AI takeover HUD holds it until you release.</p>
+
+      <div class="section">
+        <div class="section-label">Target Player</div>
+        <select class="case-select" bind:value={twinsPickCodename}>
+          <option value="" disabled selected>— pick a player —</option>
+          {#each deviceRecords as d (d._id)}
+            <option value={d.codename}>{d.codename}</option>
+          {/each}
+        </select>
+
+        <button class="primary" style="width:100%;margin-top:4px" disabled={!twinsPickCodename || twinsSending || twinsAtCap} on:click={seizeDevice}>
+          {twinsSending ? 'Seizing…' : twinsAtCap ? `At cap (${TAKEOVER_CAP})` : 'Seize Device'}
+        </button>
+
+        {#if twinsStatus}
+          <div class="status-line" class:ok={twinsStatus.type === 'ok'} class:err={twinsStatus.type === 'err'}>
+            {twinsStatus.text}
+          </div>
+        {/if}
+      </div>
+
+      <div class="section">
+        <div class="section-label">Active Links — {twinsActiveCount}/{TAKEOVER_CAP}</div>
+        {#if !twinsRosterList.length}
+          <div class="log-empty">No devices currently seized.</div>
+        {:else}
+          {#each twinsRosterList as entry (entry.codename)}
+            <div class="timer-active-block">
+              <span class="timer-active-str">
+                {entry.codename}{#if entry.intrusion} — <span class="timer-active-str timer-expired">INTRUSION: {entry.intrusion.handle}</span>{/if}
+              </span>
+              <div class="timer-active-actions">
+                {#if entry.intrusion}
+                  <button class="ghost-btn" on:click={() => clearIntrusion(entry.codename)}>Clear Intrusion</button>
+                {:else}
+                  <button class="ghost-btn" on:click={() => triggerIntrusion(entry.codename)}>Trigger Intrusion</button>
+                {/if}
+                <button class="danger-btn" on:click={() => releaseDevice(entry.codename)}>Release</button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
 
     {/if}
 
@@ -6582,6 +6708,9 @@
   .tab--call { color: #1a3a1a; }
   .tab--call:hover { color: #34c759; }
   .tab--call.active { color: #34c759; border-bottom-color: #2aa847; }
+  .tab--twins { color: #16332a; }
+  .tab--twins:hover { color: #3dffa0; }
+  .tab--twins.active { color: #3dffa0; border-bottom-color: #1f7a54; }
 
   /* ── Foundry tab ── */
   .tab--foundry { color: #7c5cff; }
