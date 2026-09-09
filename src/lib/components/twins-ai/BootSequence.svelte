@@ -10,11 +10,18 @@
   // logo's fade-in class is still applied but its hold is skipped; the main
   // phase still runs its full duration (so boot lines have time to print)
   // but the bar snaps to 100% instantly with no shake/popups.
+  //
+  // reducedMotion is read here directly (not passed down as a prop from the
+  // parent) because Svelte mounts children before parents — computing it in
+  // the parent's onMount and passing it down as a prop would still be at
+  // its stale `false` default by the time this component's own onMount
+  // reads it.
 
   import { onMount, createEventDispatcher } from 'svelte';
-  import { COLD_OPEN_LINES, BOOT_LINES } from '$lib/data/twins-ai-content.js';
+  import { browser } from '$app/environment';
+  import { COLD_OPEN_LINES, BOOT_LINES, AI_NAME } from '$lib/data/twins-ai-content.js';
 
-  export let reducedMotion = false;
+  const reducedMotion = browser && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const dispatch = createEventDispatcher();
 
@@ -42,103 +49,121 @@
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  async function typeLine(text, onTick) {
-    for (let i = 1; i <= text.length; i++) {
-      onTick(text.slice(0, i));
-      await wait(COLD_OPEN_CHAR_MS);
-    }
+  function typeLine(text, onTick) {
+    return new Promise((resolve) => {
+      let i = 1;
+      function tick() {
+        onTick(text.slice(0, i));
+        if (i >= text.length) { resolve(); return; }
+        i += 1;
+        setTimeout(tick, COLD_OPEN_CHAR_MS);
+      }
+      tick();
+    });
   }
 
-  async function playColdOpen() {
-    if (reducedMotion) return;
+  function playColdOpen() {
+    if (reducedMotion) return Promise.resolve();
     stage = 'cold';
-    await typeLine(COLD_OPEN_LINES[0], (v) => (coldLine1 = v));
-    await wait(COLD_OPEN_PAUSE_MS);
-    coldShowLine2 = true;
-    await typeLine(COLD_OPEN_LINES[1], (v) => (coldLine2 = v));
-    await wait(COLD_OPEN_HOLD_MS);
+    return typeLine(COLD_OPEN_LINES[0], (v) => (coldLine1 = v))
+      .then(() => wait(COLD_OPEN_PAUSE_MS))
+      .then(() => { coldShowLine2 = true; })
+      .then(() => typeLine(COLD_OPEN_LINES[1], (v) => (coldLine2 = v)))
+      .then(() => wait(COLD_OPEN_HOLD_MS));
   }
 
-  async function playLogoReveal() {
+  function playLogoReveal() {
     stage = 'logo';
     logoIn = true;
-    if (!reducedMotion) await wait(LOGO_FADE_MS + LOGO_HOLD_MS);
+    return reducedMotion ? Promise.resolve() : wait(LOGO_FADE_MS + LOGO_HOLD_MS);
   }
 
-  async function playMainPhase() {
-    stage = 'main';
-    const startTime = performance.now();
-    let rafId = null;
-    let popupTimer = null;
-    let shakeTimer = null;
+  // Plain callback-driven timers throughout (no nested async/await chains)
+  // — this used to combine a `Promise.all` of concurrent awaited loops with
+  // several other awaited async functions further up the call chain, which
+  // hit a Svelte 5 dev-mode reactivity-tracking edge case (a spurious
+  // "reducedMotion is not defined" thrown from Svelte's own runtime once
+  // several overlapping await chains interleaved). One `new Promise` that
+  // resolves via a single top-level `setTimeout` sidesteps it entirely.
+  function playMainPhase() {
+    return new Promise((resolve) => {
+      stage = 'main';
+      const startTime = performance.now();
+      let rafId = null;
+      let popupTimer = null;
+      let shakeTimer = null;
+      let feedTimer = null;
 
-    function ease(t) { return t * t; }
+      function ease(t) { return t * t; }
 
-    function frame() {
-      const elapsed = performance.now() - startTime;
-      const t = Math.min(elapsed / MAIN_DURATION_MS, 1);
-      barPct = reducedMotion ? 100 : t * 100;
-      if (t < 1) rafId = requestAnimationFrame(frame);
-    }
-
-    function shake() {
-      const elapsed = performance.now() - startTime;
-      const t = Math.min(elapsed / MAIN_DURATION_MS, 1);
-      const amp = SHAKE_START_PX + ease(t) * (SHAKE_END_PX - SHAKE_START_PX);
-      shakeX = (Math.random() * 2 - 1) * amp;
-      shakeY = (Math.random() * 2 - 1) * amp;
-      const nextDelay = 110 - ease(t) * 85;
-      if (elapsed < MAIN_DURATION_MS) shakeTimer = setTimeout(shake, nextDelay);
-      else { shakeX = 0; shakeY = 0; }
-    }
-
-    function popupLoop() {
-      const elapsed = performance.now() - startTime;
-      const t = Math.min(elapsed / MAIN_DURATION_MS, 1);
-      if (popups.length < POPUP_MAX) {
-        const id = popupId++;
-        popups = [...popups, { id, x: Math.random() * 80 + 5, y: Math.random() * 70 + 10 }];
-        setTimeout(() => { popups = popups.filter((p) => p.id !== id); }, 900);
+      function frame() {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / MAIN_DURATION_MS, 1);
+        barPct = t * 100;
+        if (t < 1) rafId = requestAnimationFrame(frame);
       }
-      const nextDelay = 250 - ease(t) * 150;
-      if (elapsed < MAIN_DURATION_MS) popupTimer = setTimeout(popupLoop, nextDelay);
-    }
 
-    if (reducedMotion) {
-      barPct = 100;
-    } else {
-      rafId = requestAnimationFrame(frame);
-      shake();
-      popupLoop();
-    }
-
-    // Boot terminal lines print on a fixed cadence regardless of motion
-    // preference — only the frame-by-frame animation above is skipped.
-    const perLine = MAIN_DURATION_MS / BOOT_LINES.length;
-    const feedPromise = (async () => {
-      for (const line of BOOT_LINES) {
-        bootLines = [...bootLines, line];
-        await wait(perLine);
+      function shake() {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / MAIN_DURATION_MS, 1);
+        const amp = SHAKE_START_PX + ease(t) * (SHAKE_END_PX - SHAKE_START_PX);
+        shakeX = (Math.random() * 2 - 1) * amp;
+        shakeY = (Math.random() * 2 - 1) * amp;
+        const nextDelay = 110 - ease(t) * 85;
+        if (elapsed < MAIN_DURATION_MS) shakeTimer = setTimeout(shake, nextDelay);
+        else { shakeX = 0; shakeY = 0; }
       }
-    })();
 
-    await Promise.all([wait(MAIN_DURATION_MS), feedPromise]);
+      function popupLoop() {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / MAIN_DURATION_MS, 1);
+        if (popups.length < POPUP_MAX) {
+          const id = popupId++;
+          popups = [...popups, { id, x: Math.random() * 80 + 5, y: Math.random() * 70 + 10 }];
+          setTimeout(() => { popups = popups.filter((p) => p.id !== id); }, 900);
+        }
+        const nextDelay = 250 - ease(t) * 150;
+        if (elapsed < MAIN_DURATION_MS) popupTimer = setTimeout(popupLoop, nextDelay);
+      }
 
-    if (rafId) cancelAnimationFrame(rafId);
-    if (shakeTimer) clearTimeout(shakeTimer);
-    if (popupTimer) clearTimeout(popupTimer);
-    shakeX = 0;
-    shakeY = 0;
-    popups = [];
+      if (reducedMotion) {
+        barPct = 100;
+      } else {
+        rafId = requestAnimationFrame(frame);
+        shake();
+        popupLoop();
+      }
+
+      // Boot terminal lines print on a fixed cadence regardless of motion
+      // preference — only the frame-by-frame animation above is skipped.
+      const perLine = MAIN_DURATION_MS / BOOT_LINES.length;
+      let lineIndex = 0;
+      function feedLine() {
+        if (lineIndex >= BOOT_LINES.length) return;
+        bootLines = [...bootLines, BOOT_LINES[lineIndex]];
+        lineIndex += 1;
+        if (lineIndex < BOOT_LINES.length) feedTimer = setTimeout(feedLine, perLine);
+      }
+      feedLine();
+
+      setTimeout(() => {
+        if (rafId) cancelAnimationFrame(rafId);
+        if (shakeTimer) clearTimeout(shakeTimer);
+        if (popupTimer) clearTimeout(popupTimer);
+        if (feedTimer) clearTimeout(feedTimer);
+        shakeX = 0;
+        shakeY = 0;
+        popups = [];
+        resolve();
+      }, MAIN_DURATION_MS);
+    });
   }
 
   onMount(() => {
-    (async () => {
-      await playColdOpen();
-      await playLogoReveal();
-      await playMainPhase();
-      dispatch('done');
-    })();
+    playColdOpen()
+      .then(playLogoReveal)
+      .then(playMainPhase)
+      .then(() => dispatch('done'));
   });
 </script>
 
@@ -151,7 +176,7 @@
       {/if}
     </div>
   {:else}
-    <div class="boot-logo" class:in={logoIn}>THE TWINS</div>
+    <div class="boot-logo" class:in={logoIn}>{AI_NAME.toUpperCase()}</div>
 
     {#if stage === 'main'}
       <div class="boot-main" style="transform: translate({shakeX}px, {shakeY}px)">

@@ -2,8 +2,6 @@
   // Terminal command input. Enter splits on whitespace; the first token is
   // looked up case-insensitively in the shared COMMANDS registry. Unknown
   // commands print "COMMAND NOT RECOGNIZED", matching the reference module.
-  // Typed input is always echoed into the ambient log as an urgent
-  // (queue-jumping) entry.
 
   import { createEventDispatcher } from 'svelte';
   import { COMMANDS } from '$lib/data/twins-ai.js';
@@ -19,8 +17,6 @@
     const raw = draft.trim();
     draft = '';
     if (!raw) return;
-
-    dispatch('echo', { text: `> ${raw}`, urgent: true });
 
     const [keyword, ...args] = raw.split(/\s+/);
     const handler = COMMANDS.get(keyword.toLowerCase());

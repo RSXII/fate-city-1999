@@ -2,18 +2,19 @@
   // Twins AI device takeover — full-screen HUD shown on a seized player's
   // phone until the GM releases the device from the ops console.
   //
-  // Stage 4: terminal input + intrusion escalation. A GM-triggered
-  // intrusion (entry.intrusion) recolors the frame; typing the matching
-  // `purge <HANDLE>` command resolves it by clearing that flag directly
-  // from the player's own phone — consistent with this app's existing
-  // client-side trust model (no server-side access control anywhere else
-  // in the app either).
+  // "Twins AI" is this feature's internal/dev name only — the player-facing
+  // HUD never says "Twins"; it names the individual AI (see AI_NAME in
+  // twins-ai-content.js) making the request instead.
+  //
+  // A GM-triggered intrusion (entry.intrusion) recolors the frame; typing
+  // the matching `purge <HANDLE>` command resolves it by clearing that flag
+  // directly from the player's own phone — consistent with this app's
+  // existing client-side trust model (no server-side access control
+  // anywhere else in the app either).
   //
   // Z-INDEX: 10000 — must stay above every other full-screen state in the
   // app (evernear/gacha use up to 9999).
 
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
   import { dbPatch } from '$lib/firebase-db.js';
   import { codenameKey } from '$lib/data/twins-ai.js';
   import BootSequence from './BootSequence.svelte';
@@ -25,21 +26,9 @@
   export let totalActive = 0;    // live count of all currently-seized devices
 
   let phase = 'boot'; // 'boot' | 'hud'
-  let reducedMotion = false;
-  let termLog;
   let lastResult = null;
 
   $: breach = !!entry?.intrusion;
-
-  onMount(() => {
-    if (browser) {
-      reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    }
-  });
-
-  function handleEcho(e) {
-    termLog?.enqueue(e.detail.text, { urgent: e.detail.urgent });
-  }
 
   function handleResult(e) {
     lastResult = { text: e.detail.text, danger: e.detail.danger };
@@ -59,18 +48,17 @@
   <div class="twins-scanlines" aria-hidden="true"></div>
 
   {#if phase === 'boot'}
-    <BootSequence {reducedMotion} on:done={() => (phase = 'hud')} />
+    <BootSequence on:done={() => (phase = 'hud')} />
   {:else}
     <div class="twins-content">
       {#if breach}
         <div class="twins-breach-banner">// SECURITY BREACH — {entry.intrusion.handle}</div>
       {/if}
       <Hud {entry} {totalActive} />
-      <TerminalLog bind:this={termLog} {lastResult} />
+      <TerminalLog {lastResult} />
       <TerminalInput
         codename={entry?.codename}
         intrusion={entry?.intrusion}
-        on:echo={handleEcho}
         on:result={handleResult}
         on:resolve={handleResolve}
       />
