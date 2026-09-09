@@ -5,6 +5,8 @@
   import { base } from '$app/paths';
   import { dbGet, dbDelete } from '$lib/firebase-db.js';
   import { visibilityAwareInterval, getCodename } from '$lib/utils.js';
+  import { codenameKey, countActiveTakeovers } from '$lib/data/twins-ai.js';
+  import TwinsTakeoverOverlay from '$lib/components/twins-ai/TwinsTakeoverOverlay.svelte';
 
   $: isConsole = $page.route.id?.startsWith('/ops-7e4f');
   $: isTimerPage = $page.route.id?.startsWith('/timer');
@@ -138,6 +140,26 @@
     try { await dbDelete('incomingCall'); } catch {}
   }
 
+  // ── Twins AI takeover ────────────────────────────────────────────────────
+  let twinsData = null;     // raw roster map, for the live "N active" count
+  let twinsActive = false;  // is MY device currently seized
+  let twinsEntry = null;    // my own roster entry (codename, seizedAt, intrusion)
+  let twinsPoll;
+
+  $: twinsCount = countActiveTakeovers(twinsData);
+
+  async function pollTwinsTakeover() {
+    try {
+      const data = await dbGet('twinsTakeover');
+      twinsData = data;
+      const codename = getCodename();
+      const key = codename ? codenameKey(codename) : null;
+      const mine = key ? data?.[key] : null;
+      twinsActive = !!(mine && mine.active);
+      twinsEntry = twinsActive ? mine : null;
+    } catch {}
+  }
+
   function checkTimerExpiry() {
     if (timerEndsAt && timerEndsAt !== lastAlertedEndsAt && !isConsole && !isHacked) {
       if (Date.now() >= timerEndsAt) {
@@ -157,6 +179,8 @@
       checkTimerExpiry();
       pollIncomingCall();
       incomingCallPoll = visibilityAwareInterval(pollIncomingCall, 4000);
+      pollTwinsTakeover();
+      twinsPoll = visibilityAwareInterval(pollTwinsTakeover, 4000);
     }
   });
 
@@ -166,6 +190,7 @@
     clearTimeout(timerCheckId);
     if (stripRafId) cancelAnimationFrame(stripRafId);
     if (incomingCallPoll) incomingCallPoll();
+    if (twinsPoll) twinsPoll();
     stopRingtone();
   });
 </script>
@@ -268,6 +293,10 @@
     </div>
 
   </div>
+{/if}
+
+{#if twinsActive && !isConsole && !isHacked}
+  <TwinsTakeoverOverlay entry={twinsEntry} totalActive={twinsCount} />
 {/if}
 
 <style>
