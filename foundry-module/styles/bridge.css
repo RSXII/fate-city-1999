@@ -148,6 +148,68 @@
   font-style: italic;
 }
 
+/* ── O.N.C.E. transmission variant — Epsilon sender ─────────────────────────
+   Same treatment as .fc99-toast--once, gold instead of violet — mirrors the
+   mobile app's Epsilon styling (src/routes/once, src/routes/home). */
+.fc99-toast--once-epsilon {
+  background: #07031a;
+  border-color: rgba(201, 162, 39, 0.55);
+  box-shadow:
+    0 0 24px rgba(201, 162, 39, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 0 16px rgba(201, 162, 39, 0.06);
+}
+
+.fc99-toast--once-epsilon .fc99-toast-scanline {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(201, 162, 39, 0.05) 3px,
+    rgba(201, 162, 39, 0.05) 4px
+  );
+}
+
+.fc99-toast--once-epsilon .fc99-toast-ring::before {
+  border-color: rgba(201, 162, 39, 0.5);
+  animation: fc99-pulse-once 1.8s ease-out infinite;
+}
+
+.fc99-toast--once-epsilon .fc99-toast-ring::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  animation: fc99-pulse-once 1.8s ease-out infinite 0.5s;
+}
+
+.fc99-toast--once-epsilon .fc99-toast-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #2a2007;
+  border: 1px solid rgba(201, 162, 39, 0.5);
+  color: #f3dfa0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.fc99-toast--once-epsilon .fc99-toast-title {
+  color: rgba(212, 175, 55, 0.9);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9px;
+}
+
+.fc99-toast--once-epsilon .fc99-toast-subtitle {
+  color: #e3c04f;
+  font-style: italic;
+}
+
 @keyframes fc99-pulse-once {
   0% { transform: scale(0.85); opacity: 0.9; }
   100% { transform: scale(1.55); opacity: 0; }

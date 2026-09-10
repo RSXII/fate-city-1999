@@ -120,11 +120,12 @@
     {#each liveMessages as msg (msg._id ?? msg.ts)}
       {@const id = msg._id ?? String(msg.ts)}
       {@const rev = decodeProgress[id] ?? 0}
-      <div class="once-msg once-msg--live">
-        <div class="once-avatar" aria-hidden="true">M</div>
+      {@const isEpsilon = msg.sender === 'Epsilon'}
+      <div class="once-msg once-msg--live" class:once-msg--epsilon={isEpsilon}>
+        <div class="once-avatar" class:once-avatar--epsilon={isEpsilon} aria-hidden="true">{isEpsilon ? 'ε' : 'M'}</div>
         <div class="once-body">
           <div class="once-top">
-            <span class="once-sender">Unknown</span>
+            <span class="once-sender">{isEpsilon ? 'Epsilon' : 'Unknown'}</span>
             <span class="once-time">{relTime(msg.ts)}</span>
           </div>
           <div class="once-text">
@@ -317,5 +318,26 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.3), transparent);
     margin: 6px 0 18px;
+  }
+
+  /* Epsilon transmissions — gold instead of violet */
+  .once-msg--live.once-msg--epsilon {
+    border-color: rgba(201, 162, 39, 0.55);
+    background: rgba(201, 162, 39, 0.16);
+    box-shadow:
+      0 0 22px rgba(201, 162, 39, 0.18),
+      inset 0 0 14px rgba(201, 162, 39, 0.07);
+  }
+  .once-msg--live.once-msg--epsilon .once-time {
+    color: rgba(227, 192, 79, 0.5);
+  }
+  .once-msg--epsilon .decode-live {
+    color: rgba(201, 162, 39, 0.55);
+  }
+  .once-avatar--epsilon {
+    background: #2a2007;
+    border-color: rgba(201, 162, 39, 0.5);
+    color: #f3dfa0;
+    font-size: 15px;
   }
 </style>

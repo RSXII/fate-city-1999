@@ -112,6 +112,7 @@
 
   let onceUnread = false;
   let showOnceAlert = false;
+  let onceSender = 'M';
   let oncePollInterval;
 
   // ── Operation Timer ───────────────────────────────────────────────────────
@@ -195,10 +196,14 @@
 
   async function pollOnce() {
     try {
-      const seen = await dbGet('once-settings/onceMessageSeen');
+      const [seen, sender] = await Promise.all([
+        dbGet('once-settings/onceMessageSeen'),
+        dbGet('once-settings/onceMessageSender'),
+      ]);
       // null = flag never set → fallback to seen (no notification)
       const hasUnread = seen === false;
       onceUnread = hasUnread;
+      onceSender = sender === 'Epsilon' ? 'Epsilon' : 'M';
       if (hasUnread && !isFirstOncePoll && !showOnceAlert) {
         showOnceAlert = true;
         try { new Audio(`${base}/sounds/once_sound.mp3`).play(); } catch { /* blocked */ }
@@ -606,13 +611,13 @@
 <!-- ── O.N.C.E. encrypted signal alert ────────────────────────────────────────── -->
 {#if showOnceAlert}
 <div class="once-overlay" role="alertdialog" aria-modal="true" aria-label="O.N.C.E. encrypted transmission received">
-  <div class="once-alert-panel">
+  <div class="once-alert-panel" class:once-alert-panel--epsilon={onceSender === 'Epsilon'}>
     <div class="once-alert-scanline" aria-hidden="true"></div>
     <div class="once-alert-rings" aria-hidden="true">
       <div class="once-ring once-ring-1"></div>
       <div class="once-ring once-ring-2"></div>
       <div class="once-ring once-ring-3"></div>
-      <span class="once-ring-glyph">M</span>
+      <span class="once-ring-glyph">{onceSender === 'Epsilon' ? 'ε' : 'M'}</span>
     </div>
     <p class="once-alert-sys">// CHANNEL: O.N.C.E. &mdash; ORIGIN MASKED</p>
     <div class="once-alert-divider" aria-hidden="true"></div>
@@ -1314,6 +1319,43 @@
     padding: 4px 0;
   }
   .once-alert-dismiss:hover { color: rgba(124, 58, 237, 0.7); }
+
+  /* Epsilon transmissions — gold instead of violet */
+  .once-alert-panel--epsilon {
+    border-color: rgba(201, 162, 39, 0.6);
+    box-shadow:
+      0 0 60px rgba(201, 162, 39, 0.35),
+      0 0 120px rgba(201, 162, 39, 0.15),
+      inset 0 0 30px rgba(201, 162, 39, 0.05);
+  }
+  .once-alert-panel--epsilon .once-alert-scanline {
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(201, 162, 39, 0.04) 3px,
+      rgba(201, 162, 39, 0.04) 4px
+    );
+  }
+  .once-alert-panel--epsilon .once-ring { border-color: rgba(201, 162, 39, 0.5); }
+  .once-alert-panel--epsilon .once-ring-3 { border-color: rgba(212, 175, 55, 0.8); }
+  .once-alert-panel--epsilon .once-ring-glyph { color: #e3c04f; }
+  .once-alert-panel--epsilon .once-alert-sys { color: rgba(201, 162, 39, 0.6); }
+  .once-alert-panel--epsilon .once-alert-divider {
+    background: linear-gradient(to right, transparent, rgba(201, 162, 39, 0.55), rgba(212, 175, 55, 0.35), transparent);
+  }
+  .once-alert-panel--epsilon .once-alert-title { color: #e3c04f; }
+  .once-alert-panel--epsilon .once-alert-open {
+    background: linear-gradient(135deg, rgba(201, 162, 39, 0.3), rgba(201, 162, 39, 0.15));
+    border-color: rgba(201, 162, 39, 0.7);
+    color: #e3c04f;
+  }
+  .once-alert-panel--epsilon .once-alert-open:active {
+    background: rgba(201, 162, 39, 0.4);
+    box-shadow: 0 0 20px rgba(201, 162, 39, 0.4);
+  }
+  .once-alert-panel--epsilon .once-alert-dismiss { color: rgba(201, 162, 39, 0.4); }
+  .once-alert-panel--epsilon .once-alert-dismiss:hover { color: rgba(201, 162, 39, 0.7); }
 
   /* ── Operation Timer takeover ───────────────────────────────────────────── */
   .hs-takeover {
