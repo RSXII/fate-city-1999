@@ -1,7 +1,7 @@
 <script>
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
-  import { NPCS } from '$lib/data/persons.js';
+  import { subscribeContent } from '$lib/content-db.js';
   import { dbGet } from '$lib/firebase-db.js';
   import { toBriefingEntry } from '$lib/briefing-format.js';
   import BriefingCard from '$lib/components/BriefingCard.svelte';
@@ -10,9 +10,12 @@
   const CATEGORY_ORDER = ['briefing', 'person', 'organization'];
   const CATEGORY_LABELS = { briefing: 'Briefing', person: 'Persons', organization: 'Organizations' };
 
-  const GROUPS = CATEGORY_ORDER
+  let NPCS = [];
+  $: GROUPS = CATEGORY_ORDER
     .map(key => ({ label: CATEGORY_LABELS[key], entries: NPCS.filter(n => n.category === key) }))
     .filter(g => g.entries.length > 0);
+
+  onMount(() => subscribeContent('persons', data => NPCS = data));
 
   // ── GM-authored case files, staged via the console ─────────────────────────
   let liveEntries = [];

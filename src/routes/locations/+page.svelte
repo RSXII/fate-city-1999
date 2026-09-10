@@ -1,17 +1,23 @@
 <script>
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
-  import { LOCATIONS, DISTRICTS } from '$lib/data/locations.js';
+  import { subscribeContent } from '$lib/content-db.js';
   import { dbGet } from '$lib/firebase-db.js';
   import { toBriefingEntry } from '$lib/briefing-format.js';
   import BriefingCard from '$lib/components/BriefingCard.svelte';
 
+  let LOCATIONS = [];
+  let DISTRICTS = [];
+
   // Group by district, preserving first-seen order
-  const districts = [...new Set(LOCATIONS.map(l => l.district))];
-  const GROUPS = districts.map(d => ({
+  $: districts = [...new Set(LOCATIONS.map(l => l.district))];
+  $: GROUPS = districts.map(d => ({
     label: d,
     entries: LOCATIONS.filter(l => l.district === d),
   }));
+
+  onMount(() => subscribeContent('points_of_interest', data => LOCATIONS = data));
+  onMount(() => subscribeContent('districts', data => DISTRICTS = data));
 
   // ── GM-authored case files, staged via the console ─────────────────────────
   let liveEntries = [];
