@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { subscribeContent, setContentEntry, deleteContentEntry } from '$lib/content-db.js';
+  import { subscribeContent, setContentEntry, updateContentEntry, deleteContentEntry } from '$lib/content-db.js';
 
   // ── Config ───────────────────────────────────────────────────────────────
   export let collection;           // Firestore collection name, e.g. 'persons'
@@ -19,6 +19,7 @@
     epithet: '',
     type: '',
     order: 0,
+    hidden: false,
     accentColor: '#c9a227',
     images: [], // { name, path, url }
     stats: [],  // { label, value }
@@ -48,11 +49,15 @@
   });
 
   let search = '';
+  let hiddenFilter = 'all'; // 'all' | 'visible' | 'hidden'
   $: filteredEntries = entries.filter(e => {
+    if (hiddenFilter === 'visible' && e.hidden) return false;
+    if (hiddenFilter === 'hidden' && !e.hidden) return false;
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (e.name || '').toLowerCase().includes(q) || (e.fileNo || '').toLowerCase().includes(q);
   });
+  $: hiddenCount = entries.filter(e => e.hidden).length;
 
   function typeLabel(key) {
     return resolvedTypeOptions.find(o => o.key === key)?.label ?? key ?? '—';
@@ -100,6 +105,7 @@
       epithet: entry.epithet || '',
       type: (typeField && entry[typeField]) || '',
       order: entry.order ?? 0,
+      hidden: !!entry.hidden,
       accentColor: entry.colors?.accent || '#c9a227',
       images: (entry.images || []).map(src => ({ name: src.split('/').pop(), path: src, url: src })),
       stats: (entry.stats || []).map(s => ({ ...s })),
@@ -201,6 +207,7 @@
       name,
       epithet: form.epithet.trim(),
       order: Number(form.order) || 0,
+      hidden: !!form.hidden,
       colors: {
         rule: form.accentColor,
         accent: form.accentColor,
@@ -225,6 +232,17 @@
     saving = false;
   }
 
+  let togglingId = null;
+  async function toggleHidden(entry) {
+    togglingId = entry.id;
+    try {
+      await updateContentEntry(collection, entry.id, { hidden: !entry.hidden });
+    } catch (e) {
+      status = { text: `Failed: ${e?.message ?? 'unknown error'}`, type: 'err' };
+    }
+    togglingId = null;
+  }
+
   async function remove(entry) {
     if (!confirm(`Delete "${entry.name}" permanently? This can't be undone.`)) return;
     deletingId = entry.id;
@@ -244,18 +262,28 @@
   </div>
   <input class="ce-input" placeholder="Search {label.toLowerCase()}…" bind:value={search} />
 
+  <div class="ce-filter-row">
+    <button class="ce-ghost" class:selected={hiddenFilter === 'all'} on:click={() => hiddenFilter = 'all'}>All ({entries.length})</button>
+    <button class="ce-ghost" class:selected={hiddenFilter === 'visible'} on:click={() => hiddenFilter = 'visible'}>Visible ({entries.length - hiddenCount})</button>
+    <button class="ce-ghost" class:selected={hiddenFilter === 'hidden'} on:click={() => hiddenFilter = 'hidden'}>Hidden ({hiddenCount})</button>
+  </div>
+
   <div class="ce-log">
     {#if !filteredEntries.length}
       <div class="ce-empty">No entries{search ? ' match your search' : ' yet'}.</div>
     {:else}
       {#each filteredEntries as entry (entry.id)}
-        <div class="ce-row">
+        <div class="ce-row" class:ce-row--hidden={entry.hidden}>
           <div class="ce-row-main">
             <span class="ce-row-name">{@html entry.name}</span>
+            {#if entry.hidden}<span class="ce-badge ce-badge--hidden">Hidden</span>{/if}
             {#if typeField}<span class="ce-badge">{typeLabel(entry[typeField])}</span>{/if}
             <span class="ce-row-meta">{entry.fileNo}</span>
           </div>
           <div class="ce-row-actions">
+            <button class="ce-ghost" disabled={togglingId === entry.id} on:click={() => toggleHidden(entry)}>
+              {togglingId === entry.id ? '…' : entry.hidden ? 'Show' : 'Hide'}
+            </button>
             <button class="ce-ghost" on:click={() => startEdit(entry)}>Edit</button>
             <button class="ce-danger" disabled={deletingId === entry.id} on:click={() => remove(entry)}>
               {deletingId === entry.id ? 'Deleting…' : 'Delete'}
@@ -318,6 +346,11 @@
       <input class="ce-color" type="color" bind:value={form.accentColor} />
     </label>
   </div>
+
+  <label class="ce-checkbox-row">
+    <input type="checkbox" bind:checked={form.hidden} />
+    <span>Hidden — keep editing without showing this to players</span>
+  </label>
 
   <div class="ce-section">
     <div class="ce-section-label-row">
@@ -462,14 +495,18 @@
   .ce-picker-status { grid-column: 1/-1; font-size: 12px; font-style: italic; color: #3a4a5a; text-align: center; padding: 10px 0; }
   .ce-picker-status.ce-err { color: #e24b4a; font-style: normal; }
 
+  .ce-filter-row { display: flex; gap: 6px; margin-bottom: 10px; }
+
   .ce-log { background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px; padding: 6px 14px; max-height: 560px; overflow-y: auto; }
   .ce-empty { font-size: 12px; font-style: italic; color: #3a4a5a; text-align: center; padding: 20px 0; }
   .ce-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .ce-row:last-child { border-bottom: none; }
+  .ce-row--hidden { opacity: 0.5; }
   .ce-row-main { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex-wrap: wrap; }
   .ce-row-name { font-size: 13px; font-weight: 600; color: #e8dfc8; }
   .ce-row-meta { font-size: 10px; color: #3a4a5a; font-family: 'Courier New', monospace; }
   .ce-badge { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #6a7d90; border: 1px solid #3a4a5a; border-radius: 4px; padding: 1px 6px; }
+  .ce-badge--hidden { color: #e2a03a; border-color: rgba(226,160,58,0.5); }
   .ce-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
   .ce-primary {
@@ -484,6 +521,8 @@
     padding: 4px 10px; font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; white-space: nowrap;
   }
   .ce-ghost:hover { border-color: #6a7d90; color: #c9a227; }
+  .ce-ghost.selected { background: rgba(201,162,39,0.12); border-color: #c9a227; color: #c9a227; }
+  .ce-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .ce-danger { background: none; border: 1px solid rgba(226,75,74,0.35); color: #e24b4a; border-radius: 6px; padding: 4px 10px; font-size: 10.5px; cursor: pointer; }
   .ce-danger:hover { background: rgba(226,75,74,0.08); }
