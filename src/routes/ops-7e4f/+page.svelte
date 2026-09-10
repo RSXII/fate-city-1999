@@ -21,9 +21,19 @@
   } from '$lib/foundry-bridge.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
-  import { NPCS } from '$lib/data/persons.js';
+  import { subscribeContent, setContentEntry, deleteContentEntry } from '$lib/content-db.js';
+  import { CATEGORY_ORDER as INTEL_CATEGORY_ORDER } from '$lib/data/intel.js';
+  import CatalogEditor from '$lib/components/gm/CatalogEditor.svelte';
   import { CHARACTERS, normActions, formatDelta } from '$lib/data/downtime.js';
   import { TAKEOVER_CAP, codenameKey, countActiveTakeovers } from '$lib/data/twins-ai.js';
+
+  // ── Catalog tab — persons/districts/locations/intel CRUD ────────────────────
+  let catalogSubTab = 'persons';
+  const PERSON_TYPE_OPTIONS = [
+    { key: 'person', label: 'Person' },
+    { key: 'organization', label: 'Organization' },
+    { key: 'briefing', label: 'Briefing' },
+  ];
 
   // ── PIN gate ──────────────────────────────────────────────────────────────────
   const GM_PIN = 'fc99-ops';   // change this to your preferred passphrase
@@ -91,6 +101,10 @@
   const _wireCache = new Map(); // convId → msgs[]
   let _wireSubs    = [];        // per-conversation unsub functions
   let _wireConvSub = null;      // conversations-list unsub
+
+  // ── Catalog content (persons/districts/points_of_interest/intel) ───────────
+  let personsList = [];
+  let _personsSub = null;
   let sendStatus = { text: '', type: '' };
   let sending = false;
   let deployingMsgId = null;
@@ -1880,7 +1894,7 @@
   function hkLoadPeople() {
     const contactNames = contactList.map(c => c.name).filter(Boolean);
     const codenameNames = devices.slice();
-    const npcNames = NPCS
+    const npcNames = personsList
       .filter(n => n.category === 'person')
       .map(n => decodeHtmlEntities(n.name))
       .filter(Boolean);
@@ -2261,6 +2275,7 @@
         }));
       }
     });
+    _personsSub = subscribeContent('persons', data => { personsList = data; });
     loadGroups();
     refreshDevices();
     refreshStaged();
@@ -2300,6 +2315,7 @@
   onDestroy(() => {
     _wireSubs.forEach(u => u());
     if (_wireConvSub) _wireConvSub();
+    if (_personsSub) _personsSub();
     if (emailPoll) emailPoll();
     if (casePoll) casePoll();
     if (contactPoll) contactPoll();
@@ -2524,6 +2540,7 @@
     <button class="tab" class:active={activeTab === 'cases'}    role="tab" on:click={() => activeTab = 'cases'}>Case Files</button>
     <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
     <button class="tab" class:active={activeTab === 'devices'} role="tab" on:click={() => { activeTab = 'devices'; refreshDeviceAccounts(); if (!contactList.length) refreshContacts(); }}>Hacked Devices</button>
+    <button class="tab" class:active={activeTab === 'catalog'} role="tab" on:click={() => activeTab = 'catalog'}>Catalog</button>
     <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
     <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
     <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
@@ -4958,6 +4975,53 @@
 
     {/if}
 
+    <!-- ══ CATALOG ═══════════════════════════════════════════════════════════ -->
+    {#if activeTab === 'catalog'}
+
+      <p class="tab-sub">Edit the persons, locations, and intel dossiers directly — changes go live immediately, no deploy step.</p>
+
+      <div class="catalog-subnav">
+        <button class="ghost-btn" class:selected={catalogSubTab === 'persons'} on:click={() => catalogSubTab = 'persons'}>Persons</button>
+        <button class="ghost-btn" class:selected={catalogSubTab === 'districts'} on:click={() => catalogSubTab = 'districts'}>Districts</button>
+        <button class="ghost-btn" class:selected={catalogSubTab === 'locations'} on:click={() => catalogSubTab = 'locations'}>Locations</button>
+        <button class="ghost-btn" class:selected={catalogSubTab === 'intel'} on:click={() => catalogSubTab = 'intel'}>Intel</button>
+      </div>
+
+      {#if catalogSubTab === 'persons'}
+        <CatalogEditor
+          collection="persons"
+          label="Persons"
+          typeField="category"
+          typeOptions={PERSON_TYPE_OPTIONS}
+          supportsRedacted={true}
+          githubImagesApi={GITHUB_ROOT_IMAGES_API}
+        />
+      {:else if catalogSubTab === 'districts'}
+        <CatalogEditor
+          collection="districts"
+          label="Districts"
+          githubImagesApi={GITHUB_ROOT_IMAGES_API}
+        />
+      {:else if catalogSubTab === 'locations'}
+        <CatalogEditor
+          collection="points_of_interest"
+          label="Locations"
+          typeField="district"
+          typeOptionsSource="districts"
+          githubImagesApi={GITHUB_ROOT_IMAGES_API}
+        />
+      {:else if catalogSubTab === 'intel'}
+        <CatalogEditor
+          collection="intel"
+          label="Intel"
+          typeField="category"
+          typeOptions={INTEL_CATEGORY_ORDER}
+          githubImagesApi={GITHUB_ROOT_IMAGES_API}
+        />
+      {/if}
+
+    {/if}
+
   </div><!-- /tab-panel -->
 </div><!-- /console -->
 
@@ -5279,6 +5343,7 @@
     background: none; cursor: pointer;
   }
   .case-image-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .catalog-subnav { display: flex; gap: 8px; margin-bottom: 20px; }
   .case-section-badge {
     display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
     color: #6a7d90; border: 1px solid #3a4a5a; border-radius: 4px; padding: 1px 6px; margin-right: 4px;

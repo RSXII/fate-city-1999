@@ -1,15 +1,20 @@
 <script>
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
-  import { ENTRIES, CATEGORY_ORDER } from '$lib/data/intel.js';
+  import { CATEGORY_ORDER } from '$lib/data/intel.js';
+  import { subscribeContent } from '$lib/content-db.js';
   import { dbGet } from '$lib/firebase-db.js';
   import { toBriefingEntry } from '$lib/briefing-format.js';
   import BriefingCard from '$lib/components/BriefingCard.svelte';
 
+  let ENTRIES = [];
+
   // Group by category in display order
-  const GROUPS = CATEGORY_ORDER
+  $: GROUPS = CATEGORY_ORDER
     .map(g => ({ ...g, entries: ENTRIES.filter(e => e.category === g.key) }))
     .filter(g => g.entries.length > 0);
+
+  onMount(() => subscribeContent('intel', data => ENTRIES = data));
 
   // ── GM-authored case files, staged via the console ─────────────────────────
   let liveEntries = [];
