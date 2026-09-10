@@ -29,7 +29,8 @@ const FORMATTERS = {
 
   'once.deployed': (payload) => {
     const preview = payload.preview ? `: “${payload.preview}”` : '';
-    return `📡 O.N.C.E. transmission from M${preview}`;
+    const from = payload.sender ?? 'M';
+    return `📡 O.N.C.E. transmission from ${from}${preview}`;
   },
 
   'timer.started': (payload) => {
@@ -161,7 +162,7 @@ function showToast({ imageUrl, icon, title, subtitle, preview, variant, color })
     ? ` style="background:${hexToRgba(color, 0.16)};border-color:${color};color:${color}"`
     : '';
   el.innerHTML = `
-    ${variant === 'once' ? '<div class="fc99-toast-scanline" aria-hidden="true"></div>' : ''}
+    ${(variant === 'once' || variant === 'once-epsilon') ? '<div class="fc99-toast-scanline" aria-hidden="true"></div>' : ''}
     <div class="fc99-toast-ring">
       ${imageUrl
         ? `<img class="fc99-toast-avatar" src="${imageUrl}" alt="">`
@@ -390,9 +391,10 @@ const VISUAL_HANDLERS = {
   },
 
   'once.deployed': (payload) => {
+    const isEpsilon = payload.sender === 'Epsilon';
     showToast({
-      variant: 'once',
-      icon: 'M',
+      variant: isEpsilon ? 'once-epsilon' : 'once',
+      icon: isEpsilon ? 'ε' : 'M',
       title: 'Encrypted Transmission',
       subtitle: payload.preview ? `“${payload.preview}”` : 'Sender unverified',
     });

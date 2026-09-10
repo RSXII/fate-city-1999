@@ -976,6 +976,7 @@
 
   // ── Section 5: O.N.C.E. Transmissions ──────────────────────────────────────
   let onceText = '';
+  let onceSender = 'M';
   let onceSending = false;
   let onceStatus = { text: '', type: '' };
   let stagedOnce = [];
@@ -1003,7 +1004,7 @@
     onceSending = true;
     onceStatus = { text: 'Staging…', type: '' };
     try {
-      await dbPost('once-messages', { text, ts: Date.now(), staged: false });
+      await dbPost('once-messages', { text, ts: Date.now(), staged: false, sender: onceSender });
       onceText = '';
       onceStatus = { text: 'Staged. Use Deploy when players are ready.', type: 'ok' };
       await refreshStagedOnce();
@@ -1020,8 +1021,9 @@
       const m = stagedOnce.find(x => x._id === id);
       await dbPut(`once-messages/${id}/staged`, true);
       await dbPut('once-settings/onceMessageSeen', false);
+      await dbPut('once-settings/onceMessageSender', m?.sender ?? 'M');
       await refreshStagedOnce(); await refreshLiveOnce();
-      notifyBridge('once.deployed', { preview: m?.text ? m.text.slice(0, 60) : null });
+      notifyBridge('once.deployed', { preview: m?.text ? m.text.slice(0, 60) : null, sender: m?.sender ?? 'M' });
     }
     catch (e) { console.error('Deploy failed', e); }
     deployingOnceId = null;
@@ -3550,14 +3552,28 @@
     <!-- ══ O.N.C.E. TRANSMISSIONS ══════════════════════════════════════════ -->
     {:else if activeTab === 'once'}
 
-      <p class="tab-sub">Author a transmission from M. Stage it silently, then deploy when players are ready.</p>
+      <p class="tab-sub">Author a transmission from {onceSender}. Stage it silently, then deploy when players are ready.</p>
 
       <div class="section">
+        <div class="section-label once-section-label">Sender</div>
+        <div class="once-sender-toggle">
+          <button
+            class="once-sender-btn"
+            class:active={onceSender === 'M'}
+            on:click={() => onceSender = 'M'}
+          >M</button>
+          <button
+            class="once-sender-btn once-sender-btn--epsilon"
+            class:active={onceSender === 'Epsilon'}
+            on:click={() => onceSender = 'Epsilon'}
+          >Epsilon</button>
+        </div>
+
         <div class="section-label once-section-label">New Transmission</div>
         <textarea
           class="once-textarea"
           bind:value={onceText}
-          placeholder="Message from M… instructions, objectives, warnings."
+          placeholder="Message from {onceSender}… instructions, objectives, warnings."
         ></textarea>
         <div style="height:10px"></div>
         <button class="once-send-btn" disabled={onceSending || !onceText.trim()} on:click={stageOnceMessage}>
@@ -3580,7 +3596,7 @@
             {#each stagedOnce as m (m._id ?? m.ts)}
               <div class="chain-log-row">
                 <div class="chain-log-top">
-                  <span class="once-log-m">M:</span>
+                  <span class="once-log-m" class:once-log-m--epsilon={m.sender === 'Epsilon'}>{m.sender ?? 'M'}:</span>
                   <span class="log-text">{m.text}<span class="log-time">{relTime(m.ts)}</span></span>
                 </div>
                 <div class="chain-log-actions">
@@ -3607,7 +3623,7 @@
             {#each liveOnce as m (m._id ?? m.ts)}
               <div class="chain-log-row">
                 <div class="chain-log-top">
-                  <span class="once-log-m"><span class="live-label">▶ LIVE &nbsp;</span>M:</span>
+                  <span class="once-log-m" class:once-log-m--epsilon={m.sender === 'Epsilon'}><span class="live-label">▶ LIVE &nbsp;</span>{m.sender ?? 'M'}:</span>
                   <span class="log-text">{m.text}<span class="log-time">{relTime(m.ts)}</span></span>
                 </div>
                 <div class="chain-log-actions" style="justify-content:flex-end">
@@ -5381,7 +5397,35 @@
   }
   .once-log-row:last-child { margin-bottom: 0; }
   .once-log-m { font-weight: 700; color: #9b6dff; flex-shrink: 0; }
+  .once-log-m--epsilon { color: #d4af37; }
   .once-delete-btn { margin-left: auto; flex-shrink: 0; padding: 3px 8px; font-size: 14px; line-height: 1; }
+
+  .once-sender-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .once-sender-btn {
+    flex: 1;
+    background: none;
+    border: 1px solid rgba(124, 58, 237, 0.35);
+    color: #6b4fa0;
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+  }
+  .once-sender-btn.active {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(124, 58, 237, 0.6);
+    color: #c4a8ff;
+  }
+  .once-sender-btn--epsilon { border-color: rgba(201, 162, 39, 0.35); color: #8a7124; }
+  .once-sender-btn--epsilon.active {
+    background: rgba(201, 162, 39, 0.18);
+    border-color: rgba(201, 162, 39, 0.6);
+    color: #e3c04f;
+  }
 
   /* ── Jobs section ── */
   .job-status-group { display: flex; gap: 6px; flex-wrap: wrap; }
