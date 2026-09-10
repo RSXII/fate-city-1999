@@ -14,7 +14,7 @@
     .map(g => ({ ...g, entries: ENTRIES.filter(e => e.category === g.key) }))
     .filter(g => g.entries.length > 0);
 
-  onMount(() => subscribeContent('intel', data => ENTRIES = data));
+  onMount(() => subscribeContent('intel', data => ENTRIES = data.filter(e => !e.hidden)));
 
   // ── GM-authored case files, staged via the console ─────────────────────────
   let liveEntries = [];

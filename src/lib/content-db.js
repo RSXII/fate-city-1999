@@ -6,6 +6,7 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   onSnapshot,
   query,
@@ -35,6 +36,14 @@ export function subscribeContent(collectionName, callback) {
  */
 export async function setContentEntry(collectionName, id, data) {
   return setDoc(doc(db, collectionName, id), data);
+}
+
+/**
+ * Merge a partial update into one entry (e.g. flipping `hidden`) without
+ * touching the rest of the document.
+ */
+export async function updateContentEntry(collectionName, id, partialData) {
+  return updateDoc(doc(db, collectionName, id), partialData);
 }
 
 /**

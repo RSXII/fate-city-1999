@@ -16,8 +16,8 @@
     entries: LOCATIONS.filter(l => l.district === d),
   }));
 
-  onMount(() => subscribeContent('points_of_interest', data => LOCATIONS = data));
-  onMount(() => subscribeContent('districts', data => DISTRICTS = data));
+  onMount(() => subscribeContent('points_of_interest', data => LOCATIONS = data.filter(l => !l.hidden)));
+  onMount(() => subscribeContent('districts', data => DISTRICTS = data.filter(d => !d.hidden)));
 
   // ── GM-authored case files, staged via the console ─────────────────────────
   let liveEntries = [];

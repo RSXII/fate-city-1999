@@ -15,7 +15,7 @@
     .map(key => ({ label: CATEGORY_LABELS[key], entries: NPCS.filter(n => n.category === key) }))
     .filter(g => g.entries.length > 0);
 
-  onMount(() => subscribeContent('persons', data => NPCS = data));
+  onMount(() => subscribeContent('persons', data => NPCS = data.filter(n => !n.hidden)));
 
   // ── GM-authored case files, staged via the console ─────────────────────────
   let liveEntries = [];
