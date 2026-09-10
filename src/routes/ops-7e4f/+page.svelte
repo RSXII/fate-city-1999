@@ -56,6 +56,67 @@
 
   let activeTab = 'wire';
 
+  // ── Menu bar — groups the tabs above into a real dropdown menu ─────────────
+  let openMenu = null; // group key currently showing its dropdown, or null
+
+  const MENU_GROUPS = [
+    { key: 'wire', label: 'Wire', items: [
+      { tab: 'wire', label: 'Messages' },
+      { tab: 'contacts', label: 'Contacts' },
+      { tab: 'devices', label: 'Hacked Devices' },
+      { tab: 'call', label: 'Call' },
+    ]},
+    { key: 'data', label: 'Data', items: [
+      { tab: 'email', label: 'Email' },
+      { tab: 'cases', label: 'Case Files' },
+      { tab: 'catalog', label: 'Catalog' },
+      { tab: 'jobs', label: 'Jobs' },
+    ]},
+    { key: 'characters', label: 'Characters', items: [
+      { tab: 'users', label: 'Users' },
+      { tab: 'bank', label: 'Bank' },
+      { tab: 'downtime', label: 'Downtime' },
+      { tab: 'responses', label: 'Responses', badge: 'playerResponses' },
+    ]},
+    { key: 'session', label: 'Session', items: [
+      { tab: 'date', label: 'Date' },
+      { tab: 'timer', label: 'Timer' },
+      { tab: 'rides', label: 'Rides' },
+    ]},
+    { key: 'feeds', label: 'Feeds', items: [
+      { tab: 'once', label: 'O.N.C.E.' },
+      { tab: 'fatestagram', label: 'FateSta' },
+    ]},
+    { key: 'system', label: 'System', items: [
+      { tab: 'twins', label: 'Twins AI' },
+      { tab: 'foundry', label: 'Foundry' },
+      { tab: 'housekit', label: 'HouseKit' },
+    ]},
+  ];
+
+  // Side effects that used to live inline on each tab button's on:click.
+  const TAB_ON_SELECT = {
+    devices:   () => { refreshDeviceAccounts(); if (!contactList.length) refreshContacts(); },
+    call:      () => loadActiveCall(),
+    twins:     () => loadTwinsRoster(),
+    foundry:   () => loadBridgeConfig(),
+    housekit:  () => hkStartCreate(),
+    bank:      () => loadBankBalances(),
+    downtime:  () => loadDowntimeState(),
+    users:     () => refreshDevices(),
+    responses: () => loadPlayerResponses(),
+  };
+
+  function selectTab(tab) {
+    activeTab = tab;
+    TAB_ON_SELECT[tab]?.();
+    openMenu = null;
+  }
+
+  function tabColorClass(tab) {
+    return 'tab--' + (tab === 'fatestagram' ? 'fsg' : tab);
+  }
+
   const GITHUB_IMAGES_API =
     'https://api.github.com/repos/RSXII/fate-city-1999/contents/static/images/messages';
   const GITHUB_ROOT_IMAGES_API =
@@ -2497,6 +2558,8 @@
   <title>Fate City: 1999 — GM Console</title>
 </svelte:head>
 
+<svelte:window on:click={() => openMenu = null} />
+
 {#if !authenticated}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <div class="pin-gate">
@@ -2533,28 +2596,39 @@
     <span class="console-sub">Fate City: 1999</span>
   </div>
 
-  <!-- ── Tab bar ─────────────────────────────────────────────────────────── -->
-  <div class="tab-bar" role="tablist">
-    <button class="tab" class:active={activeTab === 'wire'}     role="tab" on:click={() => activeTab = 'wire'}>Wire</button>
-    <button class="tab" class:active={activeTab === 'email'}    role="tab" on:click={() => activeTab = 'email'}>Email</button>
-    <button class="tab" class:active={activeTab === 'cases'}    role="tab" on:click={() => activeTab = 'cases'}>Case Files</button>
-    <button class="tab" class:active={activeTab === 'contacts'} role="tab" on:click={() => activeTab = 'contacts'}>Contacts</button>
-    <button class="tab" class:active={activeTab === 'devices'} role="tab" on:click={() => { activeTab = 'devices'; refreshDeviceAccounts(); if (!contactList.length) refreshContacts(); }}>Hacked Devices</button>
-    <button class="tab" class:active={activeTab === 'catalog'} role="tab" on:click={() => activeTab = 'catalog'}>Catalog</button>
-    <button class="tab" class:active={activeTab === 'date'}     role="tab" on:click={() => activeTab = 'date'}>Date</button>
-    <button class="tab tab--once" class:active={activeTab === 'once'} role="tab" on:click={() => activeTab = 'once'}>O.N.C.E.</button>
-    <button class="tab" class:active={activeTab === 'jobs'}  role="tab" on:click={() => activeTab = 'jobs'}>Jobs</button>
-    <button class="tab" class:active={activeTab === 'rides'} role="tab" on:click={() => activeTab = 'rides'}>Rides</button>
-    <button class="tab tab--fsg"      class:active={activeTab === 'fatestagram'} role="tab" on:click={() => activeTab = 'fatestagram'}>FateSta</button>
-    <button class="tab tab--timer"    class:active={activeTab === 'timer'}       role="tab" on:click={() => activeTab = 'timer'}>Timer</button>
-    <button class="tab tab--call"     class:active={activeTab === 'call'}        role="tab" on:click={() => { activeTab = 'call'; loadActiveCall(); }}>Call</button>
-    <button class="tab tab--twins"    class:active={activeTab === 'twins'}       role="tab" on:click={() => { activeTab = 'twins'; loadTwinsRoster(); }}>Twins AI</button>
-    <button class="tab tab--foundry"  class:active={activeTab === 'foundry'}     role="tab" on:click={() => { activeTab = 'foundry'; loadBridgeConfig(); }}>Foundry</button>
-    <button class="tab tab--housekit" class:active={activeTab === 'housekit'}    role="tab" on:click={() => { activeTab = 'housekit'; hkStartCreate(); }}>HouseKit</button>
-    <button class="tab tab--bank" class:active={activeTab === 'bank'} role="tab" on:click={() => { activeTab = 'bank'; loadBankBalances(); }}>Bank</button>
-    <button class="tab tab--downtime" class:active={activeTab === 'downtime'}   role="tab" on:click={() => { activeTab = 'downtime'; loadDowntimeState(); }}>Downtime</button>
-    <button class="tab tab--users"    class:active={activeTab === 'users'}      role="tab" on:click={() => { activeTab = 'users'; refreshDevices(); }}>Users</button>
-    <button class="tab tab--responses" class:active={activeTab === 'responses'} role="tab" on:click={() => { activeTab = 'responses'; loadPlayerResponses(); }}>Responses{#if playerResponses.length}&thinsp;<span class="resp-count">{playerResponses.length}</span>{/if}</button>
+  <!-- ── Menu bar ────────────────────────────────────────────────────────── -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <!-- svelte-ignore a11y_interactive_supports_focus -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="menu-bar" role="menubar" on:click|stopPropagation>
+    {#each MENU_GROUPS as group (group.key)}
+      <div class="menu-group">
+        <button
+          class="menu-btn"
+          class:active={group.items.some(i => i.tab === activeTab)}
+          class:open={openMenu === group.key}
+          role="menuitem"
+          aria-haspopup="true"
+          aria-expanded={openMenu === group.key}
+          on:click={() => openMenu = openMenu === group.key ? null : group.key}
+        >{group.label}</button>
+        {#if openMenu === group.key}
+          <div class="menu-dropdown" role="menu">
+            {#each group.items as item (item.tab)}
+              <button
+                class="menu-item {tabColorClass(item.tab)}"
+                class:active={activeTab === item.tab}
+                role="menuitem"
+                on:click={() => selectTab(item.tab)}
+              >
+                {item.label}
+                {#if item.badge === 'playerResponses' && playerResponses.length}&thinsp;<span class="resp-count">{playerResponses.length}</span>{/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
   </div>
 
   <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
@@ -5062,30 +5136,66 @@
   }
 
   /* ── Tab bar ── */
-  .tab-bar {
+  /* ── Menu bar — top-level groups, each opening a dropdown of tabs ── */
+  .menu-bar {
     flex-shrink: 0;
     display: flex;
     gap: 2px;
-    padding: 10px 16px 0;
+    padding: 10px 16px;
     border-bottom: 1px solid #1a2030;
+    position: relative;
   }
-  .tab {
+  .menu-group { position: relative; }
+  .menu-btn {
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #3a4a5a;
+    color: #6a7d90;
     font-size: 11.5px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.8px;
     text-transform: uppercase;
-    padding: 6px 10px 8px;
+    padding: 6px 12px 8px;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease;
     white-space: nowrap;
     font-family: inherit;
   }
-  .tab:hover { color: #c9a227; }
-  .tab.active { color: #c9a227; border-bottom-color: #c9a227; }
+  .menu-btn:hover { color: #c9a227; }
+  .menu-btn.active, .menu-btn.open { color: #c9a227; border-bottom-color: #c9a227; }
+
+  .menu-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 190px;
+    margin-top: 4px;
+    background: #0c0f16;
+    border: 1px solid #1a2030;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+  }
+  .menu-item {
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    border-radius: 4px;
+    color: #6a7d90;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-align: left;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+  }
+  .menu-item:hover { background: rgba(255,255,255,0.04); color: #c9a227; }
+  .menu-item.active { color: #c9a227; border-left-color: #c9a227; background: rgba(201,162,39,0.08); }
   .tab--once { color: #4a3070; }
   .tab--once:hover { color: #9b6dff; }
   .tab--once.active { color: #9b6dff; border-bottom-color: #7c3aed; }
