@@ -144,6 +144,52 @@
 
   // ── Images (GitHub repo browser — same source the Case Files tab uses) ────
   let imagePicker = { open: false, loading: false, error: '', images: [] };
+  let uploadInput;
+  let uploading = false;
+
+  // Resize/compress a local file client-side and hand back a JPEG data URL —
+  // same base64-data-URI approach the Settings page uses for profile photos,
+  // just without the fixed square crop (dossier images keep their aspect
+  // ratio). Keeps embedded doc size reasonable since these live inline on
+  // the Firestore document rather than as separate hosted files.
+  function fileToResizedDataUrl(file, maxDim = 1000, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+            else { width = Math.round(width * maxDim / height); height = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Could not read that image.'));
+        img.src = ev.target.result;
+      };
+      reader.onerror = () => reject(new Error('Could not read that file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file || !file.type.startsWith('image/')) return;
+    uploading = true;
+    try {
+      const dataUrl = await fileToResizedDataUrl(file);
+      form.images = [...form.images, { name: file.name, path: dataUrl, url: dataUrl }];
+    } catch (err) {
+      status = { text: err?.message ?? 'Upload failed.', type: 'err' };
+    }
+    uploading = false;
+  }
 
   async function toggleImagePicker() {
     if (imagePicker.open) { imagePicker = { ...imagePicker, open: false }; return; }
@@ -355,9 +401,21 @@
   <div class="ce-section">
     <div class="ce-section-label-row">
       <span class="ce-section-label">Images ({form.images.length})</span>
-      <button class="ce-ghost" type="button" on:click={toggleImagePicker}>
-        {imagePicker.open ? 'Close picker' : '+ Add image'}
-      </button>
+      <div class="ce-btn-group">
+        <button class="ce-ghost" type="button" disabled={uploading} on:click={() => uploadInput.click()}>
+          {uploading ? 'Uploading…' : '+ Upload new'}
+        </button>
+        <button class="ce-ghost" type="button" on:click={toggleImagePicker}>
+          {imagePicker.open ? 'Close picker' : '+ Add from repo'}
+        </button>
+      </div>
+      <input
+        type="file"
+        accept="image/*"
+        bind:this={uploadInput}
+        style="display:none"
+        on:change={handleUpload}
+      />
     </div>
     {#if form.images.length}
       <div class="ce-chips">
@@ -464,6 +522,7 @@
   .ce-section { margin: 20px 0; }
   .ce-section-label { font-size: 10.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #6a7d90; }
   .ce-section-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .ce-btn-group { display: flex; gap: 6px; }
 
   .ce-textarea {
     width: 100%; min-height: 80px; background: #0c0f16; border: 1px solid #1a2030; border-radius: 8px;
