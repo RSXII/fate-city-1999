@@ -1,5 +1,6 @@
 <script>
   import { base } from '$app/paths';
+  import { resolveImageSrc } from '$lib/utils.js';
 
   export let entry;
   export let onImageClick = () => {};
@@ -22,7 +23,7 @@
       {#each entry.images as src, i}
         <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
         <div class="thumb" on:click={() => onImageClick(entry.images, i, entry.name)}>
-          <img src="{base}/{src}" alt={entry.name} loading="lazy" />
+          <img src={resolveImageSrc(base, src)} alt={entry.name} loading="lazy" />
         </div>
       {/each}
     </div>

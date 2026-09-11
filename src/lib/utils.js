@@ -69,6 +69,17 @@ export function escapeAttr(s) {
 }
 
 /**
+ * Resolves an image reference for display. A data: URI or absolute URL
+ * (e.g. an image uploaded directly rather than picked from the repo) is used
+ * as-is; a bare repo-relative path (e.g. "images/foo.png") gets the app's
+ * base path prefixed.
+ */
+export function resolveImageSrc(base, src) {
+  if (/^(data:|https?:)/.test(src)) return src;
+  return `${base}/${src}`;
+}
+
+/**
  * Human-readable relative time from a Unix-ms timestamp.
  */
 export function relTime(ts) {

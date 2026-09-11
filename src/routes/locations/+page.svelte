@@ -4,6 +4,7 @@
   import { subscribeContent } from '$lib/content-db.js';
   import { dbGet } from '$lib/firebase-db.js';
   import { toBriefingEntry } from '$lib/briefing-format.js';
+  import { resolveImageSrc } from '$lib/utils.js';
   import BriefingCard from '$lib/components/BriefingCard.svelte';
 
   let LOCATIONS = [];
@@ -125,7 +126,7 @@
             {#each entry.images as src, i}
               <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
               <div class="thumb" on:click={() => openLightbox(entry.images, i, entry.name)}>
-                <img src="{base}/{src}" alt={entry.name} />
+                <img src={resolveImageSrc(base, src)} alt={entry.name} />
               </div>
             {/each}
           </div>
@@ -184,7 +185,7 @@
       <span class="nav-arrow prev" on:click|stopPropagation={lbPrev}>&#8249;</span>
     {/if}
     <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-    <img src="{base}/{lbImages[lbIndex]}" alt={lbCaption} on:click|stopPropagation />
+    <img src={resolveImageSrc(base, lbImages[lbIndex])} alt={lbCaption} on:click|stopPropagation />
     {#if lbImages.length > 1}
       <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
       <span class="nav-arrow next" on:click|stopPropagation={lbNext}>&#8250;</span>
