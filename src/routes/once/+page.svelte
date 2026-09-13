@@ -141,46 +141,42 @@
     <div class="once-section-sep" aria-hidden="true"></div>
   {/if}
 
-  <a class="once-msg" href="{base}/persons">
-    <div class="once-avatar" aria-hidden="true">M</div>
-    <div class="once-body">
-      <div class="once-top">
-        <span class="once-sender">Unknown</span>
-        <span class="once-time">Now</span>
+  <div class="once-files-label">Files Sent</div>
+
+  <a class="once-file" href="{base}/persons">
+    <div class="once-file-icon" aria-hidden="true">&#128196;</div>
+    <div class="once-file-body">
+      <div class="once-file-top">
+        <span class="once-file-name">PERSONS_OF_INTEREST<span class="once-file-ext">.dat</span></span>
+        <span class="once-file-size">1.4 MB</span>
       </div>
-      <div class="once-text">
-        Persons of Interest is ready. Everyone worth knowing in Fate City &mdash; for now.
-      </div>
-      <div class="once-link-hint">Open &rarr;</div>
+      <div class="once-file-desc">Everyone worth knowing in Fate City &mdash; for now.</div>
     </div>
+    <div class="once-file-arrow" aria-hidden="true">&rarr;</div>
   </a>
 
-  <a class="once-msg" href="{base}/locations">
-    <div class="once-avatar" aria-hidden="true">M</div>
-    <div class="once-body">
-      <div class="once-top">
-        <span class="once-sender">Unknown</span>
-        <span class="once-time">Now</span>
+  <a class="once-file" href="{base}/locations">
+    <div class="once-file-icon" aria-hidden="true">&#128196;</div>
+    <div class="once-file-body">
+      <div class="once-file-top">
+        <span class="once-file-name">LOCATIONS<span class="once-file-ext">.dat</span></span>
+        <span class="once-file-size">960 KB</span>
       </div>
-      <div class="once-text">
-        Locations is ready. Every address worth remembering, starting with the ones you&rsquo;ll need first.
-      </div>
-      <div class="once-link-hint">Open &rarr;</div>
+      <div class="once-file-desc">Every address worth remembering, starting with the ones you&rsquo;ll need first.</div>
     </div>
+    <div class="once-file-arrow" aria-hidden="true">&rarr;</div>
   </a>
 
-  <a class="once-msg" href="{base}/intel">
-    <div class="once-avatar" aria-hidden="true">M</div>
-    <div class="once-body">
-      <div class="once-top">
-        <span class="once-sender">Unknown</span>
-        <span class="once-time">Now</span>
+  <a class="once-file" href="{base}/intel">
+    <div class="once-file-icon" aria-hidden="true">&#128196;</div>
+    <div class="once-file-body">
+      <div class="once-file-top">
+        <span class="once-file-name">FIELD_INTEL<span class="once-file-ext">.dat</span></span>
+        <span class="once-file-size">2.1 MB</span>
       </div>
-      <div class="once-text">
-        Field Intel is ready. World briefing &mdash; everything the city expects you to already know.
-      </div>
-      <div class="once-link-hint">Open &rarr;</div>
+      <div class="once-file-desc">World briefing &mdash; everything the city expects you to already know.</div>
     </div>
+    <div class="once-file-arrow" aria-hidden="true">&rarr;</div>
   </a>
 </div>
 
@@ -318,6 +314,99 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.3), transparent);
     margin: 6px 0 18px;
+  }
+
+  /* File attachments — distinct from chat messages */
+  .once-files-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(124, 58, 237, 0.4);
+    margin: 4px 2px 10px;
+  }
+
+  .once-file {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: rgba(10, 6, 20, 0.4);
+    border: 1px dashed rgba(124, 58, 237, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-decoration: none;
+    margin-bottom: 10px;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.15s ease;
+  }
+  .once-file:last-child {
+    margin-bottom: 0;
+  }
+  .once-file:hover {
+    background: rgba(124, 58, 237, 0.1);
+    border-color: rgba(124, 58, 237, 0.55);
+  }
+  .once-file:active {
+    transform: scale(0.98);
+  }
+
+  .once-file-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .once-file-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .once-file-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+
+  .once-file-name {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: #c9b3f0;
+  }
+
+  .once-file-ext {
+    color: rgba(201, 179, 240, 0.55);
+  }
+
+  .once-file-size {
+    font-size: 9px;
+    color: rgba(232, 224, 248, 0.35);
+    flex-shrink: 0;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .once-file-desc {
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: rgba(232, 224, 248, 0.7);
+  }
+
+  .once-file-arrow {
+    flex-shrink: 0;
+    font-size: 14px;
+    color: rgba(124, 58, 237, 0.5);
   }
 
   /* Epsilon transmissions — gold instead of violet */
