@@ -36,13 +36,27 @@
   let passwordValues = {};  // { [id]: string } — current input per entry
   let revealed = {};        // { [id]: string } — decoded HTML after unlock
   let shaking = {};         // { [id]: boolean } — shake animation state
+  let unlockHints = {};     // { [id]: string } — feedback on incorrect attempts
+
+  function failUnlock(id, hint = '') {
+    passwordValues = { ...passwordValues, [id]: '' };
+    unlockHints = { ...unlockHints, [id]: hint };
+    shaking = { ...shaking, [id]: true };
+    setTimeout(() => { shaking = { ...shaking, [id]: false }; }, 400);
+  }
 
   function attemptUnlock(id, encoded) {
     const val = (passwordValues[id] ?? '').trim().toLowerCase();
+    if (val.length < REDACTED_PASSWORD.length) {
+      failUnlock(id, 'too few characters');
+      return;
+    }
+    if (val.length > REDACTED_PASSWORD.length) {
+      failUnlock(id, 'too many characters');
+      return;
+    }
     if (val !== REDACTED_PASSWORD) {
-      passwordValues = { ...passwordValues, [id]: '' };
-      shaking = { ...shaking, [id]: true };
-      setTimeout(() => { shaking = { ...shaking, [id]: false }; }, 400);
+      failUnlock(id, 'incorrect password');
       return;
     }
     try {
@@ -53,6 +67,7 @@
         ).join('')
       );
       revealed = { ...revealed, [id]: decoded };
+      unlockHints = { ...unlockHints, [id]: '' };
     } catch {
       // decode failed silently — leave gate in place
     }
@@ -143,10 +158,14 @@
                       autocomplete="off"
                       spellcheck="false"
                       bind:value={passwordValues[entry.id]}
+                      on:input={() => { if (unlockHints[entry.id]) unlockHints = { ...unlockHints, [entry.id]: '' }; }}
                       on:keydown={(e) => { if (e.key === 'Enter') attemptUnlock(entry.id, entry.redactedEncoded); }}
                     />
                     <button type="button" on:click={() => attemptUnlock(entry.id, entry.redactedEncoded)}>&#8594;</button>
                   </div>
+                  {#if unlockHints[entry.id]}
+                    <p class="redacted-hint">{unlockHints[entry.id]}</p>
+                  {/if}
                 {/if}
               {:else}
                 <p>{@html p}</p>
@@ -401,6 +420,14 @@
   }
   .redacted-gate.shake {
     animation: redacted-shake 0.4s ease;
+  }
+  .redacted-hint {
+    margin: -10px 0 14px;
+    font-family: 'Arial', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #c94f4f;
   }
   @keyframes redacted-shake {
     0%, 100% { transform: translateX(0); }
