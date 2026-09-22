@@ -1649,10 +1649,12 @@
 
   async function endActiveCall() {
     if (!confirm("End the active call? This will dismiss the overlay on the player's device.")) return;
+    const codename = activeCall?.targetCodename ?? null;
     try {
       await dbDelete('incomingCall');
       activeCall = null;
       callSendStatus = { text: 'Call ended.', type: 'ok' };
+      notifyBridge('call.ended', { targetCodename: codename });
     } catch (e) {
       callSendStatus = { text: `Failed: ${e?.message ?? 'error'}`, type: 'err' };
     }
