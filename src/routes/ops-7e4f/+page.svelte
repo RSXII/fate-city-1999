@@ -3,7 +3,9 @@
   import { onMount, onDestroy } from 'svelte';
   import { dbGet, dbPost, dbPut, dbPatch, dbDelete } from '$lib/firebase-db.js';
   import {
-    convIdForMsg,
+    conversationKey,
+    defaultConversationName,
+    renameConversation,
     createMessage,
     deployMessage as fsDeployMessage,
     subscribeConversations as fsSubscribeConversations,
@@ -162,6 +164,9 @@
   const _wireCache = new Map(); // convId → msgs[]
   let _wireSubs    = [];        // per-conversation unsub functions
   let _wireConvSub = null;      // conversations-list unsub
+  let wireConvsById = {};       // convId → conversation doc (name, npcMembers, playerMembers, isBroadcast, npcOnly)
+  let renamingConvKey = null;   // convId currently being renamed via the inline editor
+  let renameDraft = '';
 
   // ── Catalog content (persons/districts/points_of_interest/intel) ───────────
   let personsList = [];
@@ -333,13 +338,14 @@
     sending = true;
     sendStatus = { text: 'Staging…', type: '' };
     try {
-      const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now(), staged: false };
+      const npcNames = selectedGroup ? selectedGroup.members : [selectedSender.name];
+      const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now(), staged: false, npcMembers: npcNames };
       if (selectedImage) payload.imageUrl = selectedImage.url;
       if (npcOnlyMessage) payload.npcOnly = true;
       else if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
-      if (selectedGroup) { payload.groupId = selectedGroup._id; payload.groupName = selectedGroup.name; }
       if (requestLocationShare) payload.locationRequest = true;
-      await createMessage(convIdForMsg(payload), payload);
+      const convId = conversationKey({ npcNames, recipients: payload.recipients ?? [], npcOnly: !!payload.npcOnly });
+      await createMessage(convId, payload);
       msgText = '';
       selectedImage = null;
       requestLocationShare = false;
@@ -363,10 +369,11 @@
         // hacked-device view itself. wire.deployed has no AUDIENCE entry for
         // "nobody," so skipping the call entirely is the only safe option.
         if (!m.npcOnly) {
+          const conv = wireConvsById[m.convId];
           notifyBridge('wire.deployed', {
             sender: m.sender,
             color: m.color || null,
-            groupName: m.groupName || null,
+            groupName: conv ? (conv.name ?? defaultConversationName(conv)) : null,
             preview: m.text ? m.text.slice(0, 80) : null,
             hasImage: !!m.imageUrl,
             recipients: m.recipients || null,
@@ -392,6 +399,19 @@
     try {
       if (m) await fsDeleteMessage(m.convId, id);
     } catch (e) { console.error('Delete failed', e); }
+  }
+
+  function startConvRename(conv) {
+    renamingConvKey = conv.key;
+    renameDraft = conv.name;
+  }
+
+  async function saveConvRename(convId) {
+    const name = renameDraft.trim();
+    renamingConvKey = null;
+    try {
+      await renameConversation(convId, name || null);
+    } catch (e) { console.error('Rename failed', e); }
   }
 
   async function togglePicker() {
@@ -2138,47 +2158,36 @@
     : playerResponses;
 
   // Groups live NPC messages + player responses into per-thread conversation objects
+  // Conversation-level truth (name, isBroadcast, npcMembers, playerMembers) comes
+  // straight from each conversation's own Firestore doc (wireConvsById) — never
+  // re-derived from message history, since a doc's audience is now fixed by its
+  // id (see conversationKey) and can't drift message-to-message the way the old
+  // per-message reconstruction did.
   $: wireConversations = (() => {
-    const convMap = {};
-    const convIdToKey = {}; // Firestore convId → convMap key
-
+    const itemsByConv = {};
     for (const m of liveNpcMsgs) {
-      const key = m.groupId ? `group:${m.groupId}` : `sender:${m.sender}`;
-      if (!convMap[key]) {
-        convMap[key] = {
-          key, isGroup: !!m.groupId, groupId: m.groupId ?? null,
-          name: m.groupId ? (m.groupName || 'Group Chat') : m.sender,
-          color: m.color || '#c9a227',
-          npcMembers: new Set(), playerMembers: new Set(),
-          items: [], lastTs: 0, isBroadcast: false,
-        };
-      }
-      if (m.convId) convIdToKey[m.convId] = key;
-      const c = convMap[key];
-      c.npcMembers.add(m.sender);
-      if (m.recipients?.length) {
-        m.recipients.forEach(r => c.playerMembers.add(r));
-      } else {
-        c.isBroadcast = true;
-      }
-      c.items.push({ ...m, _type: 'npc' });
-      if (m.ts > c.lastTs) c.lastTs = m.ts;
+      (itemsByConv[m.convId] ??= []).push({ ...m, _type: 'npc' });
     }
     for (const r of livePlayerMsgs) {
-      const key = r.convId ? convIdToKey[r.convId] : null;
-      if (!key || !convMap[key]) continue;
-      const c = convMap[key];
-      if (!c.isBroadcast) c.playerMembers.add(r.sender);
-      c.items.push({ ...r, _type: 'player', codename: r.sender });
-      if (r.ts > c.lastTs) c.lastTs = r.ts;
+      (itemsByConv[r.convId] ??= []).push({ ...r, _type: 'player', codename: r.sender });
     }
-    return Object.values(convMap)
-      .map(c => ({
-        ...c,
-        npcMembers: [...c.npcMembers],
-        playerMembers: [...c.playerMembers],
-        items: c.items.sort((a, b) => a.ts - b.ts),
-      }))
+    return Object.entries(itemsByConv)
+      .map(([convId, items]) => {
+        const conv = wireConvsById[convId] ?? {};
+        const npcMembers = conv.npcMembers ?? [];
+        const playerMembers = conv.playerMembers ?? [];
+        const isBroadcast = !!conv.isBroadcast;
+        const sortedItems = items.sort((a, b) => a.ts - b.ts);
+        return {
+          key: convId,
+          npcOnly: !!conv.npcOnly,
+          name: conv.name ?? defaultConversationName({ npcMembers, playerMembers, isBroadcast }),
+          color: sortedItems.find(i => i._type === 'npc')?.color || '#c9a227',
+          npcMembers, playerMembers, isBroadcast,
+          items: sortedItems,
+          lastTs: conv.lastMessageAt ?? sortedItems[sortedItems.length - 1]?.ts ?? 0,
+        };
+      })
       .sort((a, b) => b.lastTs - a.lastTs);
   })();
 
@@ -2335,6 +2344,7 @@
       _wireSubs.forEach(u => u());
       _wireSubs = [];
       _wireCache.clear();
+      wireConvsById = Object.fromEntries(convs.map(c => [c.id, c]));
       for (const conv of convs) {
         const cid = conv.id;
         _wireSubs.push(fsSubscribeMessages(cid, msgs => {
@@ -2910,9 +2920,35 @@
                   : `${last.codename}: ${last.text}`)
               : ''}
             <div class="conv-tile" class:conv-tile--expanded={isExpanded}>
-              <button class="conv-tile-header" on:click={() => expandedConvKey = isExpanded ? null : conv.key}>
+              <div
+                class="conv-tile-header"
+                role="button"
+                tabindex="0"
+                on:click={() => expandedConvKey = isExpanded ? null : conv.key}
+                on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); expandedConvKey = isExpanded ? null : conv.key; } }}
+              >
                 <div class="conv-tile-top">
-                  <span class="conv-tile-name" style="color:{conv.color}">{conv.name}</span>
+                  {#if renamingConvKey === conv.key}
+                    <input
+                      class="conv-rename-input"
+                      bind:value={renameDraft}
+                      on:click|stopPropagation
+                      on:keydown|stopPropagation={(e) => {
+                        if (e.key === 'Enter') saveConvRename(conv.key);
+                        if (e.key === 'Escape') renamingConvKey = null;
+                      }}
+                    />
+                    <button type="button" class="conv-action-btn" title="Save" on:click|stopPropagation={() => saveConvRename(conv.key)}>✓</button>
+                    <button type="button" class="conv-action-btn" title="Cancel" on:click|stopPropagation={() => renamingConvKey = null}>×</button>
+                  {:else}
+                    <span class="conv-tile-name" style="color:{conv.color}">
+                      {#if conv.npcOnly}<span class="conv-npconly-badge" title="Hidden — NPC-only">🔒</span>{/if}
+                      {conv.name}
+                    </span>
+                    {#if isExpanded}
+                      <button type="button" class="conv-action-btn" title="Rename" on:click|stopPropagation={() => startConvRename(conv)}>✎</button>
+                    {/if}
+                  {/if}
                   <span class="conv-tile-time">{relTime(conv.lastTs)}</span>
                   <span class="conv-tile-chevron" class:open={isExpanded}>›</span>
                 </div>
@@ -2927,7 +2963,7 @@
                   </span>
                   <span class="conv-tile-preview">{lastPreview}</span>
                 </div>
-              </button>
+              </div>
               {#if isExpanded}
                 <div class="conv-card-feed">
                   {#each conv.items as item (item.id ?? item.ts)}
@@ -5331,6 +5367,8 @@
   .conv-tile--expanded .conv-tile-header { background: rgba(255,255,255,0.025); border-bottom: 1px solid #1a2030; }
   .conv-tile-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
   .conv-tile-name { font-size: 12.5px; font-weight: 700; flex-shrink: 0; }
+  .conv-npconly-badge { margin-right: 4px; filter: grayscale(0.3); }
+  .conv-rename-input { flex: 1; min-width: 0; background: #0c0f16; border: 1px solid #c9a227; border-radius: 4px; color: rgba(232,223,200,0.9); font-size: 12.5px; font-weight: 700; padding: 2px 6px; }
   .conv-tile-time { font-size: 9.5px; color: #3a4a5a; margin-left: auto; flex-shrink: 0; }
   .conv-tile-chevron { font-size: 14px; color: #3a4a5a; flex-shrink: 0; display: inline-block; transform: rotate(90deg); transition: transform 0.15s; line-height: 1; }
   .conv-tile-chevron.open { transform: rotate(270deg); }

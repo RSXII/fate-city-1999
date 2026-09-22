@@ -39,36 +39,12 @@ export function subscribeConversations(callback) {
 }
 
 /**
- * Create a new conversation document.
- * @param {{ name: string|null, npcMembers: string[], playerMembers: string[], isBroadcast: boolean }} data
+ * Rename a conversation, overriding its computed default name.
+ * Pass `name: null` to clear the override and revert to the computed default
+ * (see `defaultConversationName`).
  */
-export async function createConversation(data) {
-  const now = Date.now();
-  return addDoc(collection(db, 'conversations'), {
-    name: data.name ?? null,
-    npcMembers: data.npcMembers ?? [],
-    playerMembers: data.playerMembers ?? [],
-    isBroadcast: data.isBroadcast ?? false,
-    createdAt: now,
-    lastMessageAt: now,
-    lastMessageText: '',
-    lastMessageSender: '',
-  });
-}
-
-/**
- * Update conversation metadata (members, name, last-message preview, etc.).
- */
-export async function updateConversation(conversationId, data) {
-  return updateDoc(doc(db, 'conversations', conversationId), data);
-}
-
-/**
- * Set a full conversation document by ID — used by the migration script
- * to write with a predictable ID rather than an auto-generated one.
- */
-export async function setConversation(conversationId, data) {
-  return setDoc(doc(db, 'conversations', conversationId), data);
+export async function renameConversation(conversationId, name) {
+  return setDoc(doc(db, 'conversations', conversationId), { name: name || null }, { merge: true });
 }
 
 // ── Messages ─────────────────────────────────────────────────────────────────
@@ -91,46 +67,6 @@ export function subscribeMessages(conversationId, callback) {
 }
 
 /**
- * Add a message to a conversation and update the conversation's preview fields.
- *
- * @param {string} conversationId
- * @param {{
- *   type: 'npc' | 'player',
- *   sender: string,
- *   color?: string,
- *   text: string,
- *   ts: number,
- *   staged?: boolean,
- *   imageUrl?: string,
- *   status?: string,
- * }} messageData
- */
-export async function addMessage(conversationId, messageData) {
-  const ref = await addDoc(
-    collection(db, 'conversations', conversationId, 'messages'),
-    messageData
-  );
-  await updateDoc(doc(db, 'conversations', conversationId), {
-    lastMessageAt: messageData.ts,
-    lastMessageSender: messageData.sender,
-    lastMessageText: messageData.imageUrl
-      ? `📷 ${messageData.text || 'Photo'}`
-      : (messageData.text || ''),
-  });
-  return ref;
-}
-
-/**
- * Set a message document by ID — used by the migration script.
- */
-export async function setMessage(conversationId, messageId, data) {
-  return setDoc(
-    doc(db, 'conversations', conversationId, 'messages', messageId),
-    data
-  );
-}
-
-/**
  * Update a message (e.g. flip staged, set status).
  */
 export async function updateMessage(conversationId, messageId, data) {
@@ -147,71 +83,50 @@ export async function deleteMessage(conversationId, messageId) {
   return deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
 }
 
-// ── Dual-write helpers (GM console → Firestore + RTDB) ───────────────────────
+// ── Conversation identity ─────────────────────────────────────────────────────
 
-/**
- * Compute the stable Firestore conversation ID from a message or response object.
- *   NPC message:      { groupId?, sender }
- *   Player response:  { groupId?, context }
- */
-export function convIdForMsg(msg) {
-  if (msg.groupId) return `group_${msg.groupId}`;
-  const name = msg.sender ?? msg.context ?? '';
-  return 'sender_' + name.toLowerCase().trim()
+function slugify(name) {
+  return (name ?? '').toLowerCase().trim()
     .replace(/\s+/g, '_')
     .replace(/[^a-z0-9_]/g, '');
 }
 
 /**
- * Write a new NPC message to Firestore and upsert the parent conversation.
- * Call this immediately after every dbPost('messages', payload) in the GM console.
+ * Compute a conversation's stable Firestore ID from its exact participant set.
+ * A conversation's identity IS its participants — the same NPC(s) sending to
+ * the same audience always land in the same thread; a different audience (or
+ * a different NPC roster) is a different thread, deliberately, so ad-hoc
+ * recipient picks get their own persistent conversation instead of being
+ * lumped into whichever thread that NPC happened to use last.
  *
- * @param {string} convId       — from convIdForMsg(payload)
- * @param {object} payload      — the same object sent to RTDB
- * @param {string} rtdbMsgId    — the push key returned by dbPost (result.name)
+ * `npcOnly` gets its own ID namespace (prefix), not a suffix on the shared
+ * shape — this guarantees a hidden NPC-only "hacked device" thread can never
+ * collide with a public thread, even if the same NPC roster / recipient list
+ * is reused, and even if a GM picks a saved Group preset and the "Hidden —
+ * NPC-only" toggle at the same time.
+ *
+ * @param {{ npcNames: string[], recipients?: string[], npcOnly?: boolean }} params
  */
-export async function dualWriteMessage(convId, payload, rtdbMsgId) {
-  const msgData = {
-    type:   'npc',
-    sender: payload.sender,
-    color:  payload.color  || null,
-    text:   payload.text   || '',
-    ts:     payload.ts,
-    staged: false,
-  };
-  if (payload.imageUrl)        msgData.imageUrl   = payload.imageUrl;
-  if (payload.recipients?.length) msgData.recipients = payload.recipients;
-
-  // Strip nulls before writing
-  const cleanMsg = Object.fromEntries(
-    Object.entries(msgData).filter(([, v]) => v !== null),
-  );
-
-  const convUpdate = {
-    npcMembers:        arrayUnion(payload.sender),
-    lastMessageAt:     payload.ts,
-    lastMessageSender: payload.sender,
-    lastMessageText:   payload.imageUrl
-      ? `📷 ${payload.text || 'Photo'}`
-      : (payload.text || ''),
-  };
-  // isBroadcast is sticky — only ever set to true, never cleared back to false
-  if (!payload.recipients?.length) convUpdate.isBroadcast = true;
-  if (payload.recipients?.length)  convUpdate.playerMembers = arrayUnion(...payload.recipients);
-  if (payload.groupName)           convUpdate.name = payload.groupName;
-
-  await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
-  await setDoc(doc(db, 'conversations', convId, 'messages', rtdbMsgId), cleanMsg);
+export function conversationKey({ npcNames, recipients, npcOnly }) {
+  const npcPart = [...new Set(npcNames)].map(slugify).sort().join('+');
+  if (npcOnly) return `conv_npcOnly_${npcPart}`;
+  const audiencePart = recipients?.length
+    ? [...new Set(recipients)].map(slugify).sort().join('+')
+    : 'everyone';
+  return `conv_${npcPart}__${audiencePart}`;
 }
 
 /**
- * Write a player response to Firestore and update the conversation preview.
- * Call this immediately after dbPost('player-responses', payload) on the player page.
- *
- * @param {string} convId     — from convIdForMsg({ groupId?, sender: activeSender })
- * @param {object} payload    — { codename, text, ts, groupId?, context? }
- * @param {string} rtdbMsgId  — push key returned by dbPost (result.name)
+ * Compute a conversation's default display name from its participants, e.g.
+ * "Dave @Everyone", "Dave, Regi, Val", "Dave, Sam @Everyone". Callers should
+ * prefer an explicit override first: `conv.name ?? defaultConversationName(conv)`.
  */
+export function defaultConversationName({ npcMembers = [], playerMembers = [], isBroadcast }) {
+  const npcPart = npcMembers.join(', ');
+  if (isBroadcast) return `${npcPart} @Everyone`;
+  return [...npcMembers, ...playerMembers].join(', ');
+}
+
 // ── Phase 5: Firestore-only writes (RTDB fully removed) ──────────────────────
 
 /**
@@ -238,11 +153,11 @@ export async function createMessage(convId, payload) {
 
   // lastMessageAt is required for the subscribeConversations orderBy to include this doc.
   // Membership/preview fields are withheld until deploy so players don't see empty conversations.
+  const npcRoster = payload.npcMembers?.length ? payload.npcMembers : [payload.sender];
   const convUpdate = {
-    npcMembers:    arrayUnion(payload.sender),
+    npcMembers:    arrayUnion(...npcRoster),
     lastMessageAt: payload.ts,
   };
-  if (payload.groupName) convUpdate.name = payload.groupName;
   // Sticky, cosmetic marker for the GM console's own conversation browser — the
   // actual player-side invisibility comes from never setting isBroadcast/
   // playerMembers below, not from this flag.
@@ -286,7 +201,7 @@ export async function deployMessage(convId, messageId, msg) {
  * device must never leak into the normal broadcast/targeted player inbox.
  *
  * @param {string} convId
- * @param {{ sender: string, color?: string, text: string, ts: number, groupId?: string, groupName?: string }} payload
+ * @param {{ sender: string, color?: string, text: string, ts: number }} payload
  */
 export async function sendAsNpc(convId, payload) {
   const full = { ...payload, npcOnly: true };
@@ -360,23 +275,4 @@ export async function cancelLocationShare(convId, codename) {
     { locationSharing: { enabled: false, ts, by: codename } },
     { merge: true }
   );
-}
-
-export async function dualWriteResponse(convId, payload, rtdbMsgId) {
-  const msgData = {
-    type:   'player',
-    sender: payload.codename,
-    text:   payload.text || '',
-    ts:     payload.ts,
-    staged: true,
-  };
-
-  const convUpdate = {
-    lastMessageAt:     payload.ts,
-    lastMessageSender: payload.codename,
-    lastMessageText:   payload.text || '',
-  };
-
-  await setDoc(doc(db, 'conversations', convId), convUpdate, { merge: true });
-  await setDoc(doc(db, 'conversations', convId, 'messages', rtdbMsgId), msgData);
 }
