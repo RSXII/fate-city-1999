@@ -17,7 +17,7 @@
     setBridgeConfig,
     notifyBridge,
     testBridgeConnection,
-    toPublicAssetUrl,
+    toDataUrl,
   } from '$lib/foundry-bridge.js';
   import { CASE_SECTIONS } from '$lib/data/case-sections.js';
   import { CLASS_CONFIG, CLASS_DEFAULTS, VEHICLE_UPGRADES } from '$lib/data/rides.js';
@@ -1633,12 +1633,17 @@
       });
       await loadActiveCall();
       callSendStatus = { text: 'Call triggered.', type: 'ok' };
+      // Embedded as a data URL rather than a link to the public deployment
+      // — see toDataUrl()'s own comment for why (this bridge is meant to
+      // work LAN-only, without depending on Foundry's machine having
+      // internet access or that deployment being current).
+      const callerAvatarUrl = await toDataUrl(c.avatar);
       notifyBridge('call.incoming', {
         targetCodename: codename,
         callerName: c.name,
         callerSubtitle: c.subtitle || null,
         callerAvatar: c.avatar || null,
-        callerAvatarUrl: toPublicAssetUrl(c.avatar),
+        callerAvatarUrl,
         callerColor: c.color || '#c9a227',
       });
     } catch (e) {

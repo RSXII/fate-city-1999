@@ -5,23 +5,78 @@
 // and a dead/unreachable bridge on the desktop PC must be invisible to the GM
 // console's core flow.
 
+import { base } from '$app/paths';
+
 const STORAGE_KEY = 'fc99.foundryBridge';
 
-// Public URL the app is deployed to (GitHub Pages). Used to turn relative
-// asset paths (contact avatars, etc.) into URLs Foundry — running on a
-// different machine — can actually load, regardless of whether the GM
-// console itself is being run via `npm run dev` or the hosted build.
-// Note the repo-name subpath: GitHub Pages serves this under /fate-city-1999,
-// matching BASE_PATH in .github/workflows/deploy.yml.
-const ASSET_BASE_URL = 'https://rsxii.github.io/fate-city-1999';
+// The source art in static/images/wire-profiles/ is full-resolution
+// portrait/promo art, not pre-optimized for this — several hundred KB to
+// multiple MB each (fcpd_wire.png alone is 3MB). The bridge's /event
+// endpoint caps request bodies at 1MB total (see bridge/server.js), so
+// embedding one of these as-is wouldn't just make a slow request, it would
+// silently drop the *entire* call.incoming event, portrait and all. This is
+// why toDataUrl() downscales and re-encodes rather than just reading the
+// file — a plain fetch+base64 of the raw asset isn't viable here.
+const MAX_AVATAR_DIMENSION = 480; // long edge, px — the call card only ever renders this at 260x360 CSS px, so this comfortably covers even a 2x-DPI display
+const AVATAR_JPEG_QUALITY = 0.82;
+const MAX_DATA_URL_CHARS = 400_000; // safety net after resizing — real headroom under the bridge's 1MB cap for the rest of the envelope
 
 /**
+ * Fetches a same-origin static asset (e.g. a contact avatar), downscales
+ * and re-encodes it, and returns it as a base64 data URL — so the event
+ * payload carries a right-sized copy of the image itself, not a link to
+ * one and not the multi-megabyte source file untouched.
+ *
+ * Replaces an earlier approach (`toPublicAssetUrl`) that linked to this
+ * app's GitHub Pages deployment instead — that depended on the Foundry
+ * machine having internet access *and* that deployment being up to date
+ * with whatever avatar was just picked, which contradicts this whole
+ * bridge being intentionally LAN-only (see bridge/README.md: "No auth —
+ * this is intentionally LAN-only"). Fetching same-origin means this works
+ * identically whether the console is running via `npm run dev` or the
+ * built site, online or fully offline, since it's just reading whatever
+ * asset the console itself already has loaded/servable — no dependency on
+ * a public deployment existing or being current.
+ *
+ * Re-encodes to JPEG regardless of the source format — the source art here
+ * is photographic portraits, not icons with transparency to preserve, and
+ * JPEG compresses that kind of content far better than PNG does, which is
+ * the whole point of this step.
+ *
  * @param {string|null|undefined} relativePath - e.g. 'images/wire-profiles/foo.png'
- * @returns {string|null}
+ * @returns {Promise<string|null>}
  */
-export function toPublicAssetUrl(relativePath) {
+export async function toDataUrl(relativePath) {
   if (!relativePath) return null;
-  return `${ASSET_BASE_URL}/${relativePath.replace(/^\/+/, '')}`;
+
+  try {
+    const res = await fetch(`${base}/${relativePath.replace(/^\/+/, '')}`);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, MAX_AVATAR_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const dataUrl = canvas.toDataURL('image/jpeg', AVATAR_JPEG_QUALITY);
+    if (dataUrl.length > MAX_DATA_URL_CHARS) {
+      console.warn(
+        `[foundry-bridge] avatar still too large after resize (${dataUrl.length} chars, max ${MAX_DATA_URL_CHARS}): ${relativePath}`,
+      );
+      return null;
+    }
+    return dataUrl;
+  } catch (err) {
+    console.warn('[foundry-bridge] toDataUrl failed:', err?.message || err);
+    return null;
+  }
 }
 
 /**
