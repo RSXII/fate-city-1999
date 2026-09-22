@@ -8,7 +8,7 @@
   import {
     subscribeConversations,
     subscribeMessages,
-    convIdForMsg,
+    defaultConversationName,
     createResponse,
     respondLocationShare,
     cancelLocationShare,
@@ -19,9 +19,9 @@
 
   const LAST_SEEN_KEY = 'wire-last-seen-map';
 
-  // URL params — null on both means conversation list view
-  $: activeSender = $page.url.searchParams.get('sender');
-  $: activeThread = $page.url.searchParams.get('thread'); // RTDB group key
+  // URL param — null means conversation list view. The value is the literal
+  // Firestore conversation doc id (see conversationKey in firestore-db.js).
+  $: activeThread = $page.url.searchParams.get('thread');
 
   let myCodename = null;
   let lastSeenMap = {};
@@ -88,6 +88,7 @@
   function initials(name) {
     const clean = String(name ?? '').replace(/^The\s+/i, '').replace(/\./g, '');
     const parts = clean.split(/[\s-]+/).filter(Boolean);
+    if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -126,14 +127,7 @@
     sendingResponse = true;
     try {
       const payload = { codename: myCodename, text, ts: Date.now() };
-      if (activeThread) {
-        payload.groupId = activeThread;
-        payload.groupName = activeGroupName;
-      } else if (activeSender) {
-        payload.context = activeSender;
-      }
-      const cid = convIdForMsg({ groupId: payload.groupId, sender: payload.context });
-      await createResponse(cid, payload);
+      await createResponse(convId, payload);
       responseText = '';
       needsScroll = true;
     } catch { /* swallow; will appear on next Firestore push */ }
@@ -172,12 +166,8 @@
 
   // ── Firestore: thread subscription ───────────────────────────────────────────
 
-  // Stable Firestore conversation ID derived from the current URL params
-  $: convId = activeThread
-    ? `group_${activeThread}`
-    : activeSender
-    ? convIdForMsg({ sender: activeSender })
-    : null;
+  // The URL param IS the Firestore conversation doc id — no reconstruction needed.
+  $: convId = activeThread ?? null;
 
   // Re-subscribe whenever the active conversation changes
   let _lastConvId = null;
@@ -224,14 +214,12 @@
 
   // Enrich raw Firestore conv docs with contact meta — re-runs when contacts load
   $: fsConversations = fsConvsRaw.map(c => {
-    const isGroup = c.id.startsWith('group_');
-    const groupId  = isGroup ? c.id.slice('group_'.length) : null;
-    const senderName = isGroup ? null : (c.npcMembers?.[0] ?? '');
-    const key  = isGroup ? `group:${groupId}` : `sender:${senderName}`;
-    const meta = isGroup ? { color: '#5b9e8f', avatar: null } : senderMeta(senderName);
+    const isGroup = (c.npcMembers?.length ?? 0) > 1;
+    const meta = isGroup ? { color: '#5b9e8f', avatar: null } : senderMeta(c.npcMembers?.[0] ?? '');
     return {
-      key, isGroup, groupId,
-      name:       c.name ?? senderName,
+      key:        c.id,
+      isGroup,
+      name:       c.name ?? defaultConversationName(c),
       color:      meta.color,
       avatar:     meta.avatar ?? null,
       lastTs:     c.lastMessageAt   ?? 0,
@@ -250,7 +238,8 @@
   // NPC-only messages in the active thread (used for header, markSeen)
   $: threadMessages = fsMessages.filter(m => m.type === 'npc');
 
-  $: isGroupThread = new Set(threadMessages.map(m => m.sender)).size > 1;
+  $: activeNpcMembers = activeConv?.npcMembers ?? [];
+  $: isGroupThread = activeNpcMembers.length > 1;
 
   // Combined NPC + player messages shaped for the template
   $: mergedThread = fsMessages.map(m => ({
@@ -259,21 +248,15 @@
     codename:    m.type === 'player' ? m.sender : undefined,
   }));
 
-  $: activeGroupName = activeThread
-    ? (threadMessages.find(m => m.groupName)?.groupName ?? 'Group Chat')
-    : null;
-  $: activeGroupMembers = activeThread
-    ? [...new Set(threadMessages.map(m => m.sender))]
-    : [];
+  $: activeName = activeConv ? (activeConv.name ?? defaultConversationName(activeConv)) : null;
 
   // Mark thread read when NPC messages are visible
-  $: if ((activeSender || activeThread) && threadMessages.length) {
-    const seenKey = activeThread ? `group:${activeThread}` : activeSender;
-    markSeen(seenKey, Math.max(...threadMessages.map(m => m.ts)));
+  $: if (activeThread && threadMessages.length) {
+    markSeen(activeThread, Math.max(...threadMessages.map(m => m.ts)));
   }
 
   // Conversation list — adds reactive unread dot based on lastSeenMap
-  $: conversations = (activeSender || activeThread)
+  $: conversations = activeThread
     ? []
     : fsConversations.map(c => ({
         ...c,
@@ -291,11 +274,11 @@
 
 <!-- Per-page header — custom markup, not wire-header web component -->
 <header class="msg-header">
-  {#if activeThread}
-    <!-- Group thread header -->
+  {#if activeThread && isGroupThread}
+    <!-- Multi-NPC thread header -->
     <a class="msg-back" href="{base}/messages" aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-group-avatars">
-      {#each activeGroupMembers.slice(0, 2) as name, i}
+      {#each activeNpcMembers.slice(0, 2) as name, i}
         {@const meta = contactsByName[name] ?? { color: '#5b9e8f' }}
         {@const color = meta.color}
         <div class="msg-header-group-avatar" style="background:{hexToRgba(color, 0.18)};border-color:{color};color:{color};z-index:{2-i}">
@@ -304,22 +287,23 @@
       {/each}
     </div>
     <div>
-      <div class="msg-header-title" style="color:#5b9e8f">{activeGroupName}</div>
-      <div class="msg-header-sub">{activeGroupMembers.join(' · ')}</div>
+      <div class="msg-header-title" style="color:#5b9e8f">{activeName}</div>
+      <div class="msg-header-sub">{activeNpcMembers.join(' · ')}</div>
     </div>
-  {:else if activeSender}
-    {@const meta = contactsByName[activeSender] ?? { color: '#b8902f', avatar: null }}
+  {:else if activeThread}
+    {@const soloName = activeNpcMembers[0] ?? ''}
+    {@const meta = contactsByName[soloName] ?? { color: '#b8902f', avatar: null }}
     <a class="msg-back" href="{base}/messages" aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-avatar"
       style="background:{hexToRgba(meta.color, 0.16)};border-color:{meta.color};color:{meta.color}">
-      {initials(activeSender)}
+      {initials(soloName)}
       {#if meta.avatar}
         <img src="{base}/{meta.avatar}" alt="" loading="lazy" class="avatar-img"
           on:error={e => e.currentTarget.style.display = 'none'}>
       {/if}
     </div>
     <div>
-      <div class="msg-header-title" style="color:{meta.color}">{activeSender}</div>
+      <div class="msg-header-title" style="color:{meta.color}">{activeName ?? soloName}</div>
       <div class="msg-header-sub">{meta.number || 'Fate City'}</div>
     </div>
   {:else}
@@ -332,7 +316,7 @@
   {/if}
 </header>
 
-{#if (activeSender || activeThread) && locationSharingEnabled}
+{#if activeThread && locationSharingEnabled}
   <button class="loc-banner" on:click={() => cancelShareModalOpen = true}>
     <span class="loc-banner-dot" aria-hidden="true"></span>
     Location sharing enabled
@@ -340,7 +324,7 @@
 {/if}
 
 <div class="msg-feed" bind:this={feedEl}>
-  {#if activeSender || activeThread}
+  {#if activeThread}
     <!-- Thread view -->
     {#if !mergedThread.length}
       <p class="msg-empty">Nothing here yet.</p>
@@ -475,9 +459,7 @@
       <PaginatedList items={conversations} pageSize={20} let:item>
         {@const g = item}
         <a class="conv-row"
-          href={g.isGroup
-            ? `${base}/messages?thread=${encodeURIComponent(g.groupId)}`
-            : `${base}/messages?sender=${encodeURIComponent(g.name)}`}
+          href="{base}/messages?thread={encodeURIComponent(g.key)}"
           in:fly={{ y: 8, duration: 350 }}>
           {#if g.isGroup}
             <div class="conv-avatar conv-avatar--group"
@@ -513,7 +495,7 @@
   {/if}
 </div>
 
-{#if activeSender || activeThread}
+{#if activeThread}
   {#if myCodename}
     <div class="msg-compose">
       <textarea

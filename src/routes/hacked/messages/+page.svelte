@@ -8,7 +8,7 @@
   import {
     subscribeConversations,
     subscribeMessages,
-    convIdForMsg,
+    defaultConversationName,
     sendAsNpc,
   } from '$lib/firestore-db.js';
   import Attachment from '$lib/components/Attachment.svelte';
@@ -23,8 +23,8 @@
   // concrete NPC keys at build time, which this app has no way to do.
   $: npcKey = $page.url.searchParams.get('npc') ?? '';
 
-  // URL params — null on both means conversation list view
-  $: activeSender = $page.url.searchParams.get('sender');
+  // URL param — null means conversation list view. The value is the literal
+  // Firestore conversation doc id (see conversationKey in firestore-db.js).
   $: activeThread = $page.url.searchParams.get('thread');
 
   $: backHref = `${base}/hacked/messages?npc=${encodeURIComponent(npcKey)}`;
@@ -81,6 +81,7 @@
   function initials(name) {
     const clean = String(name ?? '').replace(/^The\s+/i, '').replace(/\./g, '');
     const parts = clean.split(/[\s-]+/).filter(Boolean);
+    if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -99,12 +100,7 @@
     sendingResponse = true;
     try {
       const payload = { sender: npcKey, color: myMeta.color, text, ts: Date.now() };
-      if (activeThread) {
-        payload.groupId = activeThread;
-        payload.groupName = activeGroupName;
-      }
-      const cid = convId;
-      await sendAsNpc(cid, payload);
+      await sendAsNpc(convId, payload);
       responseText = '';
       needsScroll = true;
     } catch { /* swallow; will appear on next Firestore push */ }
@@ -121,11 +117,8 @@
   });
 
   // ── Firestore: thread subscription ───────────────────────────────────────
-  $: convId = activeThread
-    ? `group_${activeThread}`
-    : activeSender
-    ? convIdForMsg({ sender: activeSender })
-    : null;
+  // The URL param IS the Firestore conversation doc id — no reconstruction needed.
+  $: convId = activeThread ?? null;
 
   let _lastConvId = null;
   $: if (convId !== _lastConvId) {
@@ -173,15 +166,19 @@
   });
 
   // ── derived views ─────────────────────────────────────────────────────────
+  // The solo (1:1-with-another-NPC) case names the conversation after the
+  // OTHER party, from this device's point of view — not the full participant
+  // set, since seeing your own name in the label of your own inbox is noise.
+  // The multi-NPC case falls back to the same computed default used
+  // everywhere else in the app (the full roster), for consistency.
   $: fsConversations = fsConvsRaw.map(c => {
-    const isGroup = c.id.startsWith('group_');
-    const groupId  = isGroup ? c.id.slice('group_'.length) : null;
-    const otherName = isGroup ? null : (c.npcMembers ?? []).find(n => n !== npcKey) ?? c.npcMembers?.[0] ?? '';
-    const key  = isGroup ? `group:${groupId}` : `sender:${otherName}`;
+    const isGroup = (c.npcMembers?.length ?? 0) > 1;
+    const otherName = isGroup ? null : ((c.npcMembers ?? []).find(n => n !== npcKey) ?? c.npcMembers?.[0] ?? '');
     const meta = isGroup ? { color: '#5b9e8f', avatar: null } : (contactsByName[otherName] ?? { color: '#b8902f', avatar: null });
     return {
-      key, isGroup, groupId,
-      name:       c.name ?? otherName,
+      key:        c.id,
+      isGroup,
+      name:       c.name ?? (isGroup ? defaultConversationName(c) : otherName),
       color:      meta.color,
       avatar:     meta.avatar ?? null,
       lastTs:     c.lastMessageAt   ?? 0,
@@ -200,21 +197,20 @@
   $: canReply = !!activeConv?.npcOnly;
 
   $: threadMessages = fsMessages.filter(m => m.type === 'npc');
-  $: isGroupThread = new Set(threadMessages.map(m => m.sender)).size > 1;
+  $: activeNpcMembers = activeConv?.npcMembers ?? [];
+  $: isGroupThread = activeNpcMembers.length > 1;
+  $: activeOtherName = isGroupThread ? '' : (activeNpcMembers.find(n => n !== npcKey) ?? activeNpcMembers[0] ?? '');
 
   $: mergedThread = fsMessages.map(m => ({
     ...m,
     _isMine: m.sender === npcKey,
   }));
 
-  $: activeGroupName = activeThread
-    ? (threadMessages.find(m => m.groupName)?.groupName ?? 'Group Chat')
+  $: activeName = activeConv
+    ? (activeConv.name ?? (isGroupThread ? defaultConversationName(activeConv) : activeOtherName))
     : null;
-  $: activeGroupMembers = activeThread
-    ? [...new Set(threadMessages.map(m => m.sender))]
-    : [];
 
-  $: conversations = (activeSender || activeThread)
+  $: conversations = activeThread
     ? []
     : [...fsConversations].sort((a, b) => b.lastTs - a.lastTs);
 </script>
@@ -231,10 +227,10 @@
 <h1 class="sr-only">Hacked Wire device — {npcKey}</h1>
 
 <header class="msg-header">
-  {#if activeThread}
+  {#if activeThread && isGroupThread}
     <a class="msg-back" href={backHref} aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-group-avatars">
-      {#each activeGroupMembers.slice(0, 2) as name, i}
+      {#each activeNpcMembers.slice(0, 2) as name, i}
         {@const meta = contactsByName[name] ?? { color: '#5b9e8f' }}
         {@const color = meta.color}
         <div class="msg-header-group-avatar" style="background:{hexToRgba(color, 0.18)};border-color:{color};color:{color};z-index:{2-i}">
@@ -243,22 +239,22 @@
       {/each}
     </div>
     <div>
-      <div class="msg-header-title" style="color:#5b9e8f">{activeGroupName}</div>
-      <div class="msg-header-sub">{activeGroupMembers.join(' · ')}</div>
+      <div class="msg-header-title" style="color:#5b9e8f">{activeName}</div>
+      <div class="msg-header-sub">{activeNpcMembers.join(' · ')}</div>
     </div>
-  {:else if activeSender}
-    {@const meta = contactsByName[activeSender] ?? { color: '#b8902f', avatar: null }}
+  {:else if activeThread}
+    {@const meta = contactsByName[activeOtherName] ?? { color: '#b8902f', avatar: null }}
     <a class="msg-back" href={backHref} aria-label="Back to all conversations">&lsaquo;</a>
     <div class="msg-header-avatar"
       style="background:{hexToRgba(meta.color, 0.16)};border-color:{meta.color};color:{meta.color}">
-      {initials(activeSender)}
+      {initials(activeOtherName)}
       {#if meta.avatar}
         <img src="{base}/{meta.avatar}" alt="" loading="lazy" class="avatar-img"
           on:error={e => e.currentTarget.style.display = 'none'}>
       {/if}
     </div>
     <div>
-      <div class="msg-header-title" style="color:{meta.color}">{activeSender}</div>
+      <div class="msg-header-title" style="color:{meta.color}">{activeName}</div>
       <div class="msg-header-sub">{meta.number || 'Fate City'}</div>
     </div>
   {:else}
@@ -272,7 +268,7 @@
 </header>
 
 <div class="msg-feed" bind:this={feedEl}>
-  {#if activeSender || activeThread}
+  {#if activeThread}
     {#if !mergedThread.length}
       <p class="msg-empty">Nothing here yet.</p>
     {:else}
@@ -358,9 +354,7 @@
       <PaginatedList items={conversations} pageSize={20} let:item>
         {@const g = item}
         <a class="conv-row"
-          href={g.isGroup
-            ? `${backHref}&thread=${encodeURIComponent(g.groupId)}`
-            : `${backHref}&sender=${encodeURIComponent(g.name)}`}
+          href="{backHref}&thread={encodeURIComponent(g.key)}"
           in:fly={{ y: 8, duration: 350 }}>
           {#if g.isGroup}
             <div class="conv-avatar conv-avatar--group"
@@ -392,7 +386,7 @@
   {/if}
 </div>
 
-{#if (activeSender || activeThread) && canReply}
+{#if activeThread && canReply}
   <div class="msg-compose">
     <textarea
       class="msg-compose-input"
@@ -406,7 +400,7 @@
       {sendingResponse ? '…' : 'Send'}
     </button>
   </div>
-{:else if activeSender || activeThread}
+{:else if activeThread}
   <div class="msg-footer-note">Read-only &middot; this conversation isn't hidden, replying here would go live to the real players</div>
 {:else}
   <div class="msg-footer-note">Compromised device &middot; updates live</div>
