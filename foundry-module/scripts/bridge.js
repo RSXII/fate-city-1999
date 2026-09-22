@@ -43,6 +43,11 @@ const FORMATTERS = {
     return `⏱️ Countdown extended${secs != null ? ` +${secs}s` : ''}`;
   },
 
+  'call.ended': (payload) => {
+    const target = payload.targetCodename ?? '?';
+    return `📞 Call ended → ${target}`;
+  },
+
   'timer.stopped': () => `⏱️ Countdown cleared`,
 
   'calendar.changed': (payload) => {
@@ -82,6 +87,7 @@ const FORMATTERS = {
 // everything else defaults to public.
 const AUDIENCE = {
   'call.incoming': (payload) => (payload.targetCodename ? [payload.targetCodename] : null),
+  'call.ended': (payload) => (payload.targetCodename ? [payload.targetCodename] : null),
   'wire.deployed': (payload) => (payload.recipients?.length ? payload.recipients : null),
 };
 
@@ -380,16 +386,15 @@ function clearTimerDisplay() {
 // Per-type visual side-effects beyond the chat message, e.g. the toast
 // above. Optional — most event types won't need one. Wrapped in try/catch
 // by the caller so a failure here never blocks the chat message itself.
+// `call.incoming` / `call.ended` deliberately have no entry here — the
+// separate `cpr-incoming-call` module (in the foundry-cpr-modules project)
+// now owns the full presentation for calls: a top ringing/in-call toast
+// with Answer/Reject/Hang Up, plus a connection card once answered. It
+// reads the same envelope flag this module writes below, so it needs no
+// changes here beyond this call.incoming toast being removed — leaving it
+// would have shown a second, non-interactive toast stacked on top of that
+// module's own interactive one for the same event.
 const VISUAL_HANDLERS = {
-  'call.incoming': (payload) => {
-    showToast({
-      imageUrl: payload.callerAvatarUrl,
-      icon: '📞',
-      title: 'Incoming Call',
-      subtitle: payload.callerName ?? 'Unknown',
-    });
-  },
-
   'once.deployed': (payload) => {
     const isEpsilon = payload.sender === 'Epsilon';
     showToast({
