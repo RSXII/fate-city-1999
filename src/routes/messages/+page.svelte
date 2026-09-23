@@ -341,7 +341,7 @@
               <div class="msg-bubble-mine">
                 <div class="msg-bubble-text">{@html linkify(item.text)}</div>
               </div>
-              <span class="msg-mine-time">{relTime(item.ts)}</span>
+              <span class="msg-mine-time">{item.timeLabel ?? relTime(item.ts)}</span>
               {#if item.status === 'seen'}
                 <span class="msg-mine-status msg-mine-status--seen">Seen</span>
               {:else if item.status === 'not_delivered'}
@@ -410,7 +410,7 @@
                   </div>
                 {/if}
                 {#if isLastInRun}
-                  <span class="msg-time msg-time-group">{relTime(item.ts)}</span>
+                  <span class="msg-time msg-time-group">{item.timeLabel ?? relTime(item.ts)}</span>
                 {/if}
               </div>
             </div>
@@ -433,7 +433,7 @@
                     <Attachment url={item.attachmentUrl} />
                   {/if}
                 </div>
-                <span class="msg-time">{relTime(item.ts)}</span>
+                <span class="msg-time">{item.timeLabel ?? relTime(item.ts)}</span>
               </div>
               {#if item.locationRequest && !answeredLocationRequestIds.has(item.id)}
                 <div class="loc-request">

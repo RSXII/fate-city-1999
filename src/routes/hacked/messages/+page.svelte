@@ -279,7 +279,7 @@
               <div class="msg-bubble-mine">
                 <div class="msg-bubble-text">{@html linkify(item.text)}</div>
               </div>
-              <span class="msg-mine-time">{relTime(item.ts)}</span>
+              <span class="msg-mine-time">{item.timeLabel ?? relTime(item.ts)}</span>
             </div>
           </div>
         {:else}
@@ -321,7 +321,7 @@
                   {/if}
                 </div>
                 {#if isLastInRun}
-                  <span class="msg-time msg-time-group">{relTime(item.ts)}</span>
+                  <span class="msg-time msg-time-group">{item.timeLabel ?? relTime(item.ts)}</span>
                 {/if}
               </div>
             </div>
@@ -340,7 +340,7 @@
                     <Attachment url={item.attachmentUrl} />
                   {/if}
                 </div>
-                <span class="msg-time">{relTime(item.ts)}</span>
+                <span class="msg-time">{item.timeLabel ?? relTime(item.ts)}</span>
               </div>
             </div>
           {/if}

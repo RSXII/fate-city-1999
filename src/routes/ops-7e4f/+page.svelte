@@ -154,6 +154,7 @@
   // ── Section 1: Wire Messages ──────────────────────────────────────────────
   let selectedSender = null;
   let msgText = '';
+  let msgTimeLabel = ''; // optional in-fiction timestamp, e.g. "3 months ago"
   let selectedImage = null; // { url, name }
   let requestLocationShare = false;
   let pickerOpen = false;
@@ -341,12 +342,14 @@
       const npcNames = selectedGroup ? selectedGroup.members : [selectedSender.name];
       const payload = { sender: selectedSender.name, color: selectedSender.color, text, ts: Date.now(), staged: false, npcMembers: npcNames };
       if (selectedImage) payload.imageUrl = selectedImage.url;
+      if (msgTimeLabel.trim()) payload.timeLabel = msgTimeLabel.trim();
       if (npcOnlyMessage) payload.npcOnly = true;
       else if (selectedRecipients.length > 0) payload.recipients = [...selectedRecipients];
       if (requestLocationShare) payload.locationRequest = true;
       const convId = conversationKey({ npcNames, recipients: payload.recipients ?? [], npcOnly: !!payload.npcOnly });
       await createMessage(convId, payload);
       msgText = '';
+      msgTimeLabel = '';
       selectedImage = null;
       requestLocationShare = false;
       pickerOpen = false;
@@ -2820,6 +2823,9 @@
 
         <textarea bind:value={msgText} placeholder="Type what they'd actually text…"></textarea>
 
+        <input type="text" bind:value={msgTimeLabel} maxlength="40"
+          placeholder="Time label (optional) — e.g. 3 months ago. Blank = live time" />
+
         <div class="attach-row">
           <button class="ghost-btn" type="button" on:click={togglePicker}>
             {pickerOpen ? 'Close picker' : '+ Attach image'}
@@ -2882,7 +2888,7 @@
                 <div class="chain-log-top">
                   <span class="log-name" style="color:{m.color}">{m.sender}:</span>
                   <span class="log-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{#if m.imageUrl}📷 {/if}{m.text ?? ''}</span>
-                  <span class="chain-log-meta">{relTime(m.ts)}</span>
+                  <span class="chain-log-meta">{m.timeLabel ?? relTime(m.ts)}</span>
                 </div>
                 {#if m.recipients?.length || m.locationRequest}
                   <div class="chain-log-tags">
@@ -2973,7 +2979,7 @@
                           <span class="conv-msg-name" style="color:{item.color}">{item.sender}:</span>
                         {/if}
                         <span class="conv-msg-text">{#if item.imageUrl}📷 {/if}{item.text ?? ''}</span>
-                        <span class="conv-msg-time">{relTime(item.ts)}</span>
+                        <span class="conv-msg-time">{item.timeLabel ?? relTime(item.ts)}</span>
                         <span class="conv-msg-actions">
                           <button class="conv-action-btn" title="Recall" on:click|stopPropagation={() => recallMessage(item.id)}>↩</button>
                           <button class="conv-action-btn conv-action-btn--danger" title="Delete" on:click|stopPropagation={() => deleteMessage(item.id)}>×</button>
@@ -2983,7 +2989,7 @@
                       <div class="conv-msg conv-msg-player">
                         <span class="conv-msg-name conv-msg-name--player">{item.codename}:</span>
                         <span class="conv-msg-text">{item.text}</span>
-                        <span class="conv-msg-time">{relTime(item.ts)}</span>
+                        <span class="conv-msg-time">{item.timeLabel ?? relTime(item.ts)}</span>
                       </div>
                     {/if}
                   {/each}
