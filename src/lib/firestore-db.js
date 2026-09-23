@@ -146,6 +146,7 @@ export async function createMessage(convId, payload) {
   if (payload.recipients?.length) msgData.recipients = payload.recipients;
   if (payload.locationRequest)    msgData.locationRequest = true;
   if (payload.npcOnly)            msgData.npcOnly = true;
+  if (payload.timeLabel)          msgData.timeLabel = payload.timeLabel;
 
   const cleanMsg = Object.fromEntries(
     Object.entries(msgData).filter(([, v]) => v !== null),
