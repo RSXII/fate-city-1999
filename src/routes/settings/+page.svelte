@@ -1,9 +1,36 @@
 <script>
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
   import { onMount, tick } from 'svelte';
   import { FIREBASE_CONFIG, FIREBASE_URL, VAPID_KEY, dbGet, dbPut } from '$lib/firebase-db.js';
   import { getCodename } from '$lib/utils.js';
+  import { GM_PIN, isGmAuthenticated, setGmAuthenticated, clearGmAuthenticated } from '$lib/gm-auth.js';
+
+  // ── GM access ─────────────────────────────────────────────────────────────
+  // Entered here rather than typed as a URL, since the installed PWA has no
+  // address bar — this is the only in-app path to GM mode on a phone.
+  let gmUnlocked = false;
+  let gmPinInput = '';
+  let gmPinError = false;
+
+  function unlockGm() {
+    if (gmPinInput.trim() === GM_PIN) {
+      setGmAuthenticated();
+      gmUnlocked = true;
+      gmPinError = false;
+      gmPinInput = '';
+      goto(`${base}/messages`);
+    } else {
+      gmPinError = true;
+      gmPinInput = '';
+    }
+  }
+
+  function lockGm() {
+    clearGmAuthenticated();
+    gmUnlocked = false;
+  }
 
   const LS_KEY = 'wire-notif-sub'; // { pushId, token }
 
@@ -204,6 +231,7 @@
 
   onMount(async () => {
     if (!browser) return;
+    gmUnlocked = isGmAuthenticated();
     loadProfile();
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     supported = true;
@@ -387,6 +415,43 @@
       {/if}
     </div>
   </div>
+
+  <div class="sg-section">
+    <div class="sg-section-label">GM Access</div>
+    <div class="sg-row">
+      <div class="sg-row-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      {#if gmUnlocked}
+        <div class="sg-row-body">
+          <div class="sg-row-title">GM mode enabled</div>
+          <div class="sg-row-desc">Messages shows every conversation and replies post as the NPC.</div>
+        </div>
+        <button class="gm-pin-btn gm-pin-btn--lock" type="button" on:click={lockGm}>Disable</button>
+      {:else}
+        <div class="sg-row-body">
+          <div class="sg-row-title">Unlock GM mode</div>
+          <div class="sg-row-desc">Lets this device reply in Messages as the NPC in any conversation.</div>
+          <form class="gm-pin-form" on:submit|preventDefault={unlockGm}>
+            <input
+              class="gm-pin-input"
+              class:gm-pin-input--error={gmPinError}
+              type="password"
+              placeholder="Passphrase"
+              bind:value={gmPinInput}
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="gm-pin-btn" type="submit">Unlock</button>
+          </form>
+          {#if gmPinError}<div class="gm-pin-error">Access denied.</div>{/if}
+        </div>
+      {/if}
+    </div>
+  </div>
 </div>
 
 <style>
@@ -503,6 +568,51 @@
   .profile-upload-btn:hover {
     border-color: rgba(106, 176, 212, 0.6);
     color: #6ab0d4;
+  }
+
+  /* ── GM access section ──────────────────────────────────────────────────── */
+  .gm-pin-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .gm-pin-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #1e2d40;
+    border-radius: 6px;
+    color: #e8dfc8;
+    font-size: 12.5px;
+    padding: 7px 10px;
+    outline: none;
+  }
+  .gm-pin-input:focus { border-color: #c9a227; }
+  .gm-pin-input--error { border-color: #e03e3e; }
+  .gm-pin-btn {
+    flex-shrink: 0;
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: 6px;
+    color: #c9a227;
+    font-size: 11px;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  .gm-pin-btn:hover { background: rgba(201, 162, 39, 0.2); }
+  .gm-pin-btn--lock {
+    background: none;
+    border-color: rgba(192, 80, 74, 0.35);
+    color: rgba(192, 80, 74, 0.8);
+  }
+  .gm-pin-btn--lock:hover { background: rgba(192, 80, 74, 0.1); }
+  .gm-pin-error {
+    font-size: 10px;
+    color: #e03e3e;
+    margin-top: 6px;
+    letter-spacing: 0.3px;
   }
 
   /* Crop UI */

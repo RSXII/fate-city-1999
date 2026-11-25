@@ -14,6 +14,7 @@
     deleteMessage as fsDeleteMessage,
   } from '$lib/firestore-db.js';
   import { visibilityAwareInterval } from '$lib/utils.js';
+  import { GM_PIN, isGmAuthenticated, setGmAuthenticated } from '$lib/gm-auth.js';
   import {
     getBridgeConfig,
     setBridgeConfig,
@@ -38,16 +39,13 @@
   ];
 
   // ── PIN gate ──────────────────────────────────────────────────────────────────
-  const GM_PIN = 'fc99-ops';   // change this to your preferred passphrase
-  const AUTH_KEY = 'gm-auth-7e4f';
-
   let authenticated = false;
   let pinInput = '';
   let pinError = false;
 
   function submitPin() {
     if (pinInput.trim() === GM_PIN) {
-      try { localStorage.setItem(AUTH_KEY, GM_PIN); } catch {}
+      setGmAuthenticated();
       authenticated = true;
       pinError = false;
     } else {
@@ -2340,7 +2338,7 @@
   }
 
   onMount(() => {
-    try { authenticated = localStorage.getItem(AUTH_KEY) === GM_PIN; } catch {}
+    authenticated = isGmAuthenticated();
     addReply(); addReply();
     // Wire messages — subscribe to all conversations, then to each conversation's messages
     _wireConvSub = fsSubscribeConversations(convs => {

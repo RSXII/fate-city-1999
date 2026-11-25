@@ -212,6 +212,27 @@ export async function sendAsNpc(convId, payload) {
 }
 
 /**
+ * Reply as an NPC inside an existing conversation, live — used by the GM's
+ * mobile Wire view to answer in character from a phone instead of staging
+ * through the console. Inherits the conversation's existing audience
+ * (hidden / targeted / broadcast) rather than guessing one, so a live reply
+ * can never widen or narrow who already sees the thread the way forcing
+ * `npcOnly` (as `sendAsNpc` does for the hacked-device mechanic) would.
+ *
+ * @param {string} convId
+ * @param {{ npcOnly?: boolean, playerMembers?: string[] }} conv - the conversation doc
+ * @param {{ sender: string, color?: string, text: string, ts: number }} payload
+ */
+export async function replyAsNpc(convId, conv, payload) {
+  const full = { ...payload };
+  if (conv?.npcOnly) full.npcOnly = true;
+  else if (conv?.playerMembers?.length) full.recipients = conv.playerMembers;
+  const ref = await createMessage(convId, full);
+  await deployMessage(convId, ref.id, full);
+  return ref;
+}
+
+/**
  * Create a player response in Firestore (no RTDB write).
  * Auto-generates the message doc ID.
  */

@@ -12,7 +12,10 @@
     createResponse,
     respondLocationShare,
     cancelLocationShare,
+    replyAsNpc,
   } from '$lib/firestore-db.js';
+  import { notifyBridge } from '$lib/foundry-bridge.js';
+  import { isGmAuthenticated } from '$lib/gm-auth.js';
   import Attachment from '$lib/components/Attachment.svelte';
   import PaginatedList from '$lib/components/PaginatedList.svelte';
   import SearchModal from '$lib/components/SearchModal.svelte';
@@ -33,6 +36,13 @@
   let responseText = '';
   let sendingResponse = false;
   let playerProfiles = {};
+
+  // ── GM mode ───────────────────────────────────────────────────────────────
+  // Unlocked from Settings (no address bar in the installed PWA to reach a
+  // separate GM route) — same Messages view, but unfiltered, and replying
+  // posts as the NPC instead of as a player.
+  let isGm = false;
+  let selectedSenderName = null;
 
   // ── location sharing ─────────────────────────────────────────────────────────
   let respondingRequestId = null;
@@ -134,6 +144,34 @@
     sendingResponse = false;
   }
 
+  // ── GM reply (posts as the selected NPC, live) ───────────────────────────
+  async function sendGmReply() {
+    const text = responseText.trim();
+    if (!text || sendingResponse || !convId || !selectedSenderName) return;
+    sendingResponse = true;
+    try {
+      const meta = contactsByName[selectedSenderName] ?? {};
+      const payload = { sender: selectedSenderName, color: meta.color || null, text, ts: Date.now() };
+      await replyAsNpc(convId, activeConv, payload);
+      // npcOnly threads must never announce to Foundry — see
+      // docs/npc-device-hack-audit.md on why skipping the call is the only
+      // safe move (there's no "whisper to nobody" mode).
+      if (!activeConv?.npcOnly) {
+        notifyBridge('wire.deployed', {
+          sender: selectedSenderName,
+          color: meta.color || null,
+          groupName: activeConv ? (activeConv.name ?? defaultConversationName(activeConv)) : null,
+          preview: text.slice(0, 80),
+          hasImage: false,
+          recipients: activeConv?.playerMembers?.length ? activeConv.playerMembers : null,
+        });
+      }
+      responseText = '';
+      needsScroll = true;
+    } catch { /* swallow; will appear on next Firestore push */ }
+    sendingResponse = false;
+  }
+
   async function respondLocation(item, choice) {
     if (!myCodename || !convId || respondingRequestId) return;
     respondingRequestId = item.id;
@@ -178,10 +216,14 @@
     if (convId) {
       isFirstSnapshot = true;
       unsubMessages = subscribeMessages(convId, msgs => {
-        const visible = msgs.filter(m =>
-          m.type === 'player' ||
-          (m.staged !== false && (!m.recipients || m.recipients.includes(myCodename)))
-        );
+        // The GM sees the whole thread live, unfiltered — no per-recipient
+        // narrowing the way the normal player view applies.
+        const visible = isGm
+          ? msgs.filter(m => m.staged !== false)
+          : msgs.filter(m =>
+              m.type === 'player' ||
+              (m.staged !== false && (!m.recipients || m.recipients.includes(myCodename)))
+            );
         const hadNew = visible.length > fsMessages.length;
         if (hadNew && !isFirstSnapshot) playTextChime();
         fsMessages = visible;
@@ -193,13 +235,19 @@
 
   onMount(() => {
     myCodename = getCodename();
+    isGm = isGmAuthenticated();
     lastSeenMap = loadLastSeen();
     loadContacts();
     loadPlayerProfiles();
     unsubConversations = subscribeConversations(rawConvs => {
-      fsConvsRaw = rawConvs.filter(c =>
-        c.isBroadcast || (c.playerMembers ?? []).includes(myCodename)
-      );
+      // GM mode sees every conversation unfiltered, including hidden
+      // npcOnly ones — the normal player view stays scoped to what's
+      // actually addressed to them.
+      fsConvsRaw = isGm
+        ? rawConvs
+        : rawConvs.filter(c =>
+            c.isBroadcast || (c.playerMembers ?? []).includes(myCodename)
+          );
     });
     contactsPollTimer = visibilityAwareInterval(loadContacts, 30000);
   });
@@ -219,6 +267,7 @@
     return {
       key:        c.id,
       isGroup,
+      npcOnly:    !!c.npcOnly,
       name:       c.name ?? defaultConversationName(c),
       color:      meta.color,
       avatar:     meta.avatar ?? null,
@@ -240,6 +289,13 @@
 
   $: activeNpcMembers = activeConv?.npcMembers ?? [];
   $: isGroupThread = activeNpcMembers.length > 1;
+
+  // Which NPC the GM compose box currently speaks as — sticky across sends
+  // in the same thread, reset whenever the thread (and its roster) changes.
+  $: if (isGm && activeNpcMembers.length && (!selectedSenderName || !activeNpcMembers.includes(selectedSenderName))) {
+    selectedSenderName = activeNpcMembers[0];
+  }
+  $: if (isGm && !activeNpcMembers.length) selectedSenderName = null;
 
   // Combined NPC + player messages shaped for the template
   $: mergedThread = fsMessages.map(m => ({
@@ -288,7 +344,7 @@
     </div>
     <div>
       <div class="msg-header-title" style="color:#5b9e8f">{activeName}</div>
-      <div class="msg-header-sub">{activeNpcMembers.join(' · ')}</div>
+      <div class="msg-header-sub">{activeNpcMembers.join(' · ')}{activeConv?.npcOnly ? ' · HIDDEN' : ''}</div>
     </div>
   {:else if activeThread}
     {@const soloName = activeNpcMembers[0] ?? ''}
@@ -304,14 +360,14 @@
     </div>
     <div>
       <div class="msg-header-title" style="color:{meta.color}">{activeName ?? soloName}</div>
-      <div class="msg-header-sub">{meta.number || 'Fate City'}</div>
+      <div class="msg-header-sub">{activeConv?.npcOnly ? 'HIDDEN' : (meta.number || 'Fate City')}</div>
     </div>
   {:else}
     <a class="msg-back" href="{base}/home" aria-label="Back to home screen">&lsaquo;</a>
     <span class="msg-live-dot" aria-hidden="true"></span>
     <div>
       <div class="msg-header-title">Messages</div>
-      <div class="msg-header-sub">Fate City</div>
+      <div class="msg-header-sub">{isGm ? 'Fate City · GM' : 'Fate City'}</div>
     </div>
   {/if}
 </header>
@@ -483,6 +539,7 @@
               <span class="conv-time">{relTime(g.lastTs)}</span>
             </div>
             <div class="conv-preview" class:unread={g.unread}>
+              {#if g.npcOnly}<span class="conv-hidden-tag">HIDDEN</span>{/if}
               {#if g.isGroup && g.lastSender}{g.lastSender}: {/if}{g.lastText}
             </div>
           </div>
@@ -496,7 +553,34 @@
 </div>
 
 {#if activeThread}
-  {#if myCodename}
+  {#if isGm}
+    <div class="msg-compose-wrap">
+      {#if isGroupThread}
+        <div class="sender-picker">
+          {#each activeNpcMembers as name}
+            {@const meta = contactsByName[name] ?? { color: '#b8902f' }}
+            {@const isSel = selectedSenderName === name}
+            <button type="button" class="sender-chip" class:selected={isSel}
+              style="border-color:{meta.color}; color:{isSel ? '#0c0f16' : meta.color}; background:{isSel ? meta.color : 'transparent'}"
+              on:click={() => selectedSenderName = name}>{name}</button>
+          {/each}
+        </div>
+      {/if}
+      <div class="msg-compose">
+        <textarea
+          class="msg-compose-input"
+          bind:value={responseText}
+          placeholder={selectedSenderName ? `Reply as ${selectedSenderName}…` : 'Reply…'}
+          rows="2"
+          on:keydown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendGmReply(); } }}
+        ></textarea>
+        <button class="msg-compose-send" disabled={!responseText.trim() || sendingResponse || !selectedSenderName}
+          on:click={sendGmReply}>
+          {sendingResponse ? '…' : 'Send'}
+        </button>
+      </div>
+    </div>
+  {:else if myCodename}
     <div class="msg-compose">
       <textarea
         class="msg-compose-input"
@@ -514,7 +598,7 @@
     <div class="msg-footer-note">Set your codename to reply.</div>
   {/if}
 {:else}
-  <div class="msg-footer-note">Read only &middot; updates live</div>
+  <div class="msg-footer-note">{isGm ? 'GM mode · every conversation, unfiltered' : 'Read only · updates live'}</div>
 {/if}
 
 <SearchModal open={searchOpen} on:close={() => searchOpen = false} />
@@ -800,6 +884,16 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .conv-hidden-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #c0504a;
+    border: 1px solid rgba(192, 80, 74, 0.4);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-right: 5px;
+  }
   .conv-preview.unread {
     color: rgba(232, 223, 200, 0.92);
     font-weight: 600;
@@ -1030,6 +1124,27 @@
   .loc-modal-btn--cancel:hover { background: rgba(255, 255, 255, 0.1); }
   .loc-modal-btn--confirm { background: #c0504a; color: #f3efe6; }
   .loc-modal-btn--confirm:not(:disabled):hover { opacity: 0.88; }
+
+  /* ── GM sender picker ─────────────────────────────────────────────────── */
+  .msg-compose-wrap { flex-shrink: 0; background: #0c0f16; }
+  .sender-picker {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 14px 0;
+    scrollbar-width: none;
+  }
+  .sender-chip {
+    flex-shrink: 0;
+    border: 1px solid;
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
 
   /* ── compose area ──────────────────────────────────────────────────────── */
   .msg-compose {
