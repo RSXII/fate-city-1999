@@ -16,11 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -50,6 +47,19 @@ jobs:
         with:
           path: build/
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # A separate job (rather than a step in `build`) so this runs on a
+      # fresh runner moments later — deploy-pages queries the Actions API
+      # for the artifact by workflow-run ID, and doing that immediately
+      # after the upload in the same job is prone to "Found 0 artifact(s)"
+      # from API propagation lag.
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
